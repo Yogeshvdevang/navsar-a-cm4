@@ -1,0 +1,149 @@
+GPS_INPUT_FORMAT:
+--------------------------------------------------------------------------------
+Field Name,C-Type,Size,Unit / Note
+0,time_usec,uint64_t,8,Micros since boot (or Unix epoch)
+8,time_week_ms,uint32_t,4,Milliseconds since start of GPS week
+12,lat,int32_t,4,degE7 (Degrees * 10^7)
+16,lon,int32_t,4,degE7 (Degrees * 10^7)
+20,alt,float,4,Meters (AMSL)
+24,hdop,float,4,Horizontal Dilution (Unitless)
+28,vdop,float,4,Vertical Dilution (Unitless)
+32,vn,float,4,m/s (North Velocity)
+36,ve,float,4,m/s (East Velocity)
+40,vd,float,4,m/s (Down Velocity - Positive Down)
+44,speed_accuracy,float,4,m/s (Speed uncertainty)
+48,horiz_accuracy,float,4,Meters (Position uncertainty)
+52,vert_accuracy,float,4,Meters (Vertical uncertainty)
+56,ignore_flags,uint16_t,2,Bitmask (See Section 4)
+58,time_week,uint16_t,2,GPS Week Number
+60,gps_id,uint8_t,1,"ID (0 for Main, 1 for 2nd)"
+61,fix_type,uint8_t,1,0-6 (See Section 5)
+62,satellites_visible,uint8_t,1,Count (0-255)
+
+Configuration:
+COMPASS_ENABLE 0
+COMPASS_USE 0
+EKF3_SRC1_YAW 2
+GPS_TYPE 14 for mavlink
+
+--------------------------------------------------------------------------------
+
+[Duplicate Table Section]
+Field Name,C-Type,Size,Unit / Note
+0,time_usec,uint64_t,8,Micros since boot (or Unix epoch)
+8,time_week_ms,uint32_t,4,Milliseconds since start of GPS week
+12,lat,int32_t,4,degE7 (Degrees * 10^7)
+16,lon,int32_t,4,degE7 (Degrees * 10^7)
+20,alt,float,4,Meters (AMSL)
+24,hdop,float,4,Horizontal Dilution (Unitless)
+28,vdop,float,4,Vertical Dilution (Unitless)
+32,vn,float,4,m/s (North Velocity)
+36,ve,float,4,m/s (East Velocity)
+40,vd,float,4,m/s (Down Velocity - Positive Down)
+44,speed_accuracy,float,4,m/s (Speed uncertainty)
+48,horiz_accuracy,float,4,Meters (Position uncertainty)
+52,vert_accuracy,float,4,Meters (Vertical uncertainty)
+56,ignore_flags,uint16_t,2,Bitmask (See Section 4)
+58,time_week,uint16_t,2,GPS Week Number
+60,gps_id,uint8_t,1,"ID (0 for Main, 1 for 2nd)"
+61,fix_type,uint8_t,1,0-6 (See Section 5)
+62,satellites_visible,uint8_t,1,Count (0-255)
+
+GPS_PORT:
+--------------------------------------------------------------------------------
+COMPASS_USE 1
+COMPASS_EXTERN2 1
+COMPASS_ENABLE 0
+EKF3_SRC1_YAW 0
+
+ODOMETRY:
+--------------------------------------------------------------------------------
+Byte Offset,Field Name,C-Type,Size,Unit / Note
+0,time_usec,uint64_t,8,Timestamp (micros since boot)
+8,x,float,4,m (X Position)
+12,y,float,4,m (Y Position)
+16,z,float,4,m (Z Position)
+20,"q[4]","float[4]",16,"Quaternion (w, x, y, z)"
+36,vx,float,4,m/s (X Linear Velocity)
+40,vy,float,4,m/s (Y Linear Velocity)
+44,vz,float,4,m/s (Z Linear Velocity)
+48,rollspeed,float,4,rad/s (Roll Angular Velocity)
+52,pitchspeed,float,4,rad/s (Pitch Angular Velocity)
+56,yawspeed,float,4,rad/s (Yaw Angular Velocity)
+60,"pose_covariance[21]","float[21]",84,Row-major upper triangle
+144,"velocity_covariance[21]","float[21]",84,Row-major upper triangle
+228,frame_id,uint8_t,1,Coordinate frame of Pose
+229,child_frame_id,uint8_t,1,Coordinate frame of Velocity
+230,reset_counter,uint8_t,1,Estimate reset counter
+231,estimator_type,uint8_t,1,"Source (VIO, Mocap, Lidar, etc.)"
+
+UART PIN SHEET:
+--------------------------------------------------------------------------------
+UART Port,Port,TX Pin,RX Pin,Sensors,Notes
+UART 0,/dev/ttyAMA0,GPIO 14 (Pin 8),GPIO 15 (Pin 10),GPS,Primary. The classic Pi UART. Now easier to use since the console moved to the dedicated plug.
+UART 1,/dev/ttyAMA1,GPIO 0 (Pin 27),GPIO 1 (Pin 28),,Reserved. Shared with HAT EEPROM ID pins. Avoid using unless you know exactly what you are doing.
+UART 2,/dev/ttyAMA2,GPIO 4 (Pin 7),GPIO 5 (Pin 29),Pixhawk GPS port,"Recommended. Great for secondary devices (GPS, Telemetry)."
+UART 3,/dev/ttyAMA3,GPIO 8 (Pin 24),GPIO 9 (Pin 21),Mavlink,"Solid Choice. Often used for SPI, so check for conflicts."
+UART 4,/dev/ttyAMA4,GPIO 12 (Pin 32),GPIO 13 (Pin 33),Optical flow,"Solid Choice. Often used for PWM, check conflicts."
+
+OPTICAL FLOW :
+
+Step 1:
+
+Configure the MTF-01 output protocol as �mav_apm�, by using MicoAssitant.
+
+Step 2:
+Connect the MTF-01 module to the serial port of the flight controller, such as Telem2 on pixhawk.
+
+Step 3:
+Configure these parameters in the Mission Planner
+SERIALn_BAUD 115
+SERIALn_OPTIONS 1024 (don�t forward)
+SERIALn_PROTOCOL 1
+FLOW_TYPE 5
+RNGFND1_TYPE 10
+
+n depends on which serial port the MTF-01 connected, for example, n=2 when it connect to Telem2.
+
+Step 4:
+After that, we need to reboot the flight controller or just refresh the parameters in Mission Planner.
+And then these parameters need to be configured.
+RNGFND1_MAX_CM 800
+RNGFND1_MIN_CM 1
+RNGFND1_ORIENT 25
+
+When you complete the above steps, you should be able to observe the optical flow and range sensor data on the Mission Planner�s �Status� page. The �opt_qua� and �rangefinder1� should have some value.
+
+Step 5:
+After the flight controller has recognized MTF-01, we need to perform some configurations so that the sensor data can be used in EKF fusion.
+
+If you just need to use optical flow to fly indoors and don�t consider using GPS outdoors, then you only need to configure EK3_SRC1.
+
+AHRS_EKF_TYPE 3
+EK3_SRC_OPTIONS 0
+EK3_SRC1_POSXY 0
+EK3_SRC1_POSZ 2
+EK3_SRC1_VELXY 5
+EK3_SRC1_VELZ 0
+EK3_SRC1_YAW 1
+
+But if you need to take into account both indoor and outdoor environments, then you may need to use a method that can switch the EK3 data source. Keep the EK3_SRC1 as default, and set EK3_SRC2 as follows.
+
+AHRS_EKF_TYPE 3
+EK3_SRC_OPTIONS 0
+EK3_SRC2_POSXY 0
+EK3_SRC2_POSZ 2
+EK3_SRC2_VELXY 5
+EK3_SRC2_VELZ 0
+EK3_SRC2_YAW 1
+
+Then set the RC6 channel to switch using optical flow as EKF3 source.
+RC6_OPTION 90
+
+Now you can use RC6 channel to switch between using SRC1 or SRC2 as the data source of EK3.
+When the RC6 value is in the low position, SRC1(GPS) will be used, and in the middle position, SRC2(Optical flow)will be use.
+
+Step 6:
+When all settings are completed, switch to loiter mode, unlock and take off.
+
+Sometimes the flight controller may not be allowed to unlock in Loiter mode when the sensor is too close to the ground. You can unlock it in Althold mode and then switch to Loiter mode after taking off.

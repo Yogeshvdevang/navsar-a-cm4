@@ -1,0 +1,9488 @@
+# NAVSAR-A Line-by-Line Reference
+
+This file provides a line-by-line walkthrough for every text file in the repository (excluding `.git/` and `venv/`).
+Binary files are noted but not expanded.
+
+## `.gitignore`
+- Role: Repository file
+### Line-by-line
+- L1: `venv/` — text content
+- L2: `__pycache__/` — text content
+- L3: `*.pyc` — text content
+- L4: `.vscode/` — text content
+
+## `LICENSE`
+- Role: Repository file
+### Line-by-line
+- L1: `All rights reserved.` — text content
+
+## `README.md`
+- Role: Repository file
+### Line-by-line
+- L1: `# Visual Odometry Drone` — markdown heading
+- L2: `` — blank line
+- L3: `This repository implements a monocular visual odometry pipeline for a drone and integrates with a Pixhawk via MAVLink. The core flow reads camera frames, tracks features, estimates pixel motion, converts that to metric motion using altitude (LiDAR or fallback), and fuses it with GPS when available. It can also stream odometry and synthetic GPS back to the flight controller.` — markdown text
+- L4: `` — blank line
+- L5: `## What is implemented` — markdown heading
+- L6: `` — blank line
+- L7: `- Monocular VO with feature tracking, RANSAC gating, and motion smoothing.` — markdown list item
+- L8: `- Optional LiDAR altitude via MAVLink.` — markdown list item
+- L9: `- GPS/odometry source selection with drift monitoring.` — markdown list item
+- L10: `- MAVLink telemetry send/receive for attitude, GPS, and odometry.` — markdown list item
+- L11: `- Live OpenCV visualization of tracked features and motion.` — markdown list item
+- L12: `` — blank line
+- L13: `## Quick start` — markdown heading
+- L14: `` — blank line
+- L15: `1) Create a Python environment and install requirements.` — markdown text
+- L16: `` — blank line
+- L17: ````bash` — markdown code fence
+- L18: `python -m venv venv` — markdown text
+- L19: `venv\Scripts\activate` — markdown text
+- L20: `pip install -r requirements.txt` — markdown text
+- L21: ````` — markdown code fence
+- L22: `` — blank line
+- L23: `2) Run visual odometry (camera required).` — markdown text
+- L24: `` — blank line
+- L25: ````bash` — markdown code fence
+- L26: `PYTHONPATH=src python -m navisar.main` — markdown text
+- L27: ````` — markdown code fence
+- L28: `` — blank line
+- L29: `Windows PowerShell:` — markdown text
+- L30: `` — blank line
+- L31: ````powershell` — markdown code fence
+- L32: `$env:PYTHONPATH = "src"` — markdown text
+- L33: `python -m navisar.main` — markdown text
+- L34: ````` — markdown code fence
+- L35: `` — blank line
+- L36: `3) Optional: monitor raw Pixhawk MAVLink data.` — markdown text
+- L37: `` — blank line
+- L38: ````bash` — markdown code fence
+- L39: `PYTHONPATH=src python tools/mavlink_sniffer.py` — markdown text
+- L40: ````` — markdown code fence
+- L41: `` — blank line
+- L42: `Note: set `PYTHONPATH=src` for any direct `tools/` or `scripts/` runs.` — markdown text
+- L43: `` — blank line
+- L44: `## RPi Picamera2 (OV9281) setup` — markdown heading
+- L45: `` — blank line
+- L46: `If you use the OV9281 camera driver (`model: ov9281` in `config/camera.yaml`), install` — markdown text
+- L47: `Picamera2 and its system dependencies on the RPi:` — markdown text
+- L48: `` — blank line
+- L49: ````bash` — markdown code fence
+- L50: `sudo apt update` — markdown text
+- L51: `sudo apt install -y libcap-dev python3-picamera2` — markdown text
+- L52: ````` — markdown code fence
+- L53: `` — blank line
+- L54: `Then install the Python package in your venv:` — markdown text
+- L55: `` — blank line
+- L56: ````bash` — markdown code fence
+- L57: `pip install picamera2` — markdown text
+- L58: ````` — markdown code fence
+- L59: `` — blank line
+- L60: `## Fake GPS (NMEA) injection` — markdown heading
+- L61: `` — blank line
+- L62: `Provide a home location in `data/home_locations/site_A.yaml`, then run:` — markdown text
+- L63: `` — blank line
+- L64: ````bash` — markdown code fence
+- L65: `PYTHONPATH=src python -m navisar.pixhawk.gps_injector --port /dev/ttyAMA0 --baud 115200 --rate 5` — markdown text
+- L66: ````` — markdown code fence
+- L67: `` — blank line
+- L68: `## VPS -> GPS over MAVLink` — markdown heading
+- L69: `` — blank line
+- L70: `Set `output_mode: vps_gps` in `config/pixhawk.yaml` to send smoothed fake GPS to the Pixhawk via `GPS_INPUT`.` — markdown text
+- L71: `Tune `config/pixhawk.yaml` under `vps_gps:` for send rate and smoothing.` — markdown text
+- L72: `` — blank line
+- L73: `## RPi GPS input + Pixhawk NMEA output (dual USB-TTL)` — markdown heading
+- L74: `` — blank line
+- L75: `If you wire a real GPS (NEO-7M) into the RPi and a separate USB-TTL into the Pixhawk GPS port,` — markdown text
+- L76: `configure `config/pixhawk.yaml`:` — markdown text
+- L77: `` — blank line
+- L78: `- `gps_input` for the NEO-7M (used to set home origin at startup)` — markdown list item
+- L79: `- `gps_output` with `format: nmea` for the Pixhawk GPS port` — markdown list item
+- L80: `` — blank line
+- L81: `### Wiring and ports` — markdown heading
+- L82: `` — blank line
+- L83: `RPi side:` — markdown text
+- L84: `- NEO-7M GPS (TX/RX) → USB-TTL → RPi USB (`/dev/ttyUSB0`, 9600 baud)` — markdown list item
+- L85: `` — blank line
+- L86: `Pixhawk side:` — markdown text
+- L87: `- RPi USB-TTL → Pixhawk GPS port (TX/RX, GND, 5V as needed) (`/dev/ttyUSB1`, 9600 baud)` — markdown list item
+- L88: `` — blank line
+- L89: `### Setup checklist` — markdown heading
+- L90: `` — blank line
+- L91: `1) Plug both USB-TTL adapters into the RPi.` — markdown text
+- L92: `2) Confirm device paths (`/dev/ttyUSB0`, `/dev/ttyUSB1`) with `ls /dev/ttyUSB*`.` — markdown text
+- L93: `3) Set `gps_input` and `gps_output` in `config/pixhawk.yaml`:` — markdown text
+- L94: `` — blank line
+- L95: ````yaml` — markdown code fence
+- L96: `gps_input:` — markdown text
+- L97: `  enabled: true` — markdown text
+- L98: `  port: /dev/ttyUSB0` — markdown text
+- L99: `  baud: 9600` — markdown text
+- L100: `  format: auto` — markdown text
+- L101: `  init_wait_s: 60` — markdown text
+- L102: `  min_fix_type: 3` — markdown text
+- L103: `` — blank line
+- L104: `gps_output:` — markdown text
+- L105: `  enabled: true` — markdown text
+- L106: `  format: nmea` — markdown text
+- L107: `  port: /dev/ttyUSB1` — markdown text
+- L108: `  baud: 9600` — markdown text
+- L109: `  rate_hz: 5` — markdown text
+- L110: `  fix_quality: 1` — markdown text
+- L111: `  min_sats: 14` — markdown text
+- L112: `  max_sats: 20` — markdown text
+- L113: `  update_s: 7` — markdown text
+- L114: `  print: true` — markdown text
+- L115: ````` — markdown code fence
+- L116: `` — blank line
+- L117: `4) Set `output_mode: vps_gps` to enable fake GPS output.` — markdown text
+- L118: `5) Run:` — markdown text
+- L119: `` — blank line
+- L120: ````bash` — markdown code fence
+- L121: `PYTHONPATH=src python -m navisar.main` — markdown text
+- L122: ````` — markdown code fence
+- L123: `` — blank line
+- L124: `## Output modes` — markdown heading
+- L125: `` — blank line
+- L126: ``output_mode` is a manual choice:` — markdown text
+- L127: `` — blank line
+- L128: `- `odometry`: send MAVLink ODOMETRY only (VO as local position/velocity).` — markdown list item
+- L129: `- `vps_gps`: send fake GPS only (MAVLink GPS_INPUT or NMEA depending on `gps_output`).` — markdown list item
+- L130: `- `gps_serial`: read GPS serial for monitoring/debug only.` — markdown list item
+- L131: `- `reserved`: legacy; avoid using unless you intend to customize switching logic.` — markdown list item
+- L132: `` — blank line
+- L133: `## How it works (data flow)` — markdown heading
+- L134: `` — blank line
+- L135: `1) Camera frames arrive from `src/navisar/sensors/camera.py`.` — markdown text
+- L136: `2) `src/navisar/vps/feature_tracking.py` detects features on a grid and tracks them with optical flow.` — markdown text
+- L137: `3) `src/navisar/vps/pose_estimator.py` estimates pixel translation using RANSAC and converts to meters using height.` — markdown text
+- L138: `4) `src/navisar/vps/height_estimator.py` pulls altitude from `src/navisar/sensors/lidar.py` (MAVLink DISTANCE_SENSOR) or fallback.` — markdown text
+- L139: `5) `src/navisar/vps/visual_odometry.py` integrates motion, applies gating (inliers, flow MAD, exposure, zero motion), and renders the UI.` — markdown text
+- L140: `6) `src/navisar/navigation/state_estimator.py` chooses between GPS and odometry based on drift and timeout.` — markdown text
+- L141: `7) `src/navisar/pixhawk/mavlink_client.py` sends odometry/GPS back to the Pixhawk and reads GPS/attitude for yaw compensation.d` — markdown text
+- L142: `` — blank line
+- L143: `## End-to-end runtime flow (step by step)` — markdown heading
+- L144: `` — blank line
+- L145: `1) `python -m navisar.main` loads YAML configs (`config/camera.yaml`, `config/vio.yaml`, `config/pixhawk.yaml`).` — markdown text
+- L146: `2) `build_vo_pipeline()` instantiates:` — markdown text
+- L147: `   - A camera driver (OpenCV or OV9281).` — markdown list item
+- L148: `   - `FeatureTracker` with grid and quality thresholds.` — markdown list item
+- L149: `   - A motion estimator (RANSAC affine by default, median flow optional).` — markdown list item
+- L150: `   - `PoseEstimator` with camera intrinsics.` — markdown list item
+- L151: `   - `LidarHeightEstimator` (if MAVLink available) and a `HeightEstimator` wrapper.` — markdown list item
+- L152: `3) If MAVLink is enabled:` — markdown text
+- L153: `   - Connects to Pixhawk and waits for heartbeat.` — markdown list item
+- L154: `   - Requests ATTITUDE at `ATTITUDE_RATE_HZ` for yaw compensation.` — markdown list item
+- L155: `4) The VO loop (`VisualOdometry.run`) continuously:` — markdown text
+- L156: `   - Reads a frame, converts to grayscale.` — markdown list item
+- L157: `   - Optional undistortion if `dist_coeffs` are provided in `config/camera.yaml`.` — markdown list item
+- L158: `   - Tracks features (optical flow), rejects outliers with RANSAC.` — markdown list item
+- L159: `   - Converts pixel flow to meters using height.` — markdown list item
+- L160: `   - Applies gating (min inliers, flow MAD, exposure, min height).` — markdown list item
+- L161: `   - Integrates X/Y/Z and optionally renders a debug window.` — markdown list item
+- L162: `5) The main loop:` — markdown text
+- L163: `   - Optionally reads real GPS (NMEA) to set a local origin or validate drift.` — markdown list item
+- L164: `   - Chooses the active source (GPS vs odometry) using `PositionSourceSelector`.` — markdown list item
+- L165: `   - Emits MAVLink ODOMETRY and/or GPS_INPUT depending on `output_mode`.` — markdown list item
+- L166: `   - Optionally emits NMEA/UBX on a serial port for the Pixhawk GPS input.` — markdown list item
+- L167: `` — blank line
+- L168: `## Outputs and where they go` — markdown heading
+- L169: `` — blank line
+- L170: `- **MAVLink ODOMETRY**: sent via `MavlinkInterface.send_odometry()` when odometry is trusted.` — markdown list item
+- L171: `- **MAVLink GPS_INPUT**: sent when `output_mode: vps_gps` is enabled.` — markdown list item
+- L172: `- **Serial NMEA/UBX**: emitted via `NmeaSerialEmitter` / `UbxSerialEmitter` if `gps_output.enabled` is true.` — markdown list item
+- L173: `- **Debug window**: OpenCV UI from `VisualOdometry.run()` shows tracked features and motion text.` — markdown list item
+- L174: `` — blank line
+- L175: `## Camera calibration and distortion` — markdown heading
+- L176: `` — blank line
+- L177: `If you see strong lens distortion, calibrate and supply real intrinsics:` — markdown text
+- L178: `` — blank line
+- L179: `1) Run the checkerboard calibration helper:` — markdown text
+- L180: `   ```bash` — markdown code fence
+- L181: `   PYTHONPATH=src python tools/camera_calibration.py --width 640 --height 400` — markdown text
+- L182: `   ```` — markdown code fence
+- L183: `2) Paste the printed `intrinsics` into `config/camera.yaml` (including `dist_coeffs`).` — markdown text
+- L184: `3) The VO pipeline will undistort frames before tracking.` — markdown text
+- L185: `` — blank line
+- L186: `## Configuration` — markdown heading
+- L187: `` — blank line
+- L188: `YAML configs in `config/` now override defaults in `src/navisar/main.py`.` — markdown text
+- L189: `` — blank line
+- L190: `Key constants:` — markdown text
+- L191: `- Camera intrinsics: `FX`, `FY`, `CX`, `CY`, `IMG_WIDTH`, `IMG_HEIGHT`` — markdown list item
+- L192: `- Feature tracking: `MIN_FEATURES`, `MAX_FEATURES`, `REDETECT_INTERVAL`, `GRID_ROWS`, `GRID_COLS`` — markdown list item
+- L193: `- Motion gating: `METRIC_THRESHOLD`, `MIN_INLIERS`, `MIN_INLIER_RATIO`, `MAX_FLOW_MAD_PX`, `MIN_FLOW_PX`` — markdown list item
+- L194: `- Zero motion detection: `ZERO_MOTION_WINDOW`, `ZERO_MOTION_MEAN_M`, `ZERO_MOTION_STD_M`` — markdown list item
+- L195: `- MAVLink rates: `ATTITUDE_RATE_HZ`, `ODOMETRY_SEND_INTERVAL_S`, `ODOM_GPS_SEND_INTERVAL_S`` — markdown list item
+- L196: `` — blank line
+- L197: `Environment variables:` — markdown text
+- L198: `- `MAVLINK_DEVICE` (default `/dev/ttyACM0`)` — markdown list item
+- L199: `- `MAVLINK_BAUD` (default `115200`)` — markdown list item
+- L200: `- `LIDAR_DISTANCE_DIVISOR` (default `100.0`)` — markdown list item
+- L201: `- `GPS_ORIGIN_LAT`, `GPS_ORIGIN_LON`, `GPS_ORIGIN_ALT` (manual local origin)` — markdown list item
+- L202: `` — blank line
+- L203: `Raw MAVLink monitor environment variables (used by `tools/mavlink_sniffer.py`):` — markdown text
+- L204: `- `MAVLINK_HEARTBEAT_TIMEOUT_S`` — markdown list item
+- L205: `- `MAVLINK_PRINT_INTERVAL_S`` — markdown list item
+- L206: `- `MAVLINK_GPS_RAW_RATE_HZ`` — markdown list item
+- L207: `- `MAVLINK_GLOBAL_POS_RATE_HZ`` — markdown list item
+- L208: `- `MAVLINK_LIDAR_RATE_HZ`` — markdown list item
+- L209: `` — blank line
+- L210: `## Main runtime behavior` — markdown heading
+- L211: `` — blank line
+- L212: ``src/navisar/main.py` wires the pipeline together:` — markdown text
+- L213: `` — blank line
+- L214: `- Initializes camera, feature tracker, pose estimator, height estimator (LiDAR if available).` — markdown list item
+- L215: `- Requests ATTITUDE messages for yaw compensation.` — markdown list item
+- L216: `- Tracks motion and integrates X/Y/Z in the VO frame.` — markdown list item
+- L217: `- Prints GPS and LiDAR values (rate-limited).` — markdown list item
+- L218: `- Chooses GPS or odometry as the active position source, based on drift and timeout.` — markdown list item
+- L219: `- Sends MAVLink `GPS_INPUT` and `ODOMETRY` messages when odometry is trusted.` — markdown list item
+- L220: `` — blank line
+- L221: `Coordinate notes:` — markdown text
+- L222: `- VO motion is integrated in a local ENU-like frame (`x` and `y` from optical flow).` — markdown list item
+- L223: `- MAVLink odometry is sent in NED by swapping axes and negating Z.` — markdown list item
+- L224: `` — blank line
+- L225: `## Repo layout` — markdown heading
+- L226: `` — blank line
+- L227: `- `src/navisar/main.py`: end-to-end VO + LiDAR + MAVLink pipeline.` — markdown list item
+- L228: `- `src/navisar/sensors/`: camera, IMU, LiDAR readers.` — markdown list item
+- L229: `- `src/navisar/vps/`: feature tracking, pose estimation, visual odometry loop.` — markdown list item
+- L230: `- `src/navisar/navigation/`: GPS/odometry source selection and local frame conversions.` — markdown list item
+- L231: `- `src/navisar/core/`, `src/navisar/gnss_monitor/`, `src/navisar/pixhawk/`: placeholder modules for future expansion.` — markdown list item
+- L232: `- `tests/`: unit/integration test placeholders and logs.` — markdown list item
+- L233: `- `tools/mavlink_sniffer.py`: prints MAVLink GPS and LiDAR messages.` — markdown list item
+- L234: `- `tools/xy_drift.py`: alternate VO runner for simple position drift logging.` — markdown list item
+- L235: `` — blank line
+- L236: `## Known gaps and placeholders` — markdown heading
+- L237: `` — blank line
+- L238: `Several directories (docs, config, src/navisar/core, src/navisar/gnss_monitor, src/navisar/pixhawk, tests) contain placeholder files only. They are reserved for future work and do not implement functionality yet.` — markdown text
+- L239: `` — blank line
+- L240: ``tools/xy_drift.py` now unpacks `build_vo_pipeline()` correctly; it expects the VO instance and ignores the MAVLink interface.` — markdown text
+- L241: `` — blank line
+- L242: `## Troubleshooting` — markdown heading
+- L243: `` — blank line
+- L244: `- Camera not opening: verify `CAMERA_INDEX` and that no other app is holding the camera.` — markdown list item
+- L245: `- No MAVLink data: check `MAVLINK_DEVICE`, baud rate, and Pixhawk connection.` — markdown list item
+- L246: `- No LiDAR readings: confirm the MAVLink `DISTANCE_SENSOR` stream is enabled.` — markdown list item
+- L247: `- Drifty VO: tune `MIN_INLIERS`, `MIN_INLIER_RATIO`, and `MAX_FLOW_MAD_PX`.` — markdown list item
+
+## `README_LINE_BY_LINE.md`
+- Role: Repository file
+### Line-by-line
+- L1: `# NAVSAR-A Line-by-Line Reference` — markdown heading
+- L2: `` — blank line
+- L3: `This file provides a line-by-line walkthrough for every text file in the repository (excluding `.git/` and `venv/`).` — markdown text
+- L4: `Binary files are noted but not expanded.` — markdown text
+- L5: `` — blank line
+- L6: `## `.gitignore`` — markdown heading
+- L7: `- Role: Repository file` — markdown list item
+- L8: `### Line-by-line` — markdown heading
+- L9: `- L1: `venv/` — text content` — markdown list item
+- L10: `- L2: `__pycache__/` — text content` — markdown list item
+- L11: `- L3: `*.pyc` — text content` — markdown list item
+- L12: `- L4: `.vscode/` — text content` — markdown list item
+- L13: `` — blank line
+- L14: `## `LICENSE`` — markdown heading
+- L15: `- Role: Repository file` — markdown list item
+- L16: `### Line-by-line` — markdown heading
+- L17: `- L1: `All rights reserved.` — text content` — markdown list item
+- L18: `` — blank line
+- L19: `## `README.md`` — markdown heading
+- L20: `- Role: Repository file` — markdown list item
+- L21: `### Line-by-line` — markdown heading
+- L22: `- L1: `# Visual Odometry Drone` — markdown heading` — markdown list item
+- L23: `- L2: `` — blank line` — markdown list item
+- L24: `- L3: `This repository implements a monocular visual odometry pipeline for a drone and integrates with a Pixhawk via MAVLink. The core flow reads camera frames, tracks features, estima...` — markdown text` — markdown list item
+- L25: `- L4: `` — blank line` — markdown list item
+- L26: `- L5: `## What is implemented` — markdown heading` — markdown list item
+- L27: `- L6: `` — blank line` — markdown list item
+- L28: `- L7: `- Monocular VO with feature tracking, RANSAC gating, and motion smoothing.` — markdown list item` — markdown list item
+- L29: `- L8: `- Optional LiDAR altitude via MAVLink.` — markdown list item` — markdown list item
+- L30: `- L9: `- GPS/odometry source selection with drift monitoring.` — markdown list item` — markdown list item
+- L31: `- L10: `- MAVLink telemetry send/receive for attitude, GPS, and odometry.` — markdown list item` — markdown list item
+- L32: `- L11: `- Live OpenCV visualization of tracked features and motion.` — markdown list item` — markdown list item
+- L33: `- L12: `` — blank line` — markdown list item
+- L34: `- L13: `## Quick start` — markdown heading` — markdown list item
+- L35: `- L14: `` — blank line` — markdown list item
+- L36: `- L15: `1) Create a Python environment and install requirements.` — markdown text` — markdown list item
+- L37: `- L16: `` — blank line` — markdown list item
+- L38: `- L17: ````bash` — markdown code fence` — markdown list item
+- L39: `- L18: `python -m venv venv` — markdown text` — markdown list item
+- L40: `- L19: `venv\Scripts\activate` — markdown text` — markdown list item
+- L41: `- L20: `pip install -r requirements.txt` — markdown text` — markdown list item
+- L42: `- L21: ````` — markdown code fence` — markdown list item
+- L43: `- L22: `` — blank line` — markdown list item
+- L44: `- L23: `2) Run visual odometry (camera required).` — markdown text` — markdown list item
+- L45: `- L24: `` — blank line` — markdown list item
+- L46: `- L25: ````bash` — markdown code fence` — markdown list item
+- L47: `- L26: `PYTHONPATH=src python -m navisar.main` — markdown text` — markdown list item
+- L48: `- L27: ````` — markdown code fence` — markdown list item
+- L49: `- L28: `` — blank line` — markdown list item
+- L50: `- L29: `Windows PowerShell:` — markdown text` — markdown list item
+- L51: `- L30: `` — blank line` — markdown list item
+- L52: `- L31: ````powershell` — markdown code fence` — markdown list item
+- L53: `- L32: `$env:PYTHONPATH = "src"` — markdown text` — markdown list item
+- L54: `- L33: `python -m navisar.main` — markdown text` — markdown list item
+- L55: `- L34: ````` — markdown code fence` — markdown list item
+- L56: `- L35: `` — blank line` — markdown list item
+- L57: `- L36: `3) Optional: monitor raw Pixhawk MAVLink data.` — markdown text` — markdown list item
+- L58: `- L37: `` — blank line` — markdown list item
+- L59: `- L38: ````bash` — markdown code fence` — markdown list item
+- L60: `- L39: `PYTHONPATH=src python tools/mavlink_sniffer.py` — markdown text` — markdown list item
+- L61: `- L40: ````` — markdown code fence` — markdown list item
+- L62: `- L41: `` — blank line` — markdown list item
+- L63: `- L42: `Note: set `PYTHONPATH=src` for any direct `tools/` or `scripts/` runs.` — markdown text` — markdown list item
+- L64: `- L43: `` — blank line` — markdown list item
+- L65: `- L44: `## RPi Picamera2 (OV9281) setup` — markdown heading` — markdown list item
+- L66: `- L45: `` — blank line` — markdown list item
+- L67: `- L46: `If you use the OV9281 camera driver (`model: ov9281` in `config/camera.yaml`), install` — markdown text` — markdown list item
+- L68: `- L47: `Picamera2 and its system dependencies on the RPi:` — markdown text` — markdown list item
+- L69: `- L48: `` — blank line` — markdown list item
+- L70: `- L49: ````bash` — markdown code fence` — markdown list item
+- L71: `- L50: `sudo apt update` — markdown text` — markdown list item
+- L72: `- L51: `sudo apt install -y libcap-dev python3-picamera2` — markdown text` — markdown list item
+- L73: `- L52: ````` — markdown code fence` — markdown list item
+- L74: `- L53: `` — blank line` — markdown list item
+- L75: `- L54: `Then install the Python package in your venv:` — markdown text` — markdown list item
+- L76: `- L55: `` — blank line` — markdown list item
+- L77: `- L56: ````bash` — markdown code fence` — markdown list item
+- L78: `- L57: `pip install picamera2` — markdown text` — markdown list item
+- L79: `- L58: ````` — markdown code fence` — markdown list item
+- L80: `- L59: `` — blank line` — markdown list item
+- L81: `- L60: `## Fake GPS (NMEA) injection` — markdown heading` — markdown list item
+- L82: `- L61: `` — blank line` — markdown list item
+- L83: `- L62: `Provide a home location in `data/home_locations/site_A.yaml`, then run:` — markdown text` — markdown list item
+- L84: `- L63: `` — blank line` — markdown list item
+- L85: `- L64: ````bash` — markdown code fence` — markdown list item
+- L86: `- L65: `PYTHONPATH=src python -m navisar.pixhawk.gps_injector --port /dev/ttyAMA0 --baud 115200 --rate 5` — markdown text` — markdown list item
+- L87: `- L66: ````` — markdown code fence` — markdown list item
+- L88: `- L67: `` — blank line` — markdown list item
+- L89: `- L68: `## VPS -> GPS over MAVLink` — markdown heading` — markdown list item
+- L90: `- L69: `` — blank line` — markdown list item
+- L91: `- L70: `Set `output_mode: vps_gps` in `config/pixhawk.yaml` to send smoothed fake GPS to the Pixhawk via `GPS_INPUT`.` — markdown text` — markdown list item
+- L92: `- L71: `Tune `config/pixhawk.yaml` under `vps_gps:` for send rate and smoothing.` — markdown text` — markdown list item
+- L93: `- L72: `` — blank line` — markdown list item
+- L94: `- L73: `## RPi GPS input + Pixhawk NMEA output (dual USB-TTL)` — markdown heading` — markdown list item
+- L95: `- L74: `` — blank line` — markdown list item
+- L96: `- L75: `If you wire a real GPS (NEO-7M) into the RPi and a separate USB-TTL into the Pixhawk GPS port,` — markdown text` — markdown list item
+- L97: `- L76: `configure `config/pixhawk.yaml`:` — markdown text` — markdown list item
+- L98: `- L77: `` — blank line` — markdown list item
+- L99: `- L78: `- `gps_input` for the NEO-7M (used to set home origin at startup)` — markdown list item` — markdown list item
+- L100: `- L79: `- `gps_output` with `format: nmea` for the Pixhawk GPS port` — markdown list item` — markdown list item
+- L101: `- L80: `` — blank line` — markdown list item
+- L102: `- L81: `### Wiring and ports` — markdown heading` — markdown list item
+- L103: `- L82: `` — blank line` — markdown list item
+- L104: `- L83: `RPi side:` — markdown text` — markdown list item
+- L105: `- L84: `- NEO-7M GPS (TX/RX) → USB-TTL → RPi USB (`/dev/ttyUSB0`, 9600 baud)` — markdown list item` — markdown list item
+- L106: `- L85: `` — blank line` — markdown list item
+- L107: `- L86: `Pixhawk side:` — markdown text` — markdown list item
+- L108: `- L87: `- RPi USB-TTL → Pixhawk GPS port (TX/RX, GND, 5V as needed) (`/dev/ttyUSB1`, 9600 baud)` — markdown list item` — markdown list item
+- L109: `- L88: `` — blank line` — markdown list item
+- L110: `- L89: `### Setup checklist` — markdown heading` — markdown list item
+- L111: `- L90: `` — blank line` — markdown list item
+- L112: `- L91: `1) Plug both USB-TTL adapters into the RPi.` — markdown text` — markdown list item
+- L113: `- L92: `2) Confirm device paths (`/dev/ttyUSB0`, `/dev/ttyUSB1`) with `ls /dev/ttyUSB*`.` — markdown text` — markdown list item
+- L114: `- L93: `3) Set `gps_input` and `gps_output` in `config/pixhawk.yaml`:` — markdown text` — markdown list item
+- L115: `- L94: `` — blank line` — markdown list item
+- L116: `- L95: ````yaml` — markdown code fence` — markdown list item
+- L117: `- L96: `gps_input:` — markdown text` — markdown list item
+- L118: `- L97: `  enabled: true` — markdown text` — markdown list item
+- L119: `- L98: `  port: /dev/ttyUSB0` — markdown text` — markdown list item
+- L120: `- L99: `  baud: 9600` — markdown text` — markdown list item
+- L121: `- L100: `  format: auto` — markdown text` — markdown list item
+- L122: `- L101: `  init_wait_s: 60` — markdown text` — markdown list item
+- L123: `- L102: `  min_fix_type: 3` — markdown text` — markdown list item
+- L124: `- L103: `` — blank line` — markdown list item
+- L125: `- L104: `gps_output:` — markdown text` — markdown list item
+- L126: `- L105: `  enabled: true` — markdown text` — markdown list item
+- L127: `- L106: `  format: nmea` — markdown text` — markdown list item
+- L128: `- L107: `  port: /dev/ttyUSB1` — markdown text` — markdown list item
+- L129: `- L108: `  baud: 9600` — markdown text` — markdown list item
+- L130: `- L109: `  rate_hz: 5` — markdown text` — markdown list item
+- L131: `- L110: `  fix_quality: 1` — markdown text` — markdown list item
+- L132: `- L111: `  min_sats: 14` — markdown text` — markdown list item
+- L133: `- L112: `  max_sats: 20` — markdown text` — markdown list item
+- L134: `- L113: `  update_s: 7` — markdown text` — markdown list item
+- L135: `- L114: `  print: true` — markdown text` — markdown list item
+- L136: `- L115: ````` — markdown code fence` — markdown list item
+- L137: `- L116: `` — blank line` — markdown list item
+- L138: `- L117: `4) Set `output_mode: vps_gps` to enable fake GPS output.` — markdown text` — markdown list item
+- L139: `- L118: `5) Run:` — markdown text` — markdown list item
+- L140: `- L119: `` — blank line` — markdown list item
+- L141: `- L120: ````bash` — markdown code fence` — markdown list item
+- L142: `- L121: `PYTHONPATH=src python -m navisar.main` — markdown text` — markdown list item
+- L143: `- L122: ````` — markdown code fence` — markdown list item
+- L144: `- L123: `` — blank line` — markdown list item
+- L145: `- L124: `## Output modes` — markdown heading` — markdown list item
+- L146: `- L125: `` — blank line` — markdown list item
+- L147: `- L126: ``output_mode` is a manual choice:` — markdown text` — markdown list item
+- L148: `- L127: `` — blank line` — markdown list item
+- L149: `- L128: `- `odometry`: send MAVLink ODOMETRY only (VO as local position/velocity).` — markdown list item` — markdown list item
+- L150: `- L129: `- `vps_gps`: send fake GPS only (MAVLink GPS_INPUT or NMEA depending on `gps_output`).` — markdown list item` — markdown list item
+- L151: `- L130: `- `gps_serial`: read GPS serial for monitoring/debug only.` — markdown list item` — markdown list item
+- L152: `- L131: `- `reserved`: legacy; avoid using unless you intend to customize switching logic.` — markdown list item` — markdown list item
+- L153: `- L132: `` — blank line` — markdown list item
+- L154: `- L133: `## How it works (data flow)` — markdown heading` — markdown list item
+- L155: `- L134: `` — blank line` — markdown list item
+- L156: `- L135: `1) Camera frames arrive from `src/navisar/sensors/camera.py`.` — markdown text` — markdown list item
+- L157: `- L136: `2) `src/navisar/vps/feature_tracking.py` detects features on a grid and tracks them with optical flow.` — markdown text` — markdown list item
+- L158: `- L137: `3) `src/navisar/vps/pose_estimator.py` estimates pixel translation using RANSAC and converts to meters using height.` — markdown text` — markdown list item
+- L159: `- L138: `4) `src/navisar/vps/height_estimator.py` pulls altitude from `src/navisar/sensors/lidar.py` (MAVLink DISTANCE_SENSOR) or fallback.` — markdown text` — markdown list item
+- L160: `- L139: `5) `src/navisar/vps/visual_odometry.py` integrates motion, applies gating (inliers, flow MAD, exposure, zero motion), and renders the UI.` — markdown text` — markdown list item
+- L161: `- L140: `6) `src/navisar/navigation/state_estimator.py` chooses between GPS and odometry based on drift and timeout.` — markdown text` — markdown list item
+- L162: `- L141: `7) `src/navisar/pixhawk/mavlink_client.py` sends odometry/GPS back to the Pixhawk and reads GPS/attitude for yaw compensation.d` — markdown text` — markdown list item
+- L163: `- L142: `` — blank line` — markdown list item
+- L164: `- L143: `## End-to-end runtime flow (step by step)` — markdown heading` — markdown list item
+- L165: `- L144: `` — blank line` — markdown list item
+- L166: `- L145: `1) `python -m navisar.main` loads YAML configs (`config/camera.yaml`, `config/vio.yaml`, `config/pixhawk.yaml`).` — markdown text` — markdown list item
+- L167: `- L146: `2) `build_vo_pipeline()` instantiates:` — markdown text` — markdown list item
+- L168: `- L147: `   - A camera driver (OpenCV or OV9281).` — markdown list item` — markdown list item
+- L169: `- L148: `   - `FeatureTracker` with grid and quality thresholds.` — markdown list item` — markdown list item
+- L170: `- L149: `   - A motion estimator (RANSAC affine by default, median flow optional).` — markdown list item` — markdown list item
+- L171: `- L150: `   - `PoseEstimator` with camera intrinsics.` — markdown list item` — markdown list item
+- L172: `- L151: `   - `LidarHeightEstimator` (if MAVLink available) and a `HeightEstimator` wrapper.` — markdown list item` — markdown list item
+- L173: `- L152: `3) If MAVLink is enabled:` — markdown text` — markdown list item
+- L174: `- L153: `   - Connects to Pixhawk and waits for heartbeat.` — markdown list item` — markdown list item
+- L175: `- L154: `   - Requests ATTITUDE at `ATTITUDE_RATE_HZ` for yaw compensation.` — markdown list item` — markdown list item
+- L176: `- L155: `4) The VO loop (`VisualOdometry.run`) continuously:` — markdown text` — markdown list item
+- L177: `- L156: `   - Reads a frame, converts to grayscale.` — markdown list item` — markdown list item
+- L178: `- L157: `   - Optional undistortion if `dist_coeffs` are provided in `config/camera.yaml`.` — markdown list item` — markdown list item
+- L179: `- L158: `   - Tracks features (optical flow), rejects outliers with RANSAC.` — markdown list item` — markdown list item
+- L180: `- L159: `   - Converts pixel flow to meters using height.` — markdown list item` — markdown list item
+- L181: `- L160: `   - Applies gating (min inliers, flow MAD, exposure, min height).` — markdown list item` — markdown list item
+- L182: `- L161: `   - Integrates X/Y/Z and optionally renders a debug window.` — markdown list item` — markdown list item
+- L183: `- L162: `5) The main loop:` — markdown text` — markdown list item
+- L184: `- L163: `   - Optionally reads real GPS (NMEA) to set a local origin or validate drift.` — markdown list item` — markdown list item
+- L185: `- L164: `   - Chooses the active source (GPS vs odometry) using `PositionSourceSelector`.` — markdown list item` — markdown list item
+- L186: `- L165: `   - Emits MAVLink ODOMETRY and/or GPS_INPUT depending on `output_mode`.` — markdown list item` — markdown list item
+- L187: `- L166: `   - Optionally emits NMEA/UBX on a serial port for the Pixhawk GPS input.` — markdown list item` — markdown list item
+- L188: `- L167: `` — blank line` — markdown list item
+- L189: `- L168: `## Outputs and where they go` — markdown heading` — markdown list item
+- L190: `- L169: `` — blank line` — markdown list item
+- L191: `- L170: `- **MAVLink ODOMETRY**: sent via `MavlinkInterface.send_odometry()` when odometry is trusted.` — markdown list item` — markdown list item
+- L192: `- L171: `- **MAVLink GPS_INPUT**: sent when `output_mode: vps_gps` is enabled.` — markdown list item` — markdown list item
+- L193: `- L172: `- **Serial NMEA/UBX**: emitted via `NmeaSerialEmitter` / `UbxSerialEmitter` if `gps_output.enabled` is true.` — markdown list item` — markdown list item
+- L194: `- L173: `- **Debug window**: OpenCV UI from `VisualOdometry.run()` shows tracked features and motion text.` — markdown list item` — markdown list item
+- L195: `- L174: `` — blank line` — markdown list item
+- L196: `- L175: `## Camera calibration and distortion` — markdown heading` — markdown list item
+- L197: `- L176: `` — blank line` — markdown list item
+- L198: `- L177: `If you see strong lens distortion, calibrate and supply real intrinsics:` — markdown text` — markdown list item
+- L199: `- L178: `` — blank line` — markdown list item
+- L200: `- L179: `1) Run the checkerboard calibration helper:` — markdown text` — markdown list item
+- L201: `- L180: `   ```bash` — markdown code fence` — markdown list item
+- L202: `- L181: `   PYTHONPATH=src python tools/camera_calibration.py --width 640 --height 400` — markdown text` — markdown list item
+- L203: `- L182: `   ```` — markdown code fence` — markdown list item
+- L204: `- L183: `2) Paste the printed `intrinsics` into `config/camera.yaml` (including `dist_coeffs`).` — markdown text` — markdown list item
+- L205: `- L184: `3) The VO pipeline will undistort frames before tracking.` — markdown text` — markdown list item
+- L206: `- L185: `` — blank line` — markdown list item
+- L207: `- L186: `## Configuration` — markdown heading` — markdown list item
+- L208: `- L187: `` — blank line` — markdown list item
+- L209: `- L188: `YAML configs in `config/` now override defaults in `src/navisar/main.py`.` — markdown text` — markdown list item
+- L210: `- L189: `` — blank line` — markdown list item
+- L211: `- L190: `Key constants:` — markdown text` — markdown list item
+- L212: `- L191: `- Camera intrinsics: `FX`, `FY`, `CX`, `CY`, `IMG_WIDTH`, `IMG_HEIGHT`` — markdown list item` — markdown list item
+- L213: `- L192: `- Feature tracking: `MIN_FEATURES`, `MAX_FEATURES`, `REDETECT_INTERVAL`, `GRID_ROWS`, `GRID_COLS`` — markdown list item` — markdown list item
+- L214: `- L193: `- Motion gating: `METRIC_THRESHOLD`, `MIN_INLIERS`, `MIN_INLIER_RATIO`, `MAX_FLOW_MAD_PX`, `MIN_FLOW_PX`` — markdown list item` — markdown list item
+- L215: `- L194: `- Zero motion detection: `ZERO_MOTION_WINDOW`, `ZERO_MOTION_MEAN_M`, `ZERO_MOTION_STD_M`` — markdown list item` — markdown list item
+- L216: `- L195: `- MAVLink rates: `ATTITUDE_RATE_HZ`, `ODOMETRY_SEND_INTERVAL_S`, `ODOM_GPS_SEND_INTERVAL_S`` — markdown list item` — markdown list item
+- L217: `- L196: `` — blank line` — markdown list item
+- L218: `- L197: `Environment variables:` — markdown text` — markdown list item
+- L219: `- L198: `- `MAVLINK_DEVICE` (default `/dev/ttyACM0`)` — markdown list item` — markdown list item
+- L220: `- L199: `- `MAVLINK_BAUD` (default `115200`)` — markdown list item` — markdown list item
+- L221: `- L200: `- `LIDAR_DISTANCE_DIVISOR` (default `100.0`)` — markdown list item` — markdown list item
+- L222: `- L201: `- `GPS_ORIGIN_LAT`, `GPS_ORIGIN_LON`, `GPS_ORIGIN_ALT` (manual local origin)` — markdown list item` — markdown list item
+- L223: `- L202: `` — blank line` — markdown list item
+- L224: `- L203: `Raw MAVLink monitor environment variables (used by `tools/mavlink_sniffer.py`):` — markdown text` — markdown list item
+- L225: `- L204: `- `MAVLINK_HEARTBEAT_TIMEOUT_S`` — markdown list item` — markdown list item
+- L226: `- L205: `- `MAVLINK_PRINT_INTERVAL_S`` — markdown list item` — markdown list item
+- L227: `- L206: `- `MAVLINK_GPS_RAW_RATE_HZ`` — markdown list item` — markdown list item
+- L228: `- L207: `- `MAVLINK_GLOBAL_POS_RATE_HZ`` — markdown list item` — markdown list item
+- L229: `- L208: `- `MAVLINK_LIDAR_RATE_HZ`` — markdown list item` — markdown list item
+- L230: `- L209: `` — blank line` — markdown list item
+- L231: `- L210: `## Main runtime behavior` — markdown heading` — markdown list item
+- L232: `- L211: `` — blank line` — markdown list item
+- L233: `- L212: ``src/navisar/main.py` wires the pipeline together:` — markdown text` — markdown list item
+- L234: `- L213: `` — blank line` — markdown list item
+- L235: `- L214: `- Initializes camera, feature tracker, pose estimator, height estimator (LiDAR if available).` — markdown list item` — markdown list item
+- L236: `- L215: `- Requests ATTITUDE messages for yaw compensation.` — markdown list item` — markdown list item
+- L237: `- L216: `- Tracks motion and integrates X/Y/Z in the VO frame.` — markdown list item` — markdown list item
+- L238: `- L217: `- Prints GPS and LiDAR values (rate-limited).` — markdown list item` — markdown list item
+- L239: `- L218: `- Chooses GPS or odometry as the active position source, based on drift and timeout.` — markdown list item` — markdown list item
+- L240: `- L219: `- Sends MAVLink `GPS_INPUT` and `ODOMETRY` messages when odometry is trusted.` — markdown list item` — markdown list item
+- L241: `- L220: `` — blank line` — markdown list item
+- L242: `- L221: `Coordinate notes:` — markdown text` — markdown list item
+- L243: `- L222: `- VO motion is integrated in a local ENU-like frame (`x` and `y` from optical flow).` — markdown list item` — markdown list item
+- L244: `- L223: `- MAVLink odometry is sent in NED by swapping axes and negating Z.` — markdown list item` — markdown list item
+- L245: `- L224: `` — blank line` — markdown list item
+- L246: `- L225: `## Repo layout` — markdown heading` — markdown list item
+- L247: `- L226: `` — blank line` — markdown list item
+- L248: `- L227: `- `src/navisar/main.py`: end-to-end VO + LiDAR + MAVLink pipeline.` — markdown list item` — markdown list item
+- L249: `- L228: `- `src/navisar/sensors/`: camera, IMU, LiDAR readers.` — markdown list item` — markdown list item
+- L250: `- L229: `- `src/navisar/vps/`: feature tracking, pose estimation, visual odometry loop.` — markdown list item` — markdown list item
+- L251: `- L230: `- `src/navisar/navigation/`: GPS/odometry source selection and local frame conversions.` — markdown list item` — markdown list item
+- L252: `- L231: `- `src/navisar/core/`, `src/navisar/gnss_monitor/`, `src/navisar/pixhawk/`: placeholder modules for future expansion.` — markdown list item` — markdown list item
+- L253: `- L232: `- `tests/`: unit/integration test placeholders and logs.` — markdown list item` — markdown list item
+- L254: `- L233: `- `tools/mavlink_sniffer.py`: prints MAVLink GPS and LiDAR messages.` — markdown list item` — markdown list item
+- L255: `- L234: `- `tools/xy_drift.py`: alternate VO runner for simple position drift logging.` — markdown list item` — markdown list item
+- L256: `- L235: `` — blank line` — markdown list item
+- L257: `- L236: `## Known gaps and placeholders` — markdown heading` — markdown list item
+- L258: `- L237: `` — blank line` — markdown list item
+- L259: `- L238: `Several directories (docs, config, src/navisar/core, src/navisar/gnss_monitor, src/navisar/pixhawk, tests) contain placeholder files only. They are reserved for future work and ...` — markdown text` — markdown list item
+- L260: `- L239: `` — blank line` — markdown list item
+- L261: `- L240: ``tools/xy_drift.py` now unpacks `build_vo_pipeline()` correctly; it expects the VO instance and ignores the MAVLink interface.` — markdown text` — markdown list item
+- L262: `- L241: `` — blank line` — markdown list item
+- L263: `- L242: `## Troubleshooting` — markdown heading` — markdown list item
+- L264: `- L243: `` — blank line` — markdown list item
+- L265: `- L244: `- Camera not opening: verify `CAMERA_INDEX` and that no other app is holding the camera.` — markdown list item` — markdown list item
+- L266: `- L245: `- No MAVLink data: check `MAVLINK_DEVICE`, baud rate, and Pixhawk connection.` — markdown list item` — markdown list item
+- L267: `- L246: `- No LiDAR readings: confirm the MAVLink `DISTANCE_SENSOR` stream is enabled.` — markdown list item` — markdown list item
+- L268: `- L247: `- Drifty VO: tune `MIN_INLIERS`, `MIN_INLIER_RATIO`, and `MAX_FLOW_MAD_PX`.` — markdown list item` — markdown list item
+- L269: `` — blank line
+- L270: `## `requirements.txt`` — markdown heading
+- L271: `- Role: Repository file` — markdown list item
+- L272: `### Line-by-line` — markdown heading
+- L273: `- L1: `numpy` — text content` — markdown list item
+- L274: `- L2: `opencv-python` — text content` — markdown list item
+- L275: `- L3: `pymavlink` — text content` — markdown list item
+- L276: `- L4: `pyserial` — text content` — markdown list item
+- L277: `- L5: `PyYAML` — text content` — markdown list item
+- L278: `` — blank line
+- L279: `## `.vscode/launch.json`` — markdown heading
+- L280: `- Role: IDE` — markdown list item
+- L281: `### Line-by-line` — markdown heading
+- L282: `- L1: `{` — json content` — markdown list item
+- L283: `- L2: `    "configurations": [` — json content` — markdown list item
+- L284: `- L3: `        {` — json content` — markdown list item
+- L285: `- L4: `            "name": "Python Debugger: Python File",` — json content` — markdown list item
+- L286: `- L5: `            "type": "debugpy",` — json content` — markdown list item
+- L287: `- L6: `            "request": "launch",` — json content` — markdown list item
+- L288: `- L7: `            "program": "${file}"` — json content` — markdown list item
+- L289: `- L8: `        }` — json content` — markdown list item
+- L290: `- L9: `    ]` — json content` — markdown list item
+- L291: `- L10: `}` — json content` — markdown list item
+- L292: `` — blank line
+- L293: `## `.vscode/settings.json`` — markdown heading
+- L294: `- Role: IDE` — markdown list item
+- L295: `### Line-by-line` — markdown heading
+- L296: `- L1: `{` — json content` — markdown list item
+- L297: `- L2: `  "python.defaultInterpreterPath": "Visual-Odometry-Drone/venv/bin/python"` — json content` — markdown list item
+- L298: `- L3: `}` — json content` — markdown list item
+- L299: `` — blank line
+- L300: `## `config/camera.yaml`` — markdown heading
+- L301: `- Role: Configuration` — markdown list item
+- L302: `### Line-by-line` — markdown heading
+- L303: `- L1: `# Camera and exposure profiles` — yaml comment` — markdown list item
+- L304: `- L2: `# model can be: opencv, ov9281` — yaml comment` — markdown list item
+- L305: `- L3: `model: ov9281 #opencv` — yaml key/value` — markdown list item
+- L306: `- L4: `index: 0` — yaml key/value` — markdown list item
+- L307: `- L5: `width: 640` — yaml key/value` — markdown list item
+- L308: `- L6: `height: 400 #400 for ov9281 and 480 for opencv` — yaml key/value` — markdown list item
+- L309: `- L7: `format: YUV420` — yaml key/value` — markdown list item
+- L310: `- L8: `intrinsics:` — yaml key/value` — markdown list item
+- L311: `- L9: `  fx: 525.0` — yaml key/value` — markdown list item
+- L312: `- L10: `  fy: 525.0` — yaml key/value` — markdown list item
+- L313: `- L11: `  cx: 320.0` — yaml key/value` — markdown list item
+- L314: `- L12: `  cy: 200.0` — yaml key/value` — markdown list item
+- L315: `- L13: `  # Provide real calibration values to remove lens distortion.` — yaml comment` — markdown list item
+- L316: `- L14: `  # Example format: [k1, k2, p1, p2, k3]` — yaml comment` — markdown list item
+- L317: `- L15: `  # Use: python tools/camera_calibration.py --width 640 --height 400` — yaml comment` — markdown list item
+- L318: `- L16: `  dist_coeffs: null` — yaml key/value` — markdown list item
+- L319: `` — blank line
+- L320: `## `config/gnss.yaml`` — markdown heading
+- L321: `- Role: Configuration` — markdown list item
+- L322: `### Line-by-line` — markdown heading
+- L323: `- L1: `# GNSS thresholds` — yaml comment` — markdown list item
+- L324: `` — blank line
+- L325: `## `config/indoor.yaml`` — markdown heading
+- L326: `- Role: Configuration` — markdown list item
+- L327: `### Line-by-line` — markdown heading
+- L328: `- L1: `# Indoor constraints` — yaml comment` — markdown list item
+- L329: `` — blank line
+- L330: `## `config/navisar.yaml`` — markdown heading
+- L331: `- Role: Configuration` — markdown list item
+- L332: `### Line-by-line` — markdown heading
+- L333: `- L1: `# Global config` — yaml comment` — markdown list item
+- L334: `` — blank line
+- L335: `## `config/pixhawk.yaml`` — markdown heading
+- L336: `- Role: Configuration` — markdown list item
+- L337: `### Line-by-line` — markdown heading
+- L338: `- L1: `# Pixhawk parameters` — yaml comment` — markdown list item
+- L339: `- L2: `use_mavlink: true` — yaml key/value` — markdown list item
+- L340: `- L3: `use_lidar: true` — yaml key/value` — markdown list item
+- L341: `- L4: `device: /dev/ttyACM0` — yaml key/value` — markdown list item
+- L342: `- L5: `baud: 115200` — yaml key/value` — markdown list item
+- L343: `- L6: `attitude_rate_hz: 30.0` — yaml key/value` — markdown list item
+- L344: `- L7: `lidar_distance_divisor: 100.0` — yaml key/value` — markdown list item
+- L345: `- L8: `fallback_altitude_m: 1.0` — yaml key/value` — markdown list item
+- L346: `- L9: `` — blank line` — markdown list item
+- L347: `- L10: `gps_drift_threshold_m: 5.0` — yaml key/value` — markdown list item
+- L348: `- L11: `gps_timeout_s: 2.0` — yaml key/value` — markdown list item
+- L349: `- L12: `gps_min_fix_type: 3` — yaml key/value` — markdown list item
+- L350: `- L13: `gps_input:` — yaml key/value` — markdown list item
+- L351: `- L14: `  enabled: false` — yaml key/value` — markdown list item
+- L352: `- L15: `  port: /dev/ttyUSB0 #auto #/dev/ttyUSB0` — yaml key/value` — markdown list item
+- L353: `- L16: `  baud: 9600` — yaml key/value` — markdown list item
+- L354: `- L17: `  format: auto` — yaml key/value` — markdown list item
+- L355: `- L18: `  init_wait_s: 60` — yaml key/value` — markdown list item
+- L356: `- L19: `  min_fix_type: 3` — yaml key/value` — markdown list item
+- L357: `- L20: `` — blank line` — markdown list item
+- L358: `- L21: `odom_gps_send_interval_s: 0.2` — yaml key/value` — markdown list item
+- L359: `- L22: `odom_gps_fix_type: 3` — yaml key/value` — markdown list item
+- L360: `- L23: `odom_gps_sats: 10` — yaml key/value` — markdown list item
+- L361: `- L24: `odometry_send_interval_s: 0.04` — yaml key/value` — markdown list item
+- L362: `- L25: `output_mode: odometry # odometry, gps_serial, vps_gps, reserved odometry` — yaml key/value` — markdown list item
+- L363: `- L26: `vio_mode: vio_imu # vo, vio_imu` — yaml key/value` — markdown list item
+- L364: `- L27: `` — blank line` — markdown list item
+- L365: `- L28: `vio_imu:` — yaml key/value` — markdown list item
+- L366: `- L29: `  print: true` — yaml key/value` — markdown list item
+- L367: `- L30: `  print_interval_s: 0.5` — yaml key/value` — markdown list item
+- L368: `- L31: `gps_serial:` — yaml key/value` — markdown list item
+- L369: `- L32: `  enabled: false` — yaml key/value` — markdown list item
+- L370: `- L33: `  port: /dev/ttyUSB0` — yaml key/value` — markdown list item
+- L371: `- L34: `  baud: 9600` — yaml key/value` — markdown list item
+- L372: `- L35: `  format: auto` — yaml key/value` — markdown list item
+- L373: `- L36: `` — blank line` — markdown list item
+- L374: `- L37: `gps_output:` — yaml key/value` — markdown list item
+- L375: `- L38: `  enabled: true` — yaml key/value` — markdown list item
+- L376: `- L39: `  format: ubx_nmea #ubx, ubx_nmea` — yaml key/value` — markdown list item
+- L377: `- L40: `  port: /dev/ttyUSB0` — yaml key/value` — markdown list item
+- L378: `- L41: `  baud: 230400` — yaml key/value` — markdown list item
+- L379: `- L42: `  rate_hz: 5` — yaml key/value` — markdown list item
+- L380: `- L43: `  fix_quality: 1` — yaml key/value` — markdown list item
+- L381: `- L44: `  min_sats: 14` — yaml key/value` — markdown list item
+- L382: `- L45: `  max_sats: 20` — yaml key/value` — markdown list item
+- L383: `- L46: `  update_s: 7` — yaml key/value` — markdown list item
+- L384: `- L47: `  print: true` — yaml key/value` — markdown list item
+- L385: `- L48: `  raw_print: true` — yaml key/value` — markdown list item
+- L386: `- L49: `` — blank line` — markdown list item
+- L387: `- L50: `print_gps_values: true` — yaml key/value` — markdown list item
+- L388: `- L51: `print_lidar_values: true` — yaml key/value` — markdown list item
+- L389: `- L52: `print_interval_s: 0.5` — yaml key/value` — markdown list item
+- L390: `- L53: `` — blank line` — markdown list item
+- L391: `- L54: `gps_origin:` — yaml key/value` — markdown list item
+- L392: `- L55: `  lat: 12` — yaml key/value` — markdown list item
+- L393: `- L56: `  lon: 77` — yaml key/value` — markdown list item
+- L394: `- L57: `  alt: 50` — yaml key/value` — markdown list item
+- L395: `` — blank line
+- L396: `## `config/slam.yaml`` — markdown heading
+- L397: `- Role: Configuration` — markdown list item
+- L398: `### Line-by-line` — markdown heading
+- L399: `- L1: `# SLAM parameters` — yaml comment` — markdown list item
+- L400: `` — blank line
+- L401: `## `config/vio.yaml`` — markdown heading
+- L402: `- Role: Configuration` — markdown list item
+- L403: `### Line-by-line` — markdown heading
+- L404: `- L1: `# VIO parameters` — yaml comment` — markdown list item
+- L405: `- L2: `algorithm: ransac_affine` — yaml key/value` — markdown list item
+- L406: `- L3: `motion_gate_enabled: false` — yaml key/value` — markdown list item
+- L407: `- L4: `min_features: 40` — yaml key/value` — markdown list item
+- L408: `- L5: `max_features: 300` — yaml key/value` — markdown list item
+- L409: `- L6: `redetect_interval: 10` — yaml key/value` — markdown list item
+- L410: `- L7: `ransac_reproj_thresh: 3.0` — yaml key/value` — markdown list item
+- L411: `- L8: `grid_rows: 6` — yaml key/value` — markdown list item
+- L412: `- L9: `grid_cols: 8` — yaml key/value` — markdown list item
+- L413: `- L10: `per_cell_max_features: 30` — yaml key/value` — markdown list item
+- L414: `- L11: `texture_threshold: 12.0` — yaml key/value` — markdown list item
+- L415: `- L12: `corner_quality_level: 0.2` — yaml key/value` — markdown list item
+- L416: `- L13: `metric_threshold_m: 0.02` — yaml key/value` — markdown list item
+- L417: `- L14: `min_inliers: 50` — yaml key/value` — markdown list item
+- L418: `- L15: `min_inlier_ratio: 0.5` — yaml key/value` — markdown list item
+- L419: `- L16: `max_flow_mad_px: 1.2` — yaml key/value` — markdown list item
+- L420: `- L17: `min_flow_px: 0.4` — yaml key/value` — markdown list item
+- L421: `- L18: `min_height_m: 0.1` — yaml key/value` — markdown list item
+- L422: `- L19: `exposure_min_mean: 10.0` — yaml key/value` — markdown list item
+- L423: `- L20: `exposure_max_mean: 245.0` — yaml key/value` — markdown list item
+- L424: `- L21: `motion_confirm_frames: 3` — yaml key/value` — markdown list item
+- L425: `- L22: `motion_smooth_window: 5` — yaml key/value` — markdown list item
+- L426: `- L23: `zero_motion_window: 8` — yaml key/value` — markdown list item
+- L427: `- L24: `zero_motion_mean_m: 0.004` — yaml key/value` — markdown list item
+- L428: `- L25: `zero_motion_std_m: 0.002` — yaml key/value` — markdown list item
+- L429: `` — blank line
+- L430: `## `docker/Dockerfile`` — markdown heading
+- L431: `- Role: Container` — markdown list item
+- L432: `### Line-by-line` — markdown heading
+- L433: `- L1: `# Placeholder Dockerfile` — docker instruction` — markdown list item
+- L434: `` — blank line
+- L435: `## `docker/docker-compose.yml`` — markdown heading
+- L436: `- Role: Container` — markdown list item
+- L437: `### Line-by-line` — markdown heading
+- L438: `- L1: `# Placeholder docker-compose` — yaml comment` — markdown list item
+- L439: `` — blank line
+- L440: `## `scripts/calibrate_camera.sh`` — markdown heading
+- L441: `- Role: Script` — markdown list item
+- L442: `### Line-by-line` — markdown heading
+- L443: `- L1: `#!/usr/bin/env bash` — shebang` — markdown list item
+- L444: `- L2: `# Placeholder for camera calibration.` — shell comment` — markdown list item
+- L445: `` — blank line
+- L446: `## `scripts/flash_pixhawk_params.sh`` — markdown heading
+- L447: `- Role: Script` — markdown list item
+- L448: `### Line-by-line` — markdown heading
+- L449: `- L1: `#!/usr/bin/env bash` — shebang` — markdown list item
+- L450: `- L2: `# Placeholder for Pixhawk parameter flashing.` — shell comment` — markdown list item
+- L451: `` — blank line
+- L452: `## `scripts/simulate_indoor_return.py`` — markdown heading
+- L453: `- Role: Script` — markdown list item
+- L454: `### Line-by-line` — markdown heading
+- L455: `- L1: `"""Simulate Indoor Return module. Provides simulate indoor return utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L456: `- L2: `` — blank line` — markdown list item
+- L457: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L458: `` — blank line
+- L459: `## `scripts/start_navisar.sh`` — markdown heading
+- L460: `- Role: Script` — markdown list item
+- L461: `### Line-by-line` — markdown heading
+- L462: `- L1: `#!/usr/bin/env bash` — shebang` — markdown list item
+- L463: `- L2: `ROOT_DIR="$(cd "$(dirname "$0")/.."; pwd)"` — shell command` — markdown list item
+- L464: `- L3: `PYTHONPATH="$ROOT_DIR/src" python -m navisar.main` — shell command` — markdown list item
+- L465: `` — blank line
+- L466: `## `tools/camera_calibration.py`` — markdown heading
+- L467: `- Role: Tool` — markdown list item
+- L468: `### Line-by-line` — markdown heading
+- L469: `- L1: `#!/usr/bin/env python3` — comment` — markdown list item
+- L470: `- L2: `"""Interactive chessboard camera calibration helper."""` — module docstring boundary` — markdown list item
+- L471: `- L3: `` — blank line` — markdown list item
+- L472: `- L4: `import argparse` — import statement` — markdown list item
+- L473: `- L5: `import os` — import statement` — markdown list item
+- L474: `- L6: `import sys` — import statement` — markdown list item
+- L475: `- L7: `from pathlib import Path` — import statement` — markdown list item
+- L476: `- L8: `` — blank line` — markdown list item
+- L477: `- L9: `import cv2` — import statement` — markdown list item
+- L478: `- L10: `import numpy as np` — import statement` — markdown list item
+- L479: `- L11: `` — blank line` — markdown list item
+- L480: `- L12: `` — blank line` — markdown list item
+- L481: `- L13: `def _parse_args():` — function definition` — markdown list item
+- L482: `- L14: `    """Parse CLI arguments for camera calibration."""` — module docstring boundary` — markdown list item
+- L483: `- L15: `    parser = argparse.ArgumentParser(` — python statement` — markdown list item
+- L484: `- L16: `        description="Calibrate camera intrinsics using a chessboard pattern."` — python statement` — markdown list item
+- L485: `- L17: `    )` — python statement` — markdown list item
+- L486: `- L18: `    parser.add_argument(` — python statement` — markdown list item
+- L487: `- L19: `        "--backend",` — python statement` — markdown list item
+- L488: `- L20: `        type=str,` — python statement` — markdown list item
+- L489: `- L21: `        default="opencv",` — python statement` — markdown list item
+- L490: `- L22: `        choices=("opencv", "picamera2"),` — python statement` — markdown list item
+- L491: `- L23: `        help="Capture backend: opencv (USB/UVC) or picamera2 (CSI/OV9281).",` — python statement` — markdown list item
+- L492: `- L24: `    )` — python statement` — markdown list item
+- L493: `- L25: `    parser.add_argument("--camera-index", type=int, default=0, help="OpenCV camera index.")` — python statement` — markdown list item
+- L494: `- L26: `    parser.add_argument("--width", type=int, default=640, help="Capture width.")` — python statement` — markdown list item
+- L495: `- L27: `    parser.add_argument("--height", type=int, default=480, help="Capture height.")` — python statement` — markdown list item
+- L496: `- L28: `    parser.add_argument(` — python statement` — markdown list item
+- L497: `- L29: `        "--format",` — python statement` — markdown list item
+- L498: `- L30: `        type=str,` — python statement` — markdown list item
+- L499: `- L31: `        default="YUV420",` — python statement` — markdown list item
+- L500: `- L32: `        help="Picamera2 pixel format (e.g., YUV420, RGB888).",` — python statement` — markdown list item
+- L501: `- L33: `    )` — python statement` — markdown list item
+- L502: `- L34: `    parser.add_argument(` — python statement` — markdown list item
+- L503: `- L35: `        "--board-cols", type=int, default=9, help="Chessboard inner corners (columns)."` — python statement` — markdown list item
+- L504: `- L36: `    )` — python statement` — markdown list item
+- L505: `- L37: `    parser.add_argument(` — python statement` — markdown list item
+- L506: `- L38: `        "--board-rows", type=int, default=6, help="Chessboard inner corners (rows)."` — python statement` — markdown list item
+- L507: `- L39: `    )` — python statement` — markdown list item
+- L508: `- L40: `    parser.add_argument(` — python statement` — markdown list item
+- L509: `- L41: `        "--square-size",` — python statement` — markdown list item
+- L510: `- L42: `        type=float,` — python statement` — markdown list item
+- L511: `- L43: `        default=0.025,` — python statement` — markdown list item
+- L512: `- L44: `        help="Square size in meters (used for scaling).",` — python statement` — markdown list item
+- L513: `- L45: `    )` — python statement` — markdown list item
+- L514: `- L46: `    parser.add_argument("--samples", type=int, default=20, help="Valid samples to collect.")` — python statement` — markdown list item
+- L515: `- L47: `    parser.add_argument(` — python statement` — markdown list item
+- L516: `- L48: `        "--save-dir",` — python statement` — markdown list item
+- L517: `- L49: `        type=str,` — python statement` — markdown list item
+- L518: `- L50: `        default="",` — python statement` — markdown list item
+- L519: `- L51: `        help="Optional directory to save captured images.",` — python statement` — markdown list item
+- L520: `- L52: `    )` — python statement` — markdown list item
+- L521: `- L53: `    return parser.parse_args()` — return statement` — markdown list item
+- L522: `- L54: `` — blank line` — markdown list item
+- L523: `- L55: `` — blank line` — markdown list item
+- L524: `- L56: `def _yaml_snippet(fx, fy, cx, cy, dist_coeffs):` — function definition` — markdown list item
+- L525: `- L57: `    """Render intrinsics as a YAML snippet."""` — module docstring boundary` — markdown list item
+- L526: `- L58: `    coeffs = ", ".join(f"{c:.6f}" for c in dist_coeffs[:5])` — python statement` — markdown list item
+- L527: `- L59: `    return (` — return statement` — markdown list item
+- L528: `- L60: `        "intrinsics:\n"` — python statement` — markdown list item
+- L529: `- L61: `        f"  fx: {fx:.6f}\n"` — python statement` — markdown list item
+- L530: `- L62: `        f"  fy: {fy:.6f}\n"` — python statement` — markdown list item
+- L531: `- L63: `        f"  cx: {cx:.6f}\n"` — python statement` — markdown list item
+- L532: `- L64: `        f"  cy: {cy:.6f}\n"` — python statement` — markdown list item
+- L533: `- L65: `        f"  dist_coeffs: [{coeffs}]\n"` — python statement` — markdown list item
+- L534: `- L66: `    )` — python statement` — markdown list item
+- L535: `- L67: `` — blank line` — markdown list item
+- L536: `- L68: `` — blank line` — markdown list item
+- L537: `- L69: `class _CvCamera:` — class definition` — markdown list item
+- L538: `- L70: `    def __init__(self, index, width, height):` — function definition` — markdown list item
+- L539: `- L71: `        self._cap = cv2.VideoCapture(index)` — python statement` — markdown list item
+- L540: `- L72: `        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)` — python statement` — markdown list item
+- L541: `- L73: `        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)` — python statement` — markdown list item
+- L542: `- L74: `        if not self._cap.isOpened():` — conditional branch` — markdown list item
+- L543: `- L75: `            raise RuntimeError("Failed to open OpenCV camera.")` — error raise` — markdown list item
+- L544: `- L76: `` — blank line` — markdown list item
+- L545: `- L77: `    def read(self):` — function definition` — markdown list item
+- L546: `- L78: `        return self._cap.read()` — return statement` — markdown list item
+- L547: `- L79: `` — blank line` — markdown list item
+- L548: `- L80: `    def release(self):` — function definition` — markdown list item
+- L549: `- L81: `        self._cap.release()` — python statement` — markdown list item
+- L550: `- L82: `` — blank line` — markdown list item
+- L551: `- L83: `` — blank line` — markdown list item
+- L552: `- L84: `class _PiCamera2Wrapper:` — class definition` — markdown list item
+- L553: `- L85: `    def __init__(self, width, height, format_name):` — function definition` — markdown list item
+- L554: `- L86: `        from navisar.sensors.cameras.ov9281 import OV9281Camera` — import statement` — markdown list item
+- L555: `- L87: `` — blank line` — markdown list item
+- L556: `- L88: `        self._cam = OV9281Camera(width=width, height=height, format_name=format_name)` — python statement` — markdown list item
+- L557: `- L89: `` — blank line` — markdown list item
+- L558: `- L90: `    def read(self):` — function definition` — markdown list item
+- L559: `- L91: `        ok, frame = self._cam.read()` — python statement` — markdown list item
+- L560: `- L92: `        return ok, frame` — return statement` — markdown list item
+- L561: `- L93: `` — blank line` — markdown list item
+- L562: `- L94: `    def release(self):` — function definition` — markdown list item
+- L563: `- L95: `        self._cam.release()` — python statement` — markdown list item
+- L564: `- L96: `` — blank line` — markdown list item
+- L565: `- L97: `` — blank line` — markdown list item
+- L566: `- L98: `def _open_camera(args):` — function definition` — markdown list item
+- L567: `- L99: `    if args.backend == "picamera2":` — conditional branch` — markdown list item
+- L568: `- L100: `        return _PiCamera2Wrapper(args.width, args.height, args.format)` — return statement` — markdown list item
+- L569: `- L101: `    return _CvCamera(args.camera_index, args.width, args.height)` — return statement` — markdown list item
+- L570: `- L102: `` — blank line` — markdown list item
+- L571: `- L103: `` — blank line` — markdown list item
+- L572: `- L104: `def _to_gray_and_preview(frame):` — function definition` — markdown list item
+- L573: `- L105: `    if frame.ndim == 2:` — conditional branch` — markdown list item
+- L574: `- L106: `        gray = frame` — python statement` — markdown list item
+- L575: `- L107: `        preview = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)` — python statement` — markdown list item
+- L576: `- L108: `    else:` — conditional branch` — markdown list item
+- L577: `- L109: `        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` — python statement` — markdown list item
+- L578: `- L110: `        preview = frame.copy()` — python statement` — markdown list item
+- L579: `- L111: `    return gray, preview` — return statement` — markdown list item
+- L580: `- L112: `` — blank line` — markdown list item
+- L581: `- L113: `` — blank line` — markdown list item
+- L582: `- L114: `def main():` — function definition` — markdown list item
+- L583: `- L115: `    """Run interactive chessboard calibration."""` — module docstring boundary` — markdown list item
+- L584: `- L116: `    args = _parse_args()` — python statement` — markdown list item
+- L585: `- L117: `    repo_root = Path(__file__).resolve().parents[1]` — python statement` — markdown list item
+- L586: `- L118: `    src_path = repo_root / "src"` — python statement` — markdown list item
+- L587: `- L119: `    if str(src_path) not in sys.path:` — conditional branch` — markdown list item
+- L588: `- L120: `        sys.path.insert(0, str(src_path))` — python statement` — markdown list item
+- L589: `- L121: `    board_size = (args.board_cols, args.board_rows)` — python statement` — markdown list item
+- L590: `- L122: `    objp = np.zeros((board_size[0] * board_size[1], 3), np.float32)` — python statement` — markdown list item
+- L591: `- L123: `    objp[:, :2] = np.mgrid[0 : board_size[0], 0 : board_size[1]].T.reshape(-1, 2)` — python statement` — markdown list item
+- L592: `- L124: `    objp *= float(args.square_size)` — python statement` — markdown list item
+- L593: `- L125: `` — blank line` — markdown list item
+- L594: `- L126: `    save_dir = None` — python statement` — markdown list item
+- L595: `- L127: `    if args.save_dir:` — conditional branch` — markdown list item
+- L596: `- L128: `        save_dir = Path(args.save_dir)` — python statement` — markdown list item
+- L597: `- L129: `        save_dir.mkdir(parents=True, exist_ok=True)` — python statement` — markdown list item
+- L598: `- L130: `` — blank line` — markdown list item
+- L599: `- L131: `    cap = _open_camera(args)` — python statement` — markdown list item
+- L600: `- L132: `` — blank line` — markdown list item
+- L601: `- L133: `    obj_points = []` — python statement` — markdown list item
+- L602: `- L134: `    img_points = []` — python statement` — markdown list item
+- L603: `- L135: `    collected = 0` — python statement` — markdown list item
+- L604: `- L136: `    img_size = None` — python statement` — markdown list item
+- L605: `- L137: `    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)` — python statement` — markdown list item
+- L606: `- L138: `` — blank line` — markdown list item
+- L607: `- L139: `    print("Press SPACE to capture when corners are visible. Press Q to quit.")` — python statement` — markdown list item
+- L608: `- L140: `    while True:` — loop` — markdown list item
+- L609: `- L141: `        ret, frame = cap.read()` — python statement` — markdown list item
+- L610: `- L142: `        if not ret:` — conditional branch` — markdown list item
+- L611: `- L143: `            continue` — python statement` — markdown list item
+- L612: `- L144: `` — blank line` — markdown list item
+- L613: `- L145: `        if img_size is None:` — conditional branch` — markdown list item
+- L614: `- L146: `            img_size = (frame.shape[1], frame.shape[0])` — python statement` — markdown list item
+- L615: `- L147: `` — blank line` — markdown list item
+- L616: `- L148: `        gray, preview = _to_gray_and_preview(frame)` — python statement` — markdown list item
+- L617: `- L149: `        found, corners = cv2.findChessboardCorners(gray, board_size, None)` — python statement` — markdown list item
+- L618: `- L150: `        if found:` — conditional branch` — markdown list item
+- L619: `- L151: `            corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)` — python statement` — markdown list item
+- L620: `- L152: `            cv2.drawChessboardCorners(preview, board_size, corners, found)` — python statement` — markdown list item
+- L621: `- L153: `` — blank line` — markdown list item
+- L622: `- L154: `        cv2.putText(` — python statement` — markdown list item
+- L623: `- L155: `            preview,` — python statement` — markdown list item
+- L624: `- L156: `            f"Samples: {collected}/{args.samples}",` — python statement` — markdown list item
+- L625: `- L157: `            (10, 30),` — python statement` — markdown list item
+- L626: `- L158: `            cv2.FONT_HERSHEY_SIMPLEX,` — python statement` — markdown list item
+- L627: `- L159: `            0.7,` — python statement` — markdown list item
+- L628: `- L160: `            (0, 255, 0),` — python statement` — markdown list item
+- L629: `- L161: `            2,` — python statement` — markdown list item
+- L630: `- L162: `        )` — python statement` — markdown list item
+- L631: `- L163: `        cv2.imshow("Camera Calibration", preview)` — python statement` — markdown list item
+- L632: `- L164: `        key = cv2.waitKey(1) & 0xFF` — python statement` — markdown list item
+- L633: `- L165: `` — blank line` — markdown list item
+- L634: `- L166: `        if key == ord("q"):` — conditional branch` — markdown list item
+- L635: `- L167: `            break` — python statement` — markdown list item
+- L636: `- L168: `        if key == ord(" ") and found:` — conditional branch` — markdown list item
+- L637: `- L169: `            obj_points.append(objp)` — python statement` — markdown list item
+- L638: `- L170: `            img_points.append(corners)` — python statement` — markdown list item
+- L639: `- L171: `            collected += 1` — python statement` — markdown list item
+- L640: `- L172: `            if save_dir is not None:` — conditional branch` — markdown list item
+- L641: `- L173: `                filename = save_dir / f"calib_{collected:03d}.png"` — python statement` — markdown list item
+- L642: `- L174: `                cv2.imwrite(str(filename), frame)` — python statement` — markdown list item
+- L643: `- L175: `            if collected >= args.samples:` — conditional branch` — markdown list item
+- L644: `- L176: `                break` — python statement` — markdown list item
+- L645: `- L177: `` — blank line` — markdown list item
+- L646: `- L178: `    cap.release()` — python statement` — markdown list item
+- L647: `- L179: `    cv2.destroyAllWindows()` — python statement` — markdown list item
+- L648: `- L180: `` — blank line` — markdown list item
+- L649: `- L181: `    if collected < 5:` — conditional branch` — markdown list item
+- L650: `- L182: `        raise RuntimeError("Not enough samples collected to calibrate.")` — error raise` — markdown list item
+- L651: `- L183: `` — blank line` — markdown list item
+- L652: `- L184: `    rms, camera_mtx, dist, _, _ = cv2.calibrateCamera(` — python statement` — markdown list item
+- L653: `- L185: `        obj_points, img_points, img_size, None, None` — python statement` — markdown list item
+- L654: `- L186: `    )` — python statement` — markdown list item
+- L655: `- L187: `` — blank line` — markdown list item
+- L656: `- L188: `    fx = float(camera_mtx[0, 0])` — python statement` — markdown list item
+- L657: `- L189: `    fy = float(camera_mtx[1, 1])` — python statement` — markdown list item
+- L658: `- L190: `    cx = float(camera_mtx[0, 2])` — python statement` — markdown list item
+- L659: `- L191: `    cy = float(camera_mtx[1, 2])` — python statement` — markdown list item
+- L660: `- L192: `    dist_coeffs = dist.ravel().tolist()` — python statement` — markdown list item
+- L661: `- L193: `` — blank line` — markdown list item
+- L662: `- L194: `    print("\nCalibration complete")` — python statement` — markdown list item
+- L663: `- L195: `    print(f"RMS reprojection error: {rms:.6f}")` — python statement` — markdown list item
+- L664: `- L196: `    print(_yaml_snippet(fx, fy, cx, cy, dist_coeffs))` — python statement` — markdown list item
+- L665: `- L197: `` — blank line` — markdown list item
+- L666: `- L198: `` — blank line` — markdown list item
+- L667: `- L199: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L668: `- L200: `    main()` — python statement` — markdown list item
+- L669: `` — blank line
+- L670: `## `tools/gps_serial_forwarder.py`` — markdown heading
+- L671: `- Role: Tool` — markdown list item
+- L672: `### Line-by-line` — markdown heading
+- L673: `- L1: `"""GPS Serial Forwarder module. Provides gps serial forwarder utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L674: `- L2: `` — blank line` — markdown list item
+- L675: `- L3: `import argparse` — import statement` — markdown list item
+- L676: `- L4: `import time` — import statement` — markdown list item
+- L677: `- L5: `` — blank line` — markdown list item
+- L678: `- L6: `import serial` — import statement` — markdown list item
+- L679: `- L7: `` — blank line` — markdown list item
+- L680: `- L8: `` — blank line` — markdown list item
+- L681: `- L9: `def main():` — function definition` — markdown list item
+- L682: `- L10: `    """Forward raw GPS NMEA data between serial ports."""` — module docstring boundary` — markdown list item
+- L683: `- L11: `    parser = argparse.ArgumentParser(description="Forward GPS serial data to Pixhawk.")` — python statement` — markdown list item
+- L684: `- L12: `    parser.add_argument("--in-port", required=True, help="GPS input port (e.g. /dev/ttyUSB0)")` — python statement` — markdown list item
+- L685: `- L13: `    parser.add_argument("--out-port", required=True, help="Pixhawk output port (e.g. /dev/ttyUSB1)")` — python statement` — markdown list item
+- L686: `- L14: `    parser.add_argument("--baud", type=int, default=9600, help="Serial baud rate")` — python statement` — markdown list item
+- L687: `- L15: `    parser.add_argument("--stats-interval", type=float, default=5.0, help="Seconds between stats")` — python statement` — markdown list item
+- L688: `- L16: `    args = parser.parse_args()` — python statement` — markdown list item
+- L689: `- L17: `` — blank line` — markdown list item
+- L690: `- L18: `    gps_in = serial.Serial(args.in_port, args.baud, timeout=0.5)` — python statement` — markdown list item
+- L691: `- L19: `    gps_out = serial.Serial(args.out_port, args.baud, timeout=0)` — python statement` — markdown list item
+- L692: `- L20: `    print(` — python statement` — markdown list item
+- L693: `- L21: `        f"Forwarding {args.in_port} -> {args.out_port} @ {args.baud} baud"` — python statement` — markdown list item
+- L694: `- L22: `    )` — python statement` — markdown list item
+- L695: `- L23: `` — blank line` — markdown list item
+- L696: `- L24: `    last_stats = time.time()` — python statement` — markdown list item
+- L697: `- L25: `    bytes_in = 0` — python statement` — markdown list item
+- L698: `- L26: `    lines_in = 0` — python statement` — markdown list item
+- L699: `- L27: `    while True:` — loop` — markdown list item
+- L700: `- L28: `        line = gps_in.readline()` — python statement` — markdown list item
+- L701: `- L29: `        if line:` — conditional branch` — markdown list item
+- L702: `- L30: `            gps_out.write(line)` — python statement` — markdown list item
+- L703: `- L31: `            bytes_in += len(line)` — python statement` — markdown list item
+- L704: `- L32: `            lines_in += 1` — python statement` — markdown list item
+- L705: `- L33: `        now = time.time()` — python statement` — markdown list item
+- L706: `- L34: `        if now - last_stats >= args.stats_interval:` — conditional branch` — markdown list item
+- L707: `- L35: `            print(f"Forwarded {lines_in} lines / {bytes_in} bytes")` — python statement` — markdown list item
+- L708: `- L36: `            last_stats = now` — python statement` — markdown list item
+- L709: `- L37: `            bytes_in = 0` — python statement` — markdown list item
+- L710: `- L38: `            lines_in = 0` — python statement` — markdown list item
+- L711: `- L39: `` — blank line` — markdown list item
+- L712: `- L40: `` — blank line` — markdown list item
+- L713: `- L41: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L714: `- L42: `    main()` — python statement` — markdown list item
+- L715: `` — blank line
+- L716: `## `tools/gps_serial_sniffer.py`` — markdown heading
+- L717: `- Role: Tool` — markdown list item
+- L718: `### Line-by-line` — markdown heading
+- L719: `- L1: `"""GPS Serial Sniffer module. Provides gps serial sniffer utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L720: `- L2: `` — blank line` — markdown list item
+- L721: `- L3: `import argparse` — import statement` — markdown list item
+- L722: `- L4: `import time` — import statement` — markdown list item
+- L723: `- L5: `` — blank line` — markdown list item
+- L724: `- L6: `import serial` — import statement` — markdown list item
+- L725: `- L7: `` — blank line` — markdown list item
+- L726: `- L8: `` — blank line` — markdown list item
+- L727: `- L9: `def _detect_format(sample):` — function definition` — markdown list item
+- L728: `- L10: `    """Guess GPS message format from leading bytes."""` — module docstring boundary` — markdown list item
+- L729: `- L11: `    if not sample:` — conditional branch` — markdown list item
+- L730: `- L12: `        return "unknown"` — return statement` — markdown list item
+- L731: `- L13: `    if sample.startswith(b"$"):` — conditional branch` — markdown list item
+- L732: `- L14: `        return "nmea"` — return statement` — markdown list item
+- L733: `- L15: `    if sample.startswith(b"\xb5\x62"):` — conditional branch` — markdown list item
+- L734: `- L16: `        return "ubx"` — return statement` — markdown list item
+- L735: `- L17: `    return "unknown"` — return statement` — markdown list item
+- L736: `- L18: `` — blank line` — markdown list item
+- L737: `- L19: `` — blank line` — markdown list item
+- L738: `- L20: `def _safe_decode(sample):` — function definition` — markdown list item
+- L739: `- L21: `    """Decode bytes as ASCII, returning empty on failure."""` — module docstring boundary` — markdown list item
+- L740: `- L22: `    try:` — exception handling` — markdown list item
+- L741: `- L23: `        return sample.decode("ascii", errors="ignore").strip()` — return statement` — markdown list item
+- L742: `- L24: `    except Exception:` — exception handling` — markdown list item
+- L743: `- L25: `        return ""` — return statement` — markdown list item
+- L744: `- L26: `` — blank line` — markdown list item
+- L745: `- L27: `` — blank line` — markdown list item
+- L746: `- L28: `def main():` — function definition` — markdown list item
+- L747: `- L29: `    """CLI tool to sniff GPS serial data format."""` — module docstring boundary` — markdown list item
+- L748: `- L30: `    parser = argparse.ArgumentParser(description="Sniff GPS serial data format.")` — python statement` — markdown list item
+- L749: `- L31: `    parser.add_argument("--port", required=True, help="Serial port (e.g. /dev/ttyUSB0)")` — python statement` — markdown list item
+- L750: `- L32: `    parser.add_argument("--baud", type=int, default=9600, help="Serial baud rate")` — python statement` — markdown list item
+- L751: `- L33: `    parser.add_argument("--duration", type=float, default=5.0, help="Seconds to sniff")` — python statement` — markdown list item
+- L752: `- L34: `    parser.add_argument("--max-lines", type=int, default=50, help="Max lines to print")` — python statement` — markdown list item
+- L753: `- L35: `    args = parser.parse_args()` — python statement` — markdown list item
+- L754: `- L36: `` — blank line` — markdown list item
+- L755: `- L37: `    ser = serial.Serial(args.port, args.baud, timeout=0.5)` — python statement` — markdown list item
+- L756: `- L38: `    print(f"Sniffing {args.port} @ {args.baud} for {args.duration}s...")` — python statement` — markdown list item
+- L757: `- L39: `` — blank line` — markdown list item
+- L758: `- L40: `    start = time.time()` — python statement` — markdown list item
+- L759: `- L41: `    lines = 0` — python statement` — markdown list item
+- L760: `- L42: `    last_format = "unknown"` — python statement` — markdown list item
+- L761: `- L43: `    while time.time() - start < args.duration and lines < args.max_lines:` — loop` — markdown list item
+- L762: `- L44: `        raw = ser.readline()` — python statement` — markdown list item
+- L763: `- L45: `        if not raw:` — conditional branch` — markdown list item
+- L764: `- L46: `            continue` — python statement` — markdown list item
+- L765: `- L47: `        fmt = _detect_format(raw)` — python statement` — markdown list item
+- L766: `- L48: `        if fmt != "unknown":` — conditional branch` — markdown list item
+- L767: `- L49: `            last_format = fmt` — python statement` — markdown list item
+- L768: `- L50: `        if fmt == "nmea":` — conditional branch` — markdown list item
+- L769: `- L51: `            print(f"NMEA: {_safe_decode(raw)}")` — python statement` — markdown list item
+- L770: `- L52: `        elif fmt == "ubx":` — conditional branch` — markdown list item
+- L771: `- L53: `            print(f"UBX: {raw[:20].hex()}...")` — python statement` — markdown list item
+- L772: `- L54: `        else:` — conditional branch` — markdown list item
+- L773: `- L55: `            text = _safe_decode(raw)` — python statement` — markdown list item
+- L774: `- L56: `            if text:` — conditional branch` — markdown list item
+- L775: `- L57: `                print(f"RAW: {text}")` — python statement` — markdown list item
+- L776: `- L58: `            else:` — conditional branch` — markdown list item
+- L777: `- L59: `                print(f"RAW: {raw[:20].hex()}...")` — python statement` — markdown list item
+- L778: `- L60: `        lines += 1` — python statement` — markdown list item
+- L779: `- L61: `` — blank line` — markdown list item
+- L780: `- L62: `    print(f"Detected format: {last_format}")` — python statement` — markdown list item
+- L781: `- L63: `` — blank line` — markdown list item
+- L782: `- L64: `` — blank line` — markdown list item
+- L783: `- L65: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L784: `- L66: `    main()` — python statement` — markdown list item
+- L785: `` — blank line
+- L786: `## `tools/gps_vs_vps_error.py`` — markdown heading
+- L787: `- Role: Tool` — markdown list item
+- L788: `### Line-by-line` — markdown heading
+- L789: `- L1: `"""GPS Vs VPS Error module. Provides gps vs vps error utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L790: `- L2: `` — blank line` — markdown list item
+- L791: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L792: `` — blank line
+- L793: `## `tools/imu_monitor.py`` — markdown heading
+- L794: `- Role: Tool` — markdown list item
+- L795: `### Line-by-line` — markdown heading
+- L796: `- L1: `#!/usr/bin/env python3` — comment` — markdown list item
+- L797: `- L2: `"""Print Pixhawk IMU data to the terminal."""` — module docstring boundary` — markdown list item
+- L798: `- L3: `` — blank line` — markdown list item
+- L799: `- L4: `import argparse` — import statement` — markdown list item
+- L800: `- L5: `import sys` — import statement` — markdown list item
+- L801: `- L6: `import time` — import statement` — markdown list item
+- L802: `- L7: `from pathlib import Path` — import statement` — markdown list item
+- L803: `- L8: `` — blank line` — markdown list item
+- L804: `- L9: `from pymavlink import mavutil` — import statement` — markdown list item
+- L805: `- L10: `` — blank line` — markdown list item
+- L806: `- L11: `` — blank line` — markdown list item
+- L807: `- L12: `def _parse_args():` — function definition` — markdown list item
+- L808: `- L13: `    parser = argparse.ArgumentParser(description="Monitor Pixhawk IMU data.")` — python statement` — markdown list item
+- L809: `- L14: `    parser.add_argument(` — python statement` — markdown list item
+- L810: `- L15: `        "--device",` — python statement` — markdown list item
+- L811: `- L16: `        type=str,` — python statement` — markdown list item
+- L812: `- L17: `        default="/dev/ttyACM0",` — python statement` — markdown list item
+- L813: `- L18: `        help="MAVLink serial device.",` — python statement` — markdown list item
+- L814: `- L19: `    )` — python statement` — markdown list item
+- L815: `- L20: `    parser.add_argument(` — python statement` — markdown list item
+- L816: `- L21: `        "--baud",` — python statement` — markdown list item
+- L817: `- L22: `        type=int,` — python statement` — markdown list item
+- L818: `- L23: `        default=115200,` — python statement` — markdown list item
+- L819: `- L24: `        help="MAVLink baud rate.",` — python statement` — markdown list item
+- L820: `- L25: `    )` — python statement` — markdown list item
+- L821: `- L26: `    parser.add_argument(` — python statement` — markdown list item
+- L822: `- L27: `        "--rate-hz",` — python statement` — markdown list item
+- L823: `- L28: `        type=float,` — python statement` — markdown list item
+- L824: `- L29: `        default=20.0,` — python statement` — markdown list item
+- L825: `- L30: `        help="Requested HIGHRES_IMU message rate.",` — python statement` — markdown list item
+- L826: `- L31: `    )` — python statement` — markdown list item
+- L827: `- L32: `    parser.add_argument(` — python statement` — markdown list item
+- L828: `- L33: `        "--print-hz",` — python statement` — markdown list item
+- L829: `- L34: `        type=float,` — python statement` — markdown list item
+- L830: `- L35: `        default=10.0,` — python statement` — markdown list item
+- L831: `- L36: `        help="Terminal print rate.",` — python statement` — markdown list item
+- L832: `- L37: `    )` — python statement` — markdown list item
+- L833: `- L38: `    return parser.parse_args()` — return statement` — markdown list item
+- L834: `- L39: `` — blank line` — markdown list item
+- L835: `- L40: `` — blank line` — markdown list item
+- L836: `- L41: `def _ensure_import_path():` — function definition` — markdown list item
+- L837: `- L42: `    repo_root = Path(__file__).resolve().parents[1]` — python statement` — markdown list item
+- L838: `- L43: `    src_path = repo_root / "src"` — python statement` — markdown list item
+- L839: `- L44: `    if str(src_path) not in sys.path:` — conditional branch` — markdown list item
+- L840: `- L45: `        sys.path.insert(0, str(src_path))` — python statement` — markdown list item
+- L841: `- L46: `` — blank line` — markdown list item
+- L842: `- L47: `` — blank line` — markdown list item
+- L843: `- L48: `def main():` — function definition` — markdown list item
+- L844: `- L49: `    args = _parse_args()` — python statement` — markdown list item
+- L845: `- L50: `    _ensure_import_path()` — python statement` — markdown list item
+- L846: `- L51: `` — blank line` — markdown list item
+- L847: `- L52: `    from navisar.pixhawk.mavlink_client import MavlinkInterface` — import statement` — markdown list item
+- L848: `- L53: `` — blank line` — markdown list item
+- L849: `- L54: `    mav = MavlinkInterface(args.device, baud=args.baud)` — python statement` — markdown list item
+- L850: `- L55: `    mav.request_message_interval(` — python statement` — markdown list item
+- L851: `- L56: `        mavutil.mavlink.MAVLINK_MSG_ID_HIGHRES_IMU,` — python statement` — markdown list item
+- L852: `- L57: `        rate_hz=args.rate_hz,` — python statement` — markdown list item
+- L853: `- L58: `    )` — python statement` — markdown list item
+- L854: `- L59: `    mav.request_message_interval(` — python statement` — markdown list item
+- L855: `- L60: `        mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU,` — python statement` — markdown list item
+- L856: `- L61: `        rate_hz=args.rate_hz,` — python statement` — markdown list item
+- L857: `- L62: `    )` — python statement` — markdown list item
+- L858: `- L63: `    mav.request_message_interval(` — python statement` — markdown list item
+- L859: `- L64: `        mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU,` — python statement` — markdown list item
+- L860: `- L65: `        rate_hz=args.rate_hz,` — python statement` — markdown list item
+- L861: `- L66: `    )` — python statement` — markdown list item
+- L862: `- L67: `` — blank line` — markdown list item
+- L863: `- L68: `    last_print = 0.0` — python statement` — markdown list item
+- L864: `- L69: `    last_status = 0.0` — python statement` — markdown list item
+- L865: `- L70: `    print_interval = 1.0 / max(args.print_hz, 1e-3)` — python statement` — markdown list item
+- L866: `- L71: `    while True:` — loop` — markdown list item
+- L867: `- L72: `        imu = mav.recv_imu()` — python statement` — markdown list item
+- L868: `- L73: `        now = time.time()` — python statement` — markdown list item
+- L869: `- L74: `        if imu and (now - last_print) >= print_interval:` — conditional branch` — markdown list item
+- L870: `- L75: `            last_print = now` — python statement` — markdown list item
+- L871: `- L76: `            print(` — python statement` — markdown list item
+- L872: `- L77: `                "accel[m/s^2]=({ax:.3f},{ay:.3f},{az:.3f}) "` — python statement` — markdown list item
+- L873: `- L78: `                "gyro[rad/s]=({gx:.3f},{gy:.3f},{gz:.3f}) "` — python statement` — markdown list item
+- L874: `- L79: `                "t={time_s:.3f}".format(**imu)` — python statement` — markdown list item
+- L875: `- L80: `            )` — python statement` — markdown list item
+- L876: `- L81: `        if imu is None:` — conditional branch` — markdown list item
+- L877: `- L82: `            msg = mav.master.recv_match(type="RAW_IMU", blocking=False)` — python statement` — markdown list item
+- L878: `- L83: `            if msg and (now - last_print) >= print_interval:` — conditional branch` — markdown list item
+- L879: `- L84: `                last_print = now` — python statement` — markdown list item
+- L880: `- L85: `                print(` — python statement` — markdown list item
+- L881: `- L86: `                    "RAW_IMU accel[mg]=({},{},{}) gyro[mrad/s]=({},{},{}) t={}".format(` — python statement` — markdown list item
+- L882: `- L87: `                        msg.xacc,` — python statement` — markdown list item
+- L883: `- L88: `                        msg.yacc,` — python statement` — markdown list item
+- L884: `- L89: `                        msg.zacc,` — python statement` — markdown list item
+- L885: `- L90: `                        msg.xgyro,` — python statement` — markdown list item
+- L886: `- L91: `                        msg.ygyro,` — python statement` — markdown list item
+- L887: `- L92: `                        msg.zgyro,` — python statement` — markdown list item
+- L888: `- L93: `                        msg.time_usec,` — python statement` — markdown list item
+- L889: `- L94: `                    )` — python statement` — markdown list item
+- L890: `- L95: `                )` — python statement` — markdown list item
+- L891: `- L96: `        if imu is None:` — conditional branch` — markdown list item
+- L892: `- L97: `            msg = mav.master.recv_match(type="SCALED_IMU", blocking=False)` — python statement` — markdown list item
+- L893: `- L98: `            if msg and (now - last_print) >= print_interval:` — conditional branch` — markdown list item
+- L894: `- L99: `                last_print = now` — python statement` — markdown list item
+- L895: `- L100: `                print(` — python statement` — markdown list item
+- L896: `- L101: `                    "SCALED_IMU accel[mg]=({},{},{}) gyro[mrad/s]=({},{},{}) t={}".format(` — python statement` — markdown list item
+- L897: `- L102: `                        msg.xacc,` — python statement` — markdown list item
+- L898: `- L103: `                        msg.yacc,` — python statement` — markdown list item
+- L899: `- L104: `                        msg.zacc,` — python statement` — markdown list item
+- L900: `- L105: `                        msg.xgyro,` — python statement` — markdown list item
+- L901: `- L106: `                        msg.ygyro,` — python statement` — markdown list item
+- L902: `- L107: `                        msg.zgyro,` — python statement` — markdown list item
+- L903: `- L108: `                        msg.time_boot_ms,` — python statement` — markdown list item
+- L904: `- L109: `                    )` — python statement` — markdown list item
+- L905: `- L110: `                )` — python statement` — markdown list item
+- L906: `- L111: `        if (now - last_status) >= 2.0 and imu is None:` — conditional branch` — markdown list item
+- L907: `- L112: `            last_status = now` — python statement` — markdown list item
+- L908: `- L113: `            print("Waiting for IMU data...")` — python statement` — markdown list item
+- L909: `- L114: `        time.sleep(0.01)` — python statement` — markdown list item
+- L910: `- L115: `` — blank line` — markdown list item
+- L911: `- L116: `` — blank line` — markdown list item
+- L912: `- L117: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L913: `- L118: `    main()` — python statement` — markdown list item
+- L914: `` — blank line
+- L915: `## `tools/log_replay.py`` — markdown heading
+- L916: `- Role: Tool` — markdown list item
+- L917: `### Line-by-line` — markdown heading
+- L918: `- L1: `"""Log Replay module. Provides log replay utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L919: `- L2: `` — blank line` — markdown list item
+- L920: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L921: `` — blank line
+- L922: `## `tools/map_viewer.py`` — markdown heading
+- L923: `- Role: Tool` — markdown list item
+- L924: `### Line-by-line` — markdown heading
+- L925: `- L1: `"""Map Viewer module. Provides map viewer utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L926: `- L2: `` — blank line` — markdown list item
+- L927: `- L3: `# Placeholder file` — comment` — markdown list item
+- L928: `` — blank line
+- L929: `## `tools/mavlink_sniffer.py`` — markdown heading
+- L930: `- Role: Tool` — markdown list item
+- L931: `### Line-by-line` — markdown heading
+- L932: `- L1: `"""MAVLink Sniffer module. Provides mavlink sniffer utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L933: `- L2: `` — blank line` — markdown list item
+- L934: `- L3: `import os` — import statement` — markdown list item
+- L935: `- L4: `import time` — import statement` — markdown list item
+- L936: `- L5: `` — blank line` — markdown list item
+- L937: `- L6: `from pymavlink import mavutil` — import statement` — markdown list item
+- L938: `- L7: `` — blank line` — markdown list item
+- L939: `- L8: `` — blank line` — markdown list item
+- L940: `- L9: `DEVICE = os.getenv("MAVLINK_DEVICE", "/dev/ttyACM0")` — python statement` — markdown list item
+- L941: `- L10: `BAUD = int(os.getenv("MAVLINK_BAUD", "115200"))` — python statement` — markdown list item
+- L942: `- L11: `HEARTBEAT_TIMEOUT_S = float(os.getenv("MAVLINK_HEARTBEAT_TIMEOUT_S", "5.0"))` — python statement` — markdown list item
+- L943: `- L12: `PRINT_INTERVAL_S = float(os.getenv("MAVLINK_PRINT_INTERVAL_S", "0.0"))` — python statement` — markdown list item
+- L944: `- L13: `GPS_RAW_RATE_HZ = float(os.getenv("MAVLINK_GPS_RAW_RATE_HZ", "2.0"))` — python statement` — markdown list item
+- L945: `- L14: `GLOBAL_POS_RATE_HZ = float(os.getenv("MAVLINK_GLOBAL_POS_RATE_HZ", "2.0"))` — python statement` — markdown list item
+- L946: `- L15: `LIDAR_RATE_HZ = float(os.getenv("MAVLINK_LIDAR_RATE_HZ", "5.0"))` — python statement` — markdown list item
+- L947: `- L16: `` — blank line` — markdown list item
+- L948: `- L17: `` — blank line` — markdown list item
+- L949: `- L18: `def _request_message_interval(master, msg_id, rate_hz):` — function definition` — markdown list item
+- L950: `- L19: `    """Request a MAVLink message at a given rate."""` — module docstring boundary` — markdown list item
+- L951: `- L20: `    if rate_hz <= 0:` — conditional branch` — markdown list item
+- L952: `- L21: `        return` — python statement` — markdown list item
+- L953: `- L22: `    interval_us = int(1_000_000 / rate_hz)` — python statement` — markdown list item
+- L954: `- L23: `    master.mav.command_long_send(` — python statement` — markdown list item
+- L955: `- L24: `        master.target_system,` — python statement` — markdown list item
+- L956: `- L25: `        master.target_component,` — python statement` — markdown list item
+- L957: `- L26: `        mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,` — python statement` — markdown list item
+- L958: `- L27: `        0,` — python statement` — markdown list item
+- L959: `- L28: `        msg_id,` — python statement` — markdown list item
+- L960: `- L29: `        interval_us,` — python statement` — markdown list item
+- L961: `- L30: `        0,` — python statement` — markdown list item
+- L962: `- L31: `        0,` — python statement` — markdown list item
+- L963: `- L32: `        0,` — python statement` — markdown list item
+- L964: `- L33: `        0,` — python statement` — markdown list item
+- L965: `- L34: `        0,` — python statement` — markdown list item
+- L966: `- L35: `    )` — python statement` — markdown list item
+- L967: `- L36: `` — blank line` — markdown list item
+- L968: `- L37: `` — blank line` — markdown list item
+- L969: `- L38: `def main():` — function definition` — markdown list item
+- L970: `- L39: `    """Stream GPS/LiDAR MAVLink messages to stdout."""` — module docstring boundary` — markdown list item
+- L971: `- L40: `    print(f"Connecting to Pixhawk on {DEVICE} @ {BAUD}...")` — python statement` — markdown list item
+- L972: `- L41: `    master = mavutil.mavlink_connection(DEVICE, baud=BAUD)` — python statement` — markdown list item
+- L973: `- L42: `    try:` — exception handling` — markdown list item
+- L974: `- L43: `        master.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT_S)` — python statement` — markdown list item
+- L975: `- L44: `    except Exception as exc:` — exception handling` — markdown list item
+- L976: `- L45: `        raise RuntimeError("Failed to receive MAVLink heartbeat") from exc` — error raise` — markdown list item
+- L977: `- L46: `` — blank line` — markdown list item
+- L978: `- L47: `    print("Heartbeat received. Streaming GPS + LiDAR MAVLink messages...")` — python statement` — markdown list item
+- L979: `- L48: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_GPS_RAW_INT, GPS_RAW_RATE_HZ)` — python statement` — markdown list item
+- L980: `- L49: `    _request_message_interval(` — python statement` — markdown list item
+- L981: `- L50: `        master, mavutil.mavlink.MAVLINK_MSG_ID_GLOBAL_POSITION_INT, GLOBAL_POS_RATE_HZ` — python statement` — markdown list item
+- L982: `- L51: `    )` — python statement` — markdown list item
+- L983: `- L52: `    _request_message_interval(` — python statement` — markdown list item
+- L984: `- L53: `        master, mavutil.mavlink.MAVLINK_MSG_ID_DISTANCE_SENSOR, LIDAR_RATE_HZ` — python statement` — markdown list item
+- L985: `- L54: `    )` — python statement` — markdown list item
+- L986: `- L55: `    last_print = 0.0` — python statement` — markdown list item
+- L987: `- L56: `    while True:` — loop` — markdown list item
+- L988: `- L57: `        msg = master.recv_match(blocking=True, timeout=1.0)` — python statement` — markdown list item
+- L989: `- L58: `        if msg is None:` — conditional branch` — markdown list item
+- L990: `- L59: `            continue` — python statement` — markdown list item
+- L991: `- L60: `        msg_type = msg.get_type()` — python statement` — markdown list item
+- L992: `- L61: `        if msg_type not in ("GPS_RAW_INT", "GLOBAL_POSITION_INT", "DISTANCE_SENSOR"):` — conditional branch` — markdown list item
+- L993: `- L62: `            continue` — python statement` — markdown list item
+- L994: `- L63: `        now = time.time()` — python statement` — markdown list item
+- L995: `- L64: `        if PRINT_INTERVAL_S <= 0.0 or (now - last_print) >= PRINT_INTERVAL_S:` — conditional branch` — markdown list item
+- L996: `- L65: `            if msg_type == "GPS_RAW_INT":` — conditional branch` — markdown list item
+- L997: `- L66: `                lat = msg.lat / 1e7` — python statement` — markdown list item
+- L998: `- L67: `                lon = msg.lon / 1e7` — python statement` — markdown list item
+- L999: `- L68: `                alt_m = msg.alt / 1000.0` — python statement` — markdown list item
+- L1000: `- L69: `                print(f"GPS: lat={lat:.7f} lon={lon:.7f} alt_m={alt_m:.2f}")` — python statement` — markdown list item
+- L1001: `- L70: `            elif msg_type == "GLOBAL_POSITION_INT":` — conditional branch` — markdown list item
+- L1002: `- L71: `                lat = msg.lat / 1e7` — python statement` — markdown list item
+- L1003: `- L72: `                lon = msg.lon / 1e7` — python statement` — markdown list item
+- L1004: `- L73: `                alt_m = msg.alt / 1000.0` — python statement` — markdown list item
+- L1005: `- L74: `                rel_alt_m = msg.relative_alt / 1000.0` — python statement` — markdown list item
+- L1006: `- L75: `                print(` — python statement` — markdown list item
+- L1007: `- L76: `                    f"GPS(global): lat={lat:.7f} lon={lon:.7f} alt_m={alt_m:.2f} rel_alt_m={rel_alt_m:.2f}"` — python statement` — markdown list item
+- L1008: `- L77: `                )` — python statement` — markdown list item
+- L1009: `- L78: `            elif msg_type == "DISTANCE_SENSOR":` — conditional branch` — markdown list item
+- L1010: `- L79: `                dist_m = msg.current_distance / 100.0` — python statement` — markdown list item
+- L1011: `- L80: `                print(f"LiDAR: distance_m={dist_m:.2f}")` — python statement` — markdown list item
+- L1012: `- L81: `            last_print = now` — python statement` — markdown list item
+- L1013: `- L82: `` — blank line` — markdown list item
+- L1014: `- L83: `` — blank line` — markdown list item
+- L1015: `- L84: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L1016: `- L85: `    main()` — python statement` — markdown list item
+- L1017: `` — blank line
+- L1018: `## `tools/xy_drift.py`` — markdown heading
+- L1019: `- Role: Tool` — markdown list item
+- L1020: `### Line-by-line` — markdown heading
+- L1021: `- L1: `"""Xy Drift module. Provides xy drift utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L1022: `- L2: `` — blank line` — markdown list item
+- L1023: `- L3: `import time` — import statement` — markdown list item
+- L1024: `- L4: `` — blank line` — markdown list item
+- L1025: `- L5: `from navisar.main import build_vo_pipeline` — import statement` — markdown list item
+- L1026: `- L6: `` — blank line` — markdown list item
+- L1027: `- L7: `` — blank line` — markdown list item
+- L1028: `- L8: `def main():` — function definition` — markdown list item
+- L1029: `- L9: `    """Run VO and print XY drift telemetry."""` — module docstring boundary` — markdown list item
+- L1030: `- L10: `    vo, _mavlink_interface = build_vo_pipeline()` — python statement` — markdown list item
+- L1031: `- L11: `    last_print = 0.0` — python statement` — markdown list item
+- L1032: `- L12: `    print_interval_s = 0.2` — python statement` — markdown list item
+- L1033: `- L13: `` — blank line` — markdown list item
+- L1034: `- L14: `    def on_update(x, y, z, dx_m, dy_m, dz_m, dx_pixels, dy_pixels, inliers):` — function definition` — markdown list item
+- L1035: `- L15: `        nonlocal last_print` — python statement` — markdown list item
+- L1036: `- L16: `        now = time.time()` — python statement` — markdown list item
+- L1037: `- L17: `        if now - last_print < print_interval_s:` — conditional branch` — markdown list item
+- L1038: `- L18: `            return` — python statement` — markdown list item
+- L1039: `- L19: `        last_print = now` — python statement` — markdown list item
+- L1040: `- L20: `        print(` — python statement` — markdown list item
+- L1041: `- L21: `            f"X={x:.3f} Y={y:.3f} Z={z:.3f} "` — python statement` — markdown list item
+- L1042: `- L22: `            f"dX={dx_m:.3f} dY={dy_m:.3f} dZ={dz_m:.3f} "` — python statement` — markdown list item
+- L1043: `- L23: `            f"dx_pix={dx_pixels:.2f} dy_pix={dy_pixels:.2f} inliers={inliers}"` — python statement` — markdown list item
+- L1044: `- L24: `        )` — python statement` — markdown list item
+- L1045: `- L25: `` — blank line` — markdown list item
+- L1046: `- L26: `    vo.run(window_name="Camera Drift XY", on_update=on_update)` — python statement` — markdown list item
+- L1047: `- L27: `` — blank line` — markdown list item
+- L1048: `- L28: `` — blank line` — markdown list item
+- L1049: `- L29: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L1050: `- L30: `    main()` — python statement` — markdown list item
+- L1051: `` — blank line
+- L1052: `## `.github/workflows/ci.yml`` — markdown heading
+- L1053: `- Role: CI` — markdown list item
+- L1054: `### Line-by-line` — markdown heading
+- L1055: `- L1: `# Placeholder CI workflow` — yaml comment` — markdown list item
+- L1056: `` — blank line
+- L1057: `## `.github/workflows/lint.yml`` — markdown heading
+- L1058: `- Role: CI` — markdown list item
+- L1059: `### Line-by-line` — markdown heading
+- L1060: `- L1: `# Placeholder lint workflow` — yaml comment` — markdown list item
+- L1061: `` — blank line
+- L1062: `## `data/calibration/camera.yaml`` — markdown heading
+- L1063: `- Role: Data` — markdown list item
+- L1064: `### Line-by-line` — markdown heading
+- L1065: `- L1: `# Camera calibration` — yaml comment` — markdown list item
+- L1066: `` — blank line
+- L1067: `## `data/calibration/imu.yaml`` — markdown heading
+- L1068: `- Role: Data` — markdown list item
+- L1069: `### Line-by-line` — markdown heading
+- L1070: `- L1: `# IMU calibration` — yaml comment` — markdown list item
+- L1071: `` — blank line
+- L1072: `## `data/home_locations/site_A.yaml`` — markdown heading
+- L1073: `- Role: Data` — markdown list item
+- L1074: `### Line-by-line` — markdown heading
+- L1075: `- L1: `# Site A home location` — yaml comment` — markdown list item
+- L1076: `- L2: `lat: 0.0` — yaml key/value` — markdown list item
+- L1077: `- L3: `lon: 0.0` — yaml key/value` — markdown list item
+- L1078: `- L4: `alt: 0.0` — yaml key/value` — markdown list item
+- L1079: `` — blank line
+- L1080: `## `data/maps/warehouse_map.db`` — markdown heading
+- L1081: `- Role: Data` — markdown list item
+- L1082: `### Line-by-line` — markdown heading
+- L1083: `- L1: `` — blank line` — markdown list item
+- L1084: `` — blank line
+- L1085: `## `docs/gnss/contested_zone_logic.md`` — markdown heading
+- L1086: `- Role: Documentation` — markdown list item
+- L1087: `### Line-by-line` — markdown heading
+- L1088: `- L1: `# Contested zone logic` — markdown heading` — markdown list item
+- L1089: `- L2: `` — blank line` — markdown list item
+- L1090: `- L3: `TBD.` — markdown text` — markdown list item
+- L1091: `` — blank line
+- L1092: `## `docs/gnss/error_analysis.md`` — markdown heading
+- L1093: `- Role: Documentation` — markdown list item
+- L1094: `### Line-by-line` — markdown heading
+- L1095: `- L1: `# GNSS error analysis` — markdown heading` — markdown list item
+- L1096: `- L2: `` — blank line` — markdown list item
+- L1097: `- L3: `TBD.` — markdown text` — markdown list item
+- L1098: `` — blank line
+- L1099: `## `docs/gnss/spoof_detection.md`` — markdown heading
+- L1100: `- Role: Documentation` — markdown list item
+- L1101: `### Line-by-line` — markdown heading
+- L1102: `- L1: `# GNSS spoof detection` — markdown heading` — markdown list item
+- L1103: `- L2: `` — blank line` — markdown list item
+- L1104: `- L3: `TBD.` — markdown text` — markdown list item
+- L1105: `` — blank line
+- L1106: `## `docs/hardware/sensor_stack.md`` — markdown heading
+- L1107: `- Role: Documentation` — markdown list item
+- L1108: `### Line-by-line` — markdown heading
+- L1109: `- L1: `# Sensor stack` — markdown heading` — markdown list item
+- L1110: `- L2: `` — blank line` — markdown list item
+- L1111: `- L3: `TBD.` — markdown text` — markdown list item
+- L1112: `` — blank line
+- L1113: `## `docs/hardware/supported_platforms.md`` — markdown heading
+- L1114: `- Role: Documentation` — markdown list item
+- L1115: `### Line-by-line` — markdown heading
+- L1116: `- L1: `# Supported platforms` — markdown heading` — markdown list item
+- L1117: `- L2: `` — blank line` — markdown list item
+- L1118: `- L3: `TBD.` — markdown text` — markdown list item
+- L1119: `` — blank line
+- L1120: `## `docs/hardware/wiring_diagrams.md`` — markdown heading
+- L1121: `- Role: Documentation` — markdown list item
+- L1122: `### Line-by-line` — markdown heading
+- L1123: `- L1: `# Wiring diagrams` — markdown heading` — markdown list item
+- L1124: `- L2: `` — blank line` — markdown list item
+- L1125: `- L3: `TBD.` — markdown text` — markdown list item
+- L1126: `` — blank line
+- L1127: `## `docs/navigation/indoor_return_logic.md`` — markdown heading
+- L1128: `- Role: Documentation` — markdown list item
+- L1129: `### Line-by-line` — markdown heading
+- L1130: `- L1: `# Indoor return logic` — markdown heading` — markdown list item
+- L1131: `- L2: `` — blank line` — markdown list item
+- L1132: `- L3: `TBD.` — markdown text` — markdown list item
+- L1133: `` — blank line
+- L1134: `## `docs/navigation/slam_vs_vio.md`` — markdown heading
+- L1135: `- Role: Documentation` — markdown list item
+- L1136: `### Line-by-line` — markdown heading
+- L1137: `- L1: `# SLAM vs VIO` — markdown heading` — markdown list item
+- L1138: `- L2: `` — blank line` — markdown list item
+- L1139: `- L3: `TBD.` — markdown text` — markdown list item
+- L1140: `` — blank line
+- L1141: `## `docs/navigation/vps_design.md`` — markdown heading
+- L1142: `- Role: Documentation` — markdown list item
+- L1143: `### Line-by-line` — markdown heading
+- L1144: `- L1: `# VPS design` — markdown heading` — markdown list item
+- L1145: `- L2: `` — blank line` — markdown list item
+- L1146: `- L3: `TBD.` — markdown text` — markdown list item
+- L1147: `` — blank line
+- L1148: `## `docs/operator/alerts_and_ui.md`` — markdown heading
+- L1149: `- Role: Documentation` — markdown list item
+- L1150: `### Line-by-line` — markdown heading
+- L1151: `- L1: `# Alerts and UI` — markdown heading` — markdown list item
+- L1152: `- L2: `` — blank line` — markdown list item
+- L1153: `- L3: `TBD.` — markdown text` — markdown list item
+- L1154: `` — blank line
+- L1155: `## `docs/operator/flight_modes.md`` — markdown heading
+- L1156: `- Role: Documentation` — markdown list item
+- L1157: `### Line-by-line` — markdown heading
+- L1158: `- L1: `# Flight modes` — markdown heading` — markdown list item
+- L1159: `- L2: `` — blank line` — markdown list item
+- L1160: `- L3: `TBD.` — markdown text` — markdown list item
+- L1161: `` — blank line
+- L1162: `## `docs/operator/operator_manual.md`` — markdown heading
+- L1163: `- Role: Documentation` — markdown list item
+- L1164: `### Line-by-line` — markdown heading
+- L1165: `- L1: `# Operator manual` — markdown heading` — markdown list item
+- L1166: `- L2: `` — blank line` — markdown list item
+- L1167: `- L3: `TBD.` — markdown text` — markdown list item
+- L1168: `` — blank line
+- L1169: `## `docs/overview/modes_and_behavior.md`` — markdown heading
+- L1170: `- Role: Documentation` — markdown list item
+- L1171: `### Line-by-line` — markdown heading
+- L1172: `- L1: `# Modes and behavior` — markdown heading` — markdown list item
+- L1173: `- L2: `` — blank line` — markdown list item
+- L1174: `- L3: `TBD.` — markdown text` — markdown list item
+- L1175: `` — blank line
+- L1176: `## `docs/overview/state_machine.md`` — markdown heading
+- L1177: `- Role: Documentation` — markdown list item
+- L1178: `### Line-by-line` — markdown heading
+- L1179: `- L1: `# State machine` — markdown heading` — markdown list item
+- L1180: `- L2: `` — blank line` — markdown list item
+- L1181: `- L3: `TBD.` — markdown text` — markdown list item
+- L1182: `` — blank line
+- L1183: `## `docs/overview/system_architecture.md`` — markdown heading
+- L1184: `- Role: Documentation` — markdown list item
+- L1185: `### Line-by-line` — markdown heading
+- L1186: `- L1: `# System architecture` — markdown heading` — markdown list item
+- L1187: `- L2: `` — blank line` — markdown list item
+- L1188: `- L3: `TBD.` — markdown text` — markdown list item
+- L1189: `` — blank line
+- L1190: `## `src/navisar/__init__.py`` — markdown heading
+- L1191: `- Role: Source code` — markdown list item
+- L1192: `### Line-by-line` — markdown heading
+- L1193: `- L1: `"""Navisar package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L1194: `- L2: `` — blank line` — markdown list item
+- L1195: `` — blank line
+- L1196: `## `src/navisar/main.py`` — markdown heading
+- L1197: `- Role: Source code` — markdown list item
+- L1198: `### Line-by-line` — markdown heading
+- L1199: `- L1: `"""Entry point for the VO + LiDAR pipeline and MAVLink/GPS outputs."""` — module docstring boundary` — markdown list item
+- L1200: `- L2: `` — blank line` — markdown list item
+- L1201: `- L3: `import os` — import statement` — markdown list item
+- L1202: `- L4: `import time` — import statement` — markdown list item
+- L1203: `- L5: `import math` — import statement` — markdown list item
+- L1204: `- L6: `import struct` — import statement` — markdown list item
+- L1205: `- L7: `import threading` — import statement` — markdown list item
+- L1206: `- L8: `from datetime import datetime` — import statement` — markdown list item
+- L1207: `- L9: `from pathlib import Path` — import statement` — markdown list item
+- L1208: `- L10: `` — blank line` — markdown list item
+- L1209: `- L11: `import numpy as np` — import statement` — markdown list item
+- L1210: `- L12: `from pymavlink import mavutil` — import statement` — markdown list item
+- L1211: `- L13: `import serial` — import statement` — markdown list item
+- L1212: `- L14: `import yaml` — import statement` — markdown list item
+- L1213: `- L15: `` — blank line` — markdown list item
+- L1214: `- L16: `` — blank line` — markdown list item
+- L1215: `- L17: `from navisar.sensors.camera import create_camera_driver` — import statement` — markdown list item
+- L1216: `- L18: `from navisar.sensors.gps_serial import GpsSerialReader` — import statement` — markdown list item
+- L1217: `- L19: `from navisar.sensors.lidar import LidarHeightEstimator` — import statement` — markdown list item
+- L1218: `- L20: `from navisar.pixhawk.fake_gps_nmea import (` — import statement` — markdown list item
+- L1219: `- L21: `    enu_to_gps,` — python statement` — markdown list item
+- L1220: `- L22: `    gga_sentence,` — python statement` — markdown list item
+- L1221: `- L23: `    rmc_sentence,` — python statement` — markdown list item
+- L1222: `- L24: `    speed_course_from_enu,` — python statement` — markdown list item
+- L1223: `- L25: `)` — python statement` — markdown list item
+- L1224: `- L26: `from navisar.pixhawk.gps_injector import FakeSatellites, hdop_from_sats` — import statement` — markdown list item
+- L1225: `- L27: `from navisar.pixhawk.mavlink_client import MavlinkInterface` — import statement` — markdown list item
+- L1226: `- L28: `from navisar.navigation.state_estimator import PositionSourceSelector` — import statement` — markdown list item
+- L1227: `- L29: `from navisar.vps.feature_tracking import FeatureTracker` — import statement` — markdown list item
+- L1228: `- L30: `from navisar.vps.height_estimator import HeightEstimator` — import statement` — markdown list item
+- L1229: `- L31: `from navisar.vps.pose_estimator import PoseEstimator` — import statement` — markdown list item
+- L1230: `- L32: `from navisar.vps.algorithms.median_flow import MedianFlowEstimator` — import statement` — markdown list item
+- L1231: `- L33: `from navisar.vps.algorithms.ransac_affine import RansacAffineEstimator` — import statement` — markdown list item
+- L1232: `- L34: `from navisar.vps.visual_odometry import VisualOdometry` — import statement` — markdown list item
+- L1233: `- L35: `from navisar.vps import vio_imu` — import statement` — markdown list item
+- L1234: `- L36: `` — blank line` — markdown list item
+- L1235: `- L37: `# ================= CONFIG =================` — comment` — markdown list item
+- L1236: `- L38: `CAMERA_INDEX = 0` — python statement` — markdown list item
+- L1237: `- L39: `MIN_FEATURES = 40` — python statement` — markdown list item
+- L1238: `- L40: `MAX_FEATURES = 300` — python statement` — markdown list item
+- L1239: `- L41: `REDETECT_INTERVAL = 10  # frames` — python statement` — markdown list item
+- L1240: `- L42: `RANSAC_REPROJ_THRESH = 3.0` — python statement` — markdown list item
+- L1241: `- L43: `METRIC_THRESHOLD = 0.02  # meters` — python statement` — markdown list item
+- L1242: `- L44: `MIN_INLIERS = 50` — python statement` — markdown list item
+- L1243: `- L45: `GRID_ROWS = 6` — python statement` — markdown list item
+- L1244: `- L46: `GRID_COLS = 8` — python statement` — markdown list item
+- L1245: `- L47: `CELL_MAX_FEATURES = 30` — python statement` — markdown list item
+- L1246: `- L48: `CELL_TEXTURE_THRESHOLD = 12.0` — python statement` — markdown list item
+- L1247: `- L49: `CORNER_QUALITY_LEVEL = 0.2` — python statement` — markdown list item
+- L1248: `- L50: `MIN_FLOW_PX = 0.4` — python statement` — markdown list item
+- L1249: `- L51: `MIN_HEIGHT_M = 0.1` — python statement` — markdown list item
+- L1250: `- L52: `MIN_INLIER_RATIO = 0.5` — python statement` — markdown list item
+- L1251: `- L53: `MAX_FLOW_MAD_PX = 1.2` — python statement` — markdown list item
+- L1252: `- L54: `EXPOSURE_MIN_MEAN = 10.0` — python statement` — markdown list item
+- L1253: `- L55: `EXPOSURE_MAX_MEAN = 245.0` — python statement` — markdown list item
+- L1254: `- L56: `MOTION_CONFIRM_FRAMES = 3` — python statement` — markdown list item
+- L1255: `- L57: `MOTION_SMOOTH_WINDOW = 5` — python statement` — markdown list item
+- L1256: `- L58: `ZERO_MOTION_WINDOW = 8` — python statement` — markdown list item
+- L1257: `- L59: `ZERO_MOTION_MEAN_M = 0.004` — python statement` — markdown list item
+- L1258: `- L60: `ZERO_MOTION_STD_M = 0.002` — python statement` — markdown list item
+- L1259: `- L61: `` — blank line` — markdown list item
+- L1260: `- L62: `# --- CAMERA INTRINSICS ---` — comment` — markdown list item
+- L1261: `- L63: `IMG_WIDTH = 640` — python statement` — markdown list item
+- L1262: `- L64: `IMG_HEIGHT = 480` — python statement` — markdown list item
+- L1263: `- L65: `FX = 525.0` — python statement` — markdown list item
+- L1264: `- L66: `FY = 525.0` — python statement` — markdown list item
+- L1265: `- L67: `CX = IMG_WIDTH / 2.0` — python statement` — markdown list item
+- L1266: `- L68: `CY = IMG_HEIGHT / 2.0` — python statement` — markdown list item
+- L1267: `- L69: `K = np.array([[FX, 0.0, CX], [0.0, FY, CY], [0.0, 0.0, 1.0]], dtype=np.float64)` — python statement` — markdown list item
+- L1268: `- L70: `DIST_COEFFS = None` — python statement` — markdown list item
+- L1269: `- L71: `` — blank line` — markdown list item
+- L1270: `- L72: `# --- SCALE (MONOCULAR) ---` — comment` — markdown list item
+- L1271: `- L73: `USE_LIDAR = True` — python statement` — markdown list item
+- L1272: `- L74: `ALTITUDE_M = 1.0` — python statement` — markdown list item
+- L1273: `- L75: `LIDAR_DISTANCE_DIVISOR = float(os.getenv("LIDAR_DISTANCE_DIVISOR", "100.0"))` — python statement` — markdown list item
+- L1274: `- L76: `` — blank line` — markdown list item
+- L1275: `- L77: `# --- MAVLINK ---` — comment` — markdown list item
+- L1276: `- L78: `USE_MAVLINK = True` — python statement` — markdown list item
+- L1277: `- L79: `MAVLINK_DEVICE = os.getenv("MAVLINK_DEVICE", "/dev/ttyACM0")` — python statement` — markdown list item
+- L1278: `- L80: `MAVLINK_BAUD = int(os.getenv("MAVLINK_BAUD", "115200"))` — python statement` — markdown list item
+- L1279: `- L81: `` — blank line` — markdown list item
+- L1280: `- L82: `# --- GPS/ODOMETRY SELECTION ---` — comment` — markdown list item
+- L1281: `- L83: `GPS_DRIFT_THRESHOLD_M = 5.0` — python statement` — markdown list item
+- L1282: `- L84: `GPS_TIMEOUT_S = 2.0` — python statement` — markdown list item
+- L1283: `- L85: `GPS_MIN_FIX_TYPE = 3` — python statement` — markdown list item
+- L1284: `- L86: `ODOM_GPS_SEND_INTERVAL_S = 0.2` — python statement` — markdown list item
+- L1285: `- L87: `ODOM_GPS_FIX_TYPE = 3` — python statement` — markdown list item
+- L1286: `- L88: `ODOM_GPS_SATS = 10` — python statement` — markdown list item
+- L1287: `- L89: `ODOMETRY_SEND_INTERVAL_S = 0.04` — python statement` — markdown list item
+- L1288: `- L90: `ATTITUDE_RATE_HZ = 30.0` — python statement` — markdown list item
+- L1289: `- L91: `OUTPUT_MODE = "vps_gps" # odometry, gps_serial, vps_gps, reserved` — python statement` — markdown list item
+- L1290: `- L92: `VIO_MODE = "vo"  # vo, vio_imu` — python statement` — markdown list item
+- L1291: `- L93: `FAKE_GPS_SMOOTH_ALPHA = 0.2` — python statement` — markdown list item
+- L1292: `- L94: `FAKE_GPS_MAX_STEP_M = 1.5` — python statement` — markdown list item
+- L1293: `- L95: `GPS_SERIAL_FORMAT = "auto"` — python statement` — markdown list item
+- L1294: `- L96: `GPS_OUTPUT_PORT = "/dev/ttyUSB1"` — python statement` — markdown list item
+- L1295: `- L97: `GPS_OUTPUT_BAUD = 9600` — python statement` — markdown list item
+- L1296: `- L98: `GPS_OUTPUT_RATE_HZ = 5.0` — python statement` — markdown list item
+- L1297: `- L99: `GPS_OUTPUT_FIX_QUALITY = 1` — python statement` — markdown list item
+- L1298: `- L100: `GPS_OUTPUT_MIN_SATS = 14` — python statement` — markdown list item
+- L1299: `- L101: `GPS_OUTPUT_MAX_SATS = 20` — python statement` — markdown list item
+- L1300: `- L102: `GPS_OUTPUT_UPDATE_S = 7.0` — python statement` — markdown list item
+- L1301: `- L103: `` — blank line` — markdown list item
+- L1302: `- L104: `# --- MANUAL GPS ORIGIN (optional) ---` — comment` — markdown list item
+- L1303: `- L105: `GPS_ORIGIN_LAT = os.getenv("GPS_ORIGIN_LAT")` — python statement` — markdown list item
+- L1304: `- L106: `GPS_ORIGIN_LON = os.getenv("GPS_ORIGIN_LON")` — python statement` — markdown list item
+- L1305: `- L107: `GPS_ORIGIN_ALT = os.getenv("GPS_ORIGIN_ALT")` — python statement` — markdown list item
+- L1306: `- L108: `` — blank line` — markdown list item
+- L1307: `- L109: `# --- SERIAL OUTPUT ---` — comment` — markdown list item
+- L1308: `- L110: `PRINT_LIDAR_VALUES = True` — python statement` — markdown list item
+- L1309: `- L111: `PRINT_INTERVAL_S = 0.5` — python statement` — markdown list item
+- L1310: `- L112: `` — blank line` — markdown list item
+- L1311: `- L113: `` — blank line` — markdown list item
+- L1312: `- L114: `def _repo_root():` — function definition` — markdown list item
+- L1313: `- L115: `    """Return the repository root path."""` — module docstring boundary` — markdown list item
+- L1314: `- L116: `    return Path(__file__).resolve().parents[2]` — return statement` — markdown list item
+- L1315: `- L117: `` — blank line` — markdown list item
+- L1316: `- L118: `` — blank line` — markdown list item
+- L1317: `- L119: `def _load_yaml(path):` — function definition` — markdown list item
+- L1318: `- L120: `    """Load a YAML file into a dict, defaulting to empty."""` — module docstring boundary` — markdown list item
+- L1319: `- L121: `    if not path.exists():` — conditional branch` — markdown list item
+- L1320: `- L122: `        return {}` — return statement` — markdown list item
+- L1321: `- L123: `    with path.open("r", encoding="utf-8") as handle:` — context manager` — markdown list item
+- L1322: `- L124: `        data = yaml.safe_load(handle) or {}` — python statement` — markdown list item
+- L1323: `- L125: `    return data` — return statement` — markdown list item
+- L1324: `- L126: `` — blank line` — markdown list item
+- L1325: `- L127: `` — blank line` — markdown list item
+- L1326: `- L128: `def _load_configs():` — function definition` — markdown list item
+- L1327: `- L129: `    """Load camera/VIO/pixhawk config files with fallback defaults."""` — module docstring boundary` — markdown list item
+- L1328: `- L130: `    root = _repo_root()` — python statement` — markdown list item
+- L1329: `- L131: `    config_dir = root / "config"` — python statement` — markdown list item
+- L1330: `- L132: `    # Config files override the constants above; missing files fall back to defaults.` — comment` — markdown list item
+- L1331: `- L133: `    return {` — return statement` — markdown list item
+- L1332: `- L134: `        "camera": _load_yaml(config_dir / "camera.yaml"),` — python statement` — markdown list item
+- L1333: `- L135: `        "vio": _load_yaml(config_dir / "vio.yaml"),` — python statement` — markdown list item
+- L1334: `- L136: `        "pixhawk": _load_yaml(config_dir / "pixhawk.yaml"),` — python statement` — markdown list item
+- L1335: `- L137: `    }` — python statement` — markdown list item
+- L1336: `- L138: `` — blank line` — markdown list item
+- L1337: `- L139: `` — blank line` — markdown list item
+- L1338: `- L140: `def _bytes_hex(payload):` — function definition` — markdown list item
+- L1339: `- L141: `    """Format bytes as a readable hex string."""` — module docstring boundary` — markdown list item
+- L1340: `- L142: `    return " ".join(f"{b:02X}" for b in payload)` — return statement` — markdown list item
+- L1341: `- L143: `` — blank line` — markdown list item
+- L1342: `- L144: `` — blank line` — markdown list item
+- L1343: `- L145: `def build_vo_pipeline():` — function definition` — markdown list item
+- L1344: `- L146: `    """Create and configure the visual-odometry pipeline."""` — module docstring boundary` — markdown list item
+- L1345: `- L147: `    configs = _load_configs()` — python statement` — markdown list item
+- L1346: `- L148: `    camera_cfg = configs["camera"]` — python statement` — markdown list item
+- L1347: `- L149: `    vio_cfg = configs["vio"]` — python statement` — markdown list item
+- L1348: `- L150: `    pixhawk_cfg = configs["pixhawk"]` — python statement` — markdown list item
+- L1349: `- L151: `` — blank line` — markdown list item
+- L1350: `- L152: `    img_width = camera_cfg.get("width", IMG_WIDTH)` — python statement` — markdown list item
+- L1351: `- L153: `    img_height = camera_cfg.get("height", IMG_HEIGHT)` — python statement` — markdown list item
+- L1352: `- L154: `    intrinsics = camera_cfg.get("intrinsics", {})` — python statement` — markdown list item
+- L1353: `- L155: `    fx = intrinsics.get("fx", FX)` — python statement` — markdown list item
+- L1354: `- L156: `    fy = intrinsics.get("fy", FY)` — python statement` — markdown list item
+- L1355: `- L157: `    cx = intrinsics.get("cx", img_width / 2.0)` — python statement` — markdown list item
+- L1356: `- L158: `    cy = intrinsics.get("cy", img_height / 2.0)` — python statement` — markdown list item
+- L1357: `- L159: `    k = np.array([[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]], dtype=np.float64)` — python statement` — markdown list item
+- L1358: `- L160: `    dist_coeffs = intrinsics.get("dist_coeffs", DIST_COEFFS)` — python statement` — markdown list item
+- L1359: `- L161: `` — blank line` — markdown list item
+- L1360: `- L162: `    use_lidar = pixhawk_cfg.get("use_lidar", USE_LIDAR)` — python statement` — markdown list item
+- L1361: `- L163: `    altitude_m = pixhawk_cfg.get("fallback_altitude_m", ALTITUDE_M)` — python statement` — markdown list item
+- L1362: `- L164: `    lidar_distance_divisor = float(` — python statement` — markdown list item
+- L1363: `- L165: `        pixhawk_cfg.get("lidar_distance_divisor", LIDAR_DISTANCE_DIVISOR)` — python statement` — markdown list item
+- L1364: `- L166: `    )` — python statement` — markdown list item
+- L1365: `- L167: `` — blank line` — markdown list item
+- L1366: `- L168: `    use_mavlink = pixhawk_cfg.get("use_mavlink", USE_MAVLINK)` — python statement` — markdown list item
+- L1367: `- L169: `    mavlink_device = pixhawk_cfg.get("device", MAVLINK_DEVICE)` — python statement` — markdown list item
+- L1368: `- L170: `    mavlink_baud = int(pixhawk_cfg.get("baud", MAVLINK_BAUD))` — python statement` — markdown list item
+- L1369: `- L171: `    attitude_rate_hz = float(pixhawk_cfg.get("attitude_rate_hz", ATTITUDE_RATE_HZ))` — python statement` — markdown list item
+- L1370: `- L172: `` — blank line` — markdown list item
+- L1371: `- L173: `    camera = create_camera_driver(camera_cfg)` — python statement` — markdown list item
+- L1372: `- L174: `    mavlink_interface = None` — python statement` — markdown list item
+- L1373: `- L175: `    if use_mavlink or use_lidar:` — conditional branch` — markdown list item
+- L1374: `- L176: `        try:` — exception handling` — markdown list item
+- L1375: `- L177: `            mavlink_interface = MavlinkInterface(mavlink_device, baud=mavlink_baud)` — python statement` — markdown list item
+- L1376: `- L178: `            print("Pixhawk connected")` — python statement` — markdown list item
+- L1377: `- L179: `            mavlink_interface.request_message_interval(` — python statement` — markdown list item
+- L1378: `- L180: `                msg_id=mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,` — python statement` — markdown list item
+- L1379: `- L181: `                rate_hz=attitude_rate_hz,` — python statement` — markdown list item
+- L1380: `- L182: `            )` — python statement` — markdown list item
+- L1381: `- L183: `        except Exception as exc:` — exception handling` — markdown list item
+- L1382: `- L184: `            print(f"Warning: MAVLink not available ({exc}); using fallback height.")` — python statement` — markdown list item
+- L1383: `- L185: `` — blank line` — markdown list item
+- L1384: `- L186: `    lidar = LidarHeightEstimator(` — python statement` — markdown list item
+- L1385: `- L187: `        mavlink_interface,` — python statement` — markdown list item
+- L1386: `- L188: `        fallback_m=altitude_m,` — python statement` — markdown list item
+- L1387: `- L189: `        distance_divisor=lidar_distance_divisor,` — python statement` — markdown list item
+- L1388: `- L190: `    )` — python statement` — markdown list item
+- L1389: `- L191: `    height_estimator = HeightEstimator(` — python statement` — markdown list item
+- L1390: `- L192: `        use_lidar=use_lidar,` — python statement` — markdown list item
+- L1391: `- L193: `        fallback_m=altitude_m,` — python statement` — markdown list item
+- L1392: `- L194: `        lidar_driver=lidar,` — python statement` — markdown list item
+- L1393: `- L195: `    )` — python statement` — markdown list item
+- L1394: `- L196: `    feature_tracker = FeatureTracker(` — python statement` — markdown list item
+- L1395: `- L197: `        min_features=vio_cfg.get("min_features", MIN_FEATURES),` — python statement` — markdown list item
+- L1396: `- L198: `        max_features=vio_cfg.get("max_features", MAX_FEATURES),` — python statement` — markdown list item
+- L1397: `- L199: `        redetect_interval=vio_cfg.get("redetect_interval", REDETECT_INTERVAL),` — python statement` — markdown list item
+- L1398: `- L200: `        ransac_reproj_thresh=vio_cfg.get("ransac_reproj_thresh", RANSAC_REPROJ_THRESH),` — python statement` — markdown list item
+- L1399: `- L201: `        grid_rows=vio_cfg.get("grid_rows", GRID_ROWS),` — python statement` — markdown list item
+- L1400: `- L202: `        grid_cols=vio_cfg.get("grid_cols", GRID_COLS),` — python statement` — markdown list item
+- L1401: `- L203: `        per_cell_max_features=vio_cfg.get("per_cell_max_features", CELL_MAX_FEATURES),` — python statement` — markdown list item
+- L1402: `- L204: `        texture_threshold=vio_cfg.get("texture_threshold", CELL_TEXTURE_THRESHOLD),` — python statement` — markdown list item
+- L1403: `- L205: `        quality_level=vio_cfg.get("corner_quality_level", CORNER_QUALITY_LEVEL),` — python statement` — markdown list item
+- L1404: `- L206: `    )` — python statement` — markdown list item
+- L1405: `- L207: `    algorithm_name = str(vio_cfg.get("algorithm", "ransac_affine")).lower()` — python statement` — markdown list item
+- L1406: `- L208: `    if algorithm_name in ("median_flow", "lk_median", "median"):` — conditional branch` — markdown list item
+- L1407: `- L209: `        algorithm = MedianFlowEstimator()` — python statement` — markdown list item
+- L1408: `- L210: `    else:` — conditional branch` — markdown list item
+- L1409: `- L211: `        algorithm = RansacAffineEstimator()` — python statement` — markdown list item
+- L1410: `- L212: `    pose_estimator = PoseEstimator(fx, fy, k, ransac_thresh=1.0, algorithm=algorithm)` — python statement` — markdown list item
+- L1411: `- L213: `    yaw_provider = None` — python statement` — markdown list item
+- L1412: `- L214: `    if mavlink_interface is not None:` — conditional branch` — markdown list item
+- L1413: `- L215: `        yaw_provider = mavlink_interface.recv_attitude` — python statement` — markdown list item
+- L1414: `- L216: `    vo = VisualOdometry(` — python statement` — markdown list item
+- L1415: `- L217: `        camera_driver=camera,` — python statement` — markdown list item
+- L1416: `- L218: `        feature_tracker=feature_tracker,` — python statement` — markdown list item
+- L1417: `- L219: `        pose_estimator=pose_estimator,` — python statement` — markdown list item
+- L1418: `- L220: `        height_estimator=height_estimator,` — python statement` — markdown list item
+- L1419: `- L221: `        dist_coeffs=dist_coeffs,` — python statement` — markdown list item
+- L1420: `- L222: `        metric_threshold=vio_cfg.get("metric_threshold_m", METRIC_THRESHOLD),` — python statement` — markdown list item
+- L1421: `- L223: `        img_width=img_width,` — python statement` — markdown list item
+- L1422: `- L224: `        img_height=img_height,` — python statement` — markdown list item
+- L1423: `- L225: `        yaw_provider=yaw_provider,` — python statement` — markdown list item
+- L1424: `- L226: `        min_flow_px=vio_cfg.get("min_flow_px", MIN_FLOW_PX),` — python statement` — markdown list item
+- L1425: `- L227: `        min_height_m=vio_cfg.get("min_height_m", MIN_HEIGHT_M),` — python statement` — markdown list item
+- L1426: `- L228: `        exposure_min_mean=vio_cfg.get("exposure_min_mean", EXPOSURE_MIN_MEAN),` — python statement` — markdown list item
+- L1427: `- L229: `        exposure_max_mean=vio_cfg.get("exposure_max_mean", EXPOSURE_MAX_MEAN),` — python statement` — markdown list item
+- L1428: `- L230: `        motion_gate_enabled=vio_cfg.get("motion_gate_enabled", True),` — python statement` — markdown list item
+- L1429: `- L231: `        min_inlier_ratio=vio_cfg.get("min_inlier_ratio", MIN_INLIER_RATIO),` — python statement` — markdown list item
+- L1430: `- L232: `        max_flow_mad_px=vio_cfg.get("max_flow_mad_px", MAX_FLOW_MAD_PX),` — python statement` — markdown list item
+- L1431: `- L233: `    )` — python statement` — markdown list item
+- L1432: `- L234: `    vo.min_inliers = vio_cfg.get("min_inliers", MIN_INLIERS)` — python statement` — markdown list item
+- L1433: `- L235: `    vo.motion_confirm_frames = vio_cfg.get("motion_confirm_frames", MOTION_CONFIRM_FRAMES)` — python statement` — markdown list item
+- L1434: `- L236: `    vo.motion_window = vio_cfg.get("motion_smooth_window", MOTION_SMOOTH_WINDOW)` — python statement` — markdown list item
+- L1435: `- L237: `    vo.zero_motion_window = vio_cfg.get("zero_motion_window", ZERO_MOTION_WINDOW)` — python statement` — markdown list item
+- L1436: `- L238: `    vo.zero_motion_mean_m = vio_cfg.get("zero_motion_mean_m", ZERO_MOTION_MEAN_M)` — python statement` — markdown list item
+- L1437: `- L239: `    vo.zero_motion_std_m = vio_cfg.get("zero_motion_std_m", ZERO_MOTION_STD_M)` — python statement` — markdown list item
+- L1438: `- L240: `    return vo, mavlink_interface` — return statement` — markdown list item
+- L1439: `- L241: `` — blank line` — markdown list item
+- L1440: `- L242: `` — blank line` — markdown list item
+- L1441: `- L243: `def _quat_from_rpy(roll, pitch, yaw):` — function definition` — markdown list item
+- L1442: `- L244: `    """Convert roll/pitch/yaw (rad) to a quaternion."""` — module docstring boundary` — markdown list item
+- L1443: `- L245: `    cy = np.cos(yaw * 0.5)` — python statement` — markdown list item
+- L1444: `- L246: `    sy = np.sin(yaw * 0.5)` — python statement` — markdown list item
+- L1445: `- L247: `    cp = np.cos(pitch * 0.5)` — python statement` — markdown list item
+- L1446: `- L248: `    sp = np.sin(pitch * 0.5)` — python statement` — markdown list item
+- L1447: `- L249: `    cr = np.cos(roll * 0.5)` — python statement` — markdown list item
+- L1448: `- L250: `    sr = np.sin(roll * 0.5)` — python statement` — markdown list item
+- L1449: `- L251: `    qw = cr * cp * cy + sr * sp * sy` — python statement` — markdown list item
+- L1450: `- L252: `    qx = sr * cp * cy - cr * sp * sy` — python statement` — markdown list item
+- L1451: `- L253: `    qy = cr * sp * cy + sr * cp * sy` — python statement` — markdown list item
+- L1452: `- L254: `    qz = cr * cp * sy - sr * sp * cy` — python statement` — markdown list item
+- L1453: `- L255: `    return [float(qw), float(qx), float(qy), float(qz)]` — return statement` — markdown list item
+- L1454: `- L256: `` — blank line` — markdown list item
+- L1455: `- L257: `` — blank line` — markdown list item
+- L1456: `- L258: `class FakeGpsEmitter:` — class definition` — markdown list item
+- L1457: `- L259: `    """Smooth and rate-limit VPS-derived GPS output."""` — module docstring boundary` — markdown list item
+- L1458: `- L260: `    def __init__(self, send_interval_s, smooth_alpha, max_step_m):` — function definition` — markdown list item
+- L1459: `- L261: `        """Initialize emitter settings and smoothing state."""` — module docstring boundary` — markdown list item
+- L1460: `- L262: `        # Enforce 5-10 Hz update rate by clamping interval to 0.1-0.2s.` — comment` — markdown list item
+- L1461: `- L263: `        self.send_interval_s = min(max(send_interval_s, 0.1), 0.2)` — python statement` — markdown list item
+- L1462: `- L264: `        self.smooth_alpha = max(0.0, min(1.0, float(smooth_alpha)))` — python statement` — markdown list item
+- L1463: `- L265: `        self.max_step_m = max(0.0, float(max_step_m))` — python statement` — markdown list item
+- L1464: `- L266: `        self._last_send = 0.0` — python statement` — markdown list item
+- L1465: `- L267: `        self._smoothed = None` — python statement` — markdown list item
+- L1466: `- L268: `` — blank line` — markdown list item
+- L1467: `- L269: `    def _smooth_position(self, x_m, y_m, z_m):` — function definition` — markdown list item
+- L1468: `- L270: `        """Apply exponential smoothing and step limiting."""` — module docstring boundary` — markdown list item
+- L1469: `- L271: `        if self._smoothed is None:` — conditional branch` — markdown list item
+- L1470: `- L272: `            self._smoothed = (x_m, y_m, z_m)` — python statement` — markdown list item
+- L1471: `- L273: `            return self._smoothed` — return statement` — markdown list item
+- L1472: `- L274: `        px, py, pz = self._smoothed` — python statement` — markdown list item
+- L1473: `- L275: `        nx = px + self.smooth_alpha * (x_m - px)` — python statement` — markdown list item
+- L1474: `- L276: `        ny = py + self.smooth_alpha * (y_m - py)` — python statement` — markdown list item
+- L1475: `- L277: `        nz = pz + self.smooth_alpha * (z_m - pz)` — python statement` — markdown list item
+- L1476: `- L278: `        dx = nx - px` — python statement` — markdown list item
+- L1477: `- L279: `        dy = ny - py` — python statement` — markdown list item
+- L1478: `- L280: `        dz = nz - pz` — python statement` — markdown list item
+- L1479: `- L281: `        step = float(np.hypot(np.hypot(dx, dy), dz))` — python statement` — markdown list item
+- L1480: `- L282: `        if self.max_step_m > 0.0 and step > self.max_step_m:` — conditional branch` — markdown list item
+- L1481: `- L283: `            scale = self.max_step_m / step` — python statement` — markdown list item
+- L1482: `- L284: `            nx = px + dx * scale` — python statement` — markdown list item
+- L1483: `- L285: `            ny = py + dy * scale` — python statement` — markdown list item
+- L1484: `- L286: `            nz = pz + dz * scale` — python statement` — markdown list item
+- L1485: `- L287: `        self._smoothed = (nx, ny, nz)` — python statement` — markdown list item
+- L1486: `- L288: `        return self._smoothed` — return statement` — markdown list item
+- L1487: `- L289: `` — blank line` — markdown list item
+- L1488: `- L290: `    def ready(self, now):` — function definition` — markdown list item
+- L1489: `- L291: `        """Check if the next packet should be sent."""` — module docstring boundary` — markdown list item
+- L1490: `- L292: `        return now - self._last_send >= self.send_interval_s` — return statement` — markdown list item
+- L1491: `- L293: `` — blank line` — markdown list item
+- L1492: `- L294: `    def mark_sent(self, now):` — function definition` — markdown list item
+- L1493: `- L295: `        """Record the send timestamp."""` — module docstring boundary` — markdown list item
+- L1494: `- L296: `        self._last_send = now` — python statement` — markdown list item
+- L1495: `- L297: `` — blank line` — markdown list item
+- L1496: `- L298: `` — blank line` — markdown list item
+- L1497: `- L299: `class NmeaSerialEmitter:` — class definition` — markdown list item
+- L1498: `- L300: `    """Emit NMEA GGA/RMC sentences over serial."""` — module docstring boundary` — markdown list item
+- L1499: `- L301: `    def __init__(` — function definition` — markdown list item
+- L1500: `- L302: `        self,` — python statement` — markdown list item
+- L1501: `- L303: `        port,` — python statement` — markdown list item
+- L1502: `- L304: `        baud,` — python statement` — markdown list item
+- L1503: `- L305: `        rate_hz,` — python statement` — markdown list item
+- L1504: `- L306: `        fix_quality,` — python statement` — markdown list item
+- L1505: `- L307: `        min_sats,` — python statement` — markdown list item
+- L1506: `- L308: `        max_sats,` — python statement` — markdown list item
+- L1507: `- L309: `        update_s,` — python statement` — markdown list item
+- L1508: `- L310: `        max_heading_delta_deg=20.0,` — python statement` — markdown list item
+- L1509: `- L311: `        raw_print=False,` — python statement` — markdown list item
+- L1510: `- L312: `    ):` — python statement` — markdown list item
+- L1511: `- L313: `        """Configure serial output and heading smoothing."""` — module docstring boundary` — markdown list item
+- L1512: `- L314: `        self.port = port` — python statement` — markdown list item
+- L1513: `- L315: `        self.baud = baud` — python statement` — markdown list item
+- L1514: `- L316: `        self.rate_hz = min(max(rate_hz, 5.0), 10.0)` — python statement` — markdown list item
+- L1515: `- L317: `        self.fix_quality = fix_quality` — python statement` — markdown list item
+- L1516: `- L318: `        self.max_heading_delta_deg = max_heading_delta_deg` — python statement` — markdown list item
+- L1517: `- L319: `        self.raw_print = raw_print` — python statement` — markdown list item
+- L1518: `- L320: `        self._ser = serial.Serial(port, baud, timeout=0)` — python statement` — markdown list item
+- L1519: `- L321: `        self._last_send = 0.0` — python statement` — markdown list item
+- L1520: `- L322: `        self._last_course = 0.0` — python statement` — markdown list item
+- L1521: `- L323: `        self._fake_sats = FakeSatellites(` — python statement` — markdown list item
+- L1522: `- L324: `            min_sats=min_sats,` — python statement` — markdown list item
+- L1523: `- L325: `            max_sats=max_sats,` — python statement` — markdown list item
+- L1524: `- L326: `            update_s=update_s,` — python statement` — markdown list item
+- L1525: `- L327: `        )` — python statement` — markdown list item
+- L1526: `- L328: `` — blank line` — markdown list item
+- L1527: `- L329: `    def ready(self, now):` — function definition` — markdown list item
+- L1528: `- L330: `        """Check if the next NMEA update is due."""` — module docstring boundary` — markdown list item
+- L1529: `- L331: `        return now - self._last_send >= (1.0 / self.rate_hz)` — return statement` — markdown list item
+- L1530: `- L332: `` — blank line` — markdown list item
+- L1531: `- L333: `    def send(self, lat, lon, alt_m, vx_e, vy_n, ekf_ok=True):` — function definition` — markdown list item
+- L1532: `- L334: `        """Generate and send NMEA messages for the current state."""` — module docstring boundary` — markdown list item
+- L1533: `- L335: `        speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)` — python statement` — markdown list item
+- L1534: `- L336: `        if speed_mps < 0.05:` — conditional branch` — markdown list item
+- L1535: `- L337: `            course_deg = self._last_course` — python statement` — markdown list item
+- L1536: `- L338: `        else:` — conditional branch` — markdown list item
+- L1537: `- L339: `            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0` — python statement` — markdown list item
+- L1538: `- L340: `            if abs(delta) > self.max_heading_delta_deg:` — conditional branch` — markdown list item
+- L1539: `- L341: `                course_deg = (` — python statement` — markdown list item
+- L1540: `- L342: `                    self._last_course` — python statement` — markdown list item
+- L1541: `- L343: `                    + self.max_heading_delta_deg * (1 if delta > 0 else -1)` — python statement` — markdown list item
+- L1542: `- L344: `                ) % 360.0` — python statement` — markdown list item
+- L1543: `- L345: `        self._last_course = course_deg` — python statement` — markdown list item
+- L1544: `- L346: `        sats = self._fake_sats.update(ekf_ok=ekf_ok)` — python statement` — markdown list item
+- L1545: `- L347: `        hdop = hdop_from_sats(sats)` — python statement` — markdown list item
+- L1546: `- L348: `        gga = gga_sentence(` — python statement` — markdown list item
+- L1547: `- L349: `            lat,` — python statement` — markdown list item
+- L1548: `- L350: `            lon,` — python statement` — markdown list item
+- L1549: `- L351: `            alt_m,` — python statement` — markdown list item
+- L1550: `- L352: `            fix_quality=self.fix_quality,` — python statement` — markdown list item
+- L1551: `- L353: `            satellites=sats,` — python statement` — markdown list item
+- L1552: `- L354: `            hdop=hdop,` — python statement` — markdown list item
+- L1553: `- L355: `        )` — python statement` — markdown list item
+- L1554: `- L356: `        rmc = rmc_sentence(` — python statement` — markdown list item
+- L1555: `- L357: `            lat,` — python statement` — markdown list item
+- L1556: `- L358: `            lon,` — python statement` — markdown list item
+- L1557: `- L359: `            speed_mps,` — python statement` — markdown list item
+- L1558: `- L360: `            course_deg,` — python statement` — markdown list item
+- L1559: `- L361: `            status="A" if self.fix_quality > 0 else "V",` — python statement` — markdown list item
+- L1560: `- L362: `        )` — python statement` — markdown list item
+- L1561: `- L363: `        gga_bytes = gga.encode("ascii")` — python statement` — markdown list item
+- L1562: `- L364: `        rmc_bytes = rmc.encode("ascii")` — python statement` — markdown list item
+- L1563: `- L365: `        self._ser.write(gga_bytes)` — python statement` — markdown list item
+- L1564: `- L366: `        self._ser.write(rmc_bytes)` — python statement` — markdown list item
+- L1565: `- L367: `        if self.raw_print:` — conditional branch` — markdown list item
+- L1566: `- L368: `            print(f"NMEA RAW GGA: {_bytes_hex(gga_bytes)}")` — python statement` — markdown list item
+- L1567: `- L369: `            print(f"NMEA RAW RMC: {_bytes_hex(rmc_bytes)}")` — python statement` — markdown list item
+- L1568: `- L370: `        self._last_send = time.time()` — python statement` — markdown list item
+- L1569: `- L371: `        return {` — return statement` — markdown list item
+- L1570: `- L372: `            "gga": gga_bytes,` — python statement` — markdown list item
+- L1571: `- L373: `            "rmc": rmc_bytes,` — python statement` — markdown list item
+- L1572: `- L374: `            "sats": sats,` — python statement` — markdown list item
+- L1573: `- L375: `            "speed_mps": speed_mps,` — python statement` — markdown list item
+- L1574: `- L376: `            "course_deg": course_deg,` — python statement` — markdown list item
+- L1575: `- L377: `        }` — python statement` — markdown list item
+- L1576: `- L378: `` — blank line` — markdown list item
+- L1577: `- L379: `` — blank line` — markdown list item
+- L1578: `- L380: `class UbxSerialEmitter:` — class definition` — markdown list item
+- L1579: `- L381: `    """Emit UBX navigation messages over serial."""` — module docstring boundary` — markdown list item
+- L1580: `- L382: `    def __init__(` — function definition` — markdown list item
+- L1581: `- L383: `        self,` — python statement` — markdown list item
+- L1582: `- L384: `        port,` — python statement` — markdown list item
+- L1583: `- L385: `        baud,` — python statement` — markdown list item
+- L1584: `- L386: `        rate_hz,` — python statement` — markdown list item
+- L1585: `- L387: `        fix_type,` — python statement` — markdown list item
+- L1586: `- L388: `        min_sats,` — python statement` — markdown list item
+- L1587: `- L389: `        max_sats,` — python statement` — markdown list item
+- L1588: `- L390: `        update_s,` — python statement` — markdown list item
+- L1589: `- L391: `        max_heading_delta_deg=20.0,` — python statement` — markdown list item
+- L1590: `- L392: `        raw_print=False,` — python statement` — markdown list item
+- L1591: `- L393: `    ):` — python statement` — markdown list item
+- L1592: `- L394: `        """Configure UBX serial output and rate limiting."""` — module docstring boundary` — markdown list item
+- L1593: `- L395: `        self.port = port` — python statement` — markdown list item
+- L1594: `- L396: `        self.baud = baud` — python statement` — markdown list item
+- L1595: `- L397: `        self.rate_hz = min(max(rate_hz, 5.0), 10.0)` — python statement` — markdown list item
+- L1596: `- L398: `        self.fix_type = int(fix_type)` — python statement` — markdown list item
+- L1597: `- L399: `        self.max_heading_delta_deg = max_heading_delta_deg` — python statement` — markdown list item
+- L1598: `- L400: `        self.raw_print = raw_print` — python statement` — markdown list item
+- L1599: `- L401: `        self._ser = serial.Serial(port, baud, timeout=0)` — python statement` — markdown list item
+- L1600: `- L402: `        self._last_send = 0.0` — python statement` — markdown list item
+- L1601: `- L403: `        self._last_course = 0.0` — python statement` — markdown list item
+- L1602: `- L404: `        self._fake_sats = FakeSatellites(` — python statement` — markdown list item
+- L1603: `- L405: `            min_sats=min_sats,` — python statement` — markdown list item
+- L1604: `- L406: `            max_sats=max_sats,` — python statement` — markdown list item
+- L1605: `- L407: `            update_s=update_s,` — python statement` — markdown list item
+- L1606: `- L408: `        )` — python statement` — markdown list item
+- L1607: `- L409: `` — blank line` — markdown list item
+- L1608: `- L410: `    def ready(self, now):` — function definition` — markdown list item
+- L1609: `- L411: `        """Check if the next UBX update is due."""` — module docstring boundary` — markdown list item
+- L1610: `- L412: `        return now - self._last_send >= (1.0 / self.rate_hz)` — return statement` — markdown list item
+- L1611: `- L413: `` — blank line` — markdown list item
+- L1612: `- L414: `    @staticmethod` — python statement` — markdown list item
+- L1613: `- L415: `    def _ubx_checksum(msg_class, msg_id, payload):` — function definition` — markdown list item
+- L1614: `- L416: `        """Compute UBX checksum for class/id/payload."""` — module docstring boundary` — markdown list item
+- L1615: `- L417: `        ck_a = 0` — python statement` — markdown list item
+- L1616: `- L418: `        ck_b = 0` — python statement` — markdown list item
+- L1617: `- L419: `` — blank line` — markdown list item
+- L1618: `- L420: `        def _update(val):` — function definition` — markdown list item
+- L1619: `- L421: `            nonlocal ck_a, ck_b` — python statement` — markdown list item
+- L1620: `- L422: `            ck_a = (ck_a + val) & 0xFF` — python statement` — markdown list item
+- L1621: `- L423: `            ck_b = (ck_b + ck_a) & 0xFF` — python statement` — markdown list item
+- L1622: `- L424: `` — blank line` — markdown list item
+- L1623: `- L425: `        _update(msg_class)` — python statement` — markdown list item
+- L1624: `- L426: `        _update(msg_id)` — python statement` — markdown list item
+- L1625: `- L427: `        length = len(payload)` — python statement` — markdown list item
+- L1626: `- L428: `        _update(length & 0xFF)` — python statement` — markdown list item
+- L1627: `- L429: `        _update((length >> 8) & 0xFF)` — python statement` — markdown list item
+- L1628: `- L430: `        for byte in payload:` — loop` — markdown list item
+- L1629: `- L431: `            _update(byte)` — python statement` — markdown list item
+- L1630: `- L432: `        return ck_a, ck_b` — return statement` — markdown list item
+- L1631: `- L433: `` — blank line` — markdown list item
+- L1632: `- L434: `    @classmethod` — python statement` — markdown list item
+- L1633: `- L435: `    def _create_ubx_message(cls, msg_class, msg_id, payload):` — function definition` — markdown list item
+- L1634: `- L436: `        """Wrap a UBX payload with header and checksum."""` — module docstring boundary` — markdown list item
+- L1635: `- L437: `        length = len(payload)` — python statement` — markdown list item
+- L1636: `- L438: `        header = struct.pack("<BBBB", 0xB5, 0x62, msg_class, msg_id)` — python statement` — markdown list item
+- L1637: `- L439: `        length_bytes = struct.pack("<H", length)` — python statement` — markdown list item
+- L1638: `- L440: `        ck_a, ck_b = cls._ubx_checksum(msg_class, msg_id, payload)` — python statement` — markdown list item
+- L1639: `- L441: `        checksum = struct.pack("BB", ck_a, ck_b)` — python statement` — markdown list item
+- L1640: `- L442: `        return header + length_bytes + payload + checksum` — return statement` — markdown list item
+- L1641: `- L443: `` — blank line` — markdown list item
+- L1642: `- L444: `    @classmethod` — python statement` — markdown list item
+- L1643: `- L445: `    def _create_nav_posllh(cls, lat_deg, lon_deg, alt_m, time_of_week_ms):` — function definition` — markdown list item
+- L1644: `- L446: `        """Create a UBX NAV-POSLLH message payload."""` — module docstring boundary` — markdown list item
+- L1645: `- L447: `        lat_1e7 = int(lat_deg * 1e7)` — python statement` — markdown list item
+- L1646: `- L448: `        lon_1e7 = int(lon_deg * 1e7)` — python statement` — markdown list item
+- L1647: `- L449: `        alt_mm = int(alt_m * 1000)` — python statement` — markdown list item
+- L1648: `- L450: `        h_msl_mm = alt_mm` — python statement` — markdown list item
+- L1649: `- L451: `        h_acc_mm = 2000` — python statement` — markdown list item
+- L1650: `- L452: `        v_acc_mm = 3000` — python statement` — markdown list item
+- L1651: `- L453: `        payload = struct.pack(` — python statement` — markdown list item
+- L1652: `- L454: `            "<IiiiiII",` — python statement` — markdown list item
+- L1653: `- L455: `            time_of_week_ms,` — python statement` — markdown list item
+- L1654: `- L456: `            lon_1e7,` — python statement` — markdown list item
+- L1655: `- L457: `            lat_1e7,` — python statement` — markdown list item
+- L1656: `- L458: `            alt_mm,` — python statement` — markdown list item
+- L1657: `- L459: `            h_msl_mm,` — python statement` — markdown list item
+- L1658: `- L460: `            h_acc_mm,` — python statement` — markdown list item
+- L1659: `- L461: `            v_acc_mm,` — python statement` — markdown list item
+- L1660: `- L462: `        )` — python statement` — markdown list item
+- L1661: `- L463: `        return cls._create_ubx_message(0x01, 0x02, payload)` — return statement` — markdown list item
+- L1662: `- L464: `` — blank line` — markdown list item
+- L1663: `- L465: `    @classmethod` — python statement` — markdown list item
+- L1664: `- L466: `    def _create_nav_velned(cls, speed_mps, heading_deg, time_of_week_ms):` — function definition` — markdown list item
+- L1665: `- L467: `        """Create a UBX NAV-VELNED message payload."""` — module docstring boundary` — markdown list item
+- L1666: `- L468: `        heading_rad = math.radians(heading_deg)` — python statement` — markdown list item
+- L1667: `- L469: `        vel_n_cm = int(speed_mps * 100 * math.cos(heading_rad))` — python statement` — markdown list item
+- L1668: `- L470: `        vel_e_cm = int(speed_mps * 100 * math.sin(heading_rad))` — python statement` — markdown list item
+- L1669: `- L471: `        vel_d_cm = 0` — python statement` — markdown list item
+- L1670: `- L472: `        speed_cm = int(speed_mps * 100)` — python statement` — markdown list item
+- L1671: `- L473: `        ground_speed_cm = speed_cm` — python statement` — markdown list item
+- L1672: `- L474: `        heading_1e5 = int(heading_deg * 1e5)` — python statement` — markdown list item
+- L1673: `- L475: `        s_acc_cm = 50` — python statement` — markdown list item
+- L1674: `- L476: `        c_acc_1e5 = 5000` — python statement` — markdown list item
+- L1675: `- L477: `        payload = struct.pack(` — python statement` — markdown list item
+- L1676: `- L478: `            "<IiiiIIiII",` — python statement` — markdown list item
+- L1677: `- L479: `            time_of_week_ms,` — python statement` — markdown list item
+- L1678: `- L480: `            vel_n_cm,` — python statement` — markdown list item
+- L1679: `- L481: `            vel_e_cm,` — python statement` — markdown list item
+- L1680: `- L482: `            vel_d_cm,` — python statement` — markdown list item
+- L1681: `- L483: `            speed_cm,` — python statement` — markdown list item
+- L1682: `- L484: `            ground_speed_cm,` — python statement` — markdown list item
+- L1683: `- L485: `            heading_1e5,` — python statement` — markdown list item
+- L1684: `- L486: `            s_acc_cm,` — python statement` — markdown list item
+- L1685: `- L487: `            c_acc_1e5,` — python statement` — markdown list item
+- L1686: `- L488: `        )` — python statement` — markdown list item
+- L1687: `- L489: `        return cls._create_ubx_message(0x01, 0x12, payload)` — return statement` — markdown list item
+- L1688: `- L490: `` — blank line` — markdown list item
+- L1689: `- L491: `    @classmethod` — python statement` — markdown list item
+- L1690: `- L492: `    def _create_nav_sol(cls, num_sats, time_of_week_ms, fix_type):` — function definition` — markdown list item
+- L1691: `- L493: `        """Create a UBX NAV-SOL message payload."""` — module docstring boundary` — markdown list item
+- L1692: `- L494: `        gps_fix = int(fix_type)` — python statement` — markdown list item
+- L1693: `- L495: `        flags = 0x07` — python statement` — markdown list item
+- L1694: `- L496: `        p_acc_cm = 250` — python statement` — markdown list item
+- L1695: `- L497: `        payload = struct.pack(` — python statement` — markdown list item
+- L1696: `- L498: `            "<IihBBIiiiIIHBBII",` — python statement` — markdown list item
+- L1697: `- L499: `            time_of_week_ms,  # iTOW` — python statement` — markdown list item
+- L1698: `- L500: `            0,  # fTOW` — python statement` — markdown list item
+- L1699: `- L501: `            0,  # week` — python statement` — markdown list item
+- L1700: `- L502: `            gps_fix,` — python statement` — markdown list item
+- L1701: `- L503: `            flags,` — python statement` — markdown list item
+- L1702: `- L504: `            0,  # ecefX` — python statement` — markdown list item
+- L1703: `- L505: `            0,  # ecefY` — python statement` — markdown list item
+- L1704: `- L506: `            0,  # ecefZ` — python statement` — markdown list item
+- L1705: `- L507: `            p_acc_cm,  # pAcc` — python statement` — markdown list item
+- L1706: `- L508: `            0,  # ecefVX` — python statement` — markdown list item
+- L1707: `- L509: `            0,  # ecefVY` — python statement` — markdown list item
+- L1708: `- L510: `            50,  # sAcc` — python statement` — markdown list item
+- L1709: `- L511: `            0,  # pDOP` — python statement` — markdown list item
+- L1710: `- L512: `            0,  # reserved1` — python statement` — markdown list item
+- L1711: `- L513: `            num_sats,` — python statement` — markdown list item
+- L1712: `- L514: `            0,  # reserved2` — python statement` — markdown list item
+- L1713: `- L515: `        )` — python statement` — markdown list item
+- L1714: `- L516: `        return cls._create_ubx_message(0x01, 0x06, payload)` — return statement` — markdown list item
+- L1715: `- L517: `` — blank line` — markdown list item
+- L1716: `- L518: `    @classmethod` — python statement` — markdown list item
+- L1717: `- L519: `    def _create_nav_pvt(` — function definition` — markdown list item
+- L1718: `- L520: `        cls, lat_deg, lon_deg, alt_m, speed_mps, heading_deg, num_sats, now, fix_type` — python statement` — markdown list item
+- L1719: `- L521: `    ):` — python statement` — markdown list item
+- L1720: `- L522: `        """Create a UBX NAV-PVT message payload."""` — module docstring boundary` — markdown list item
+- L1721: `- L523: `        gps_fix = int(fix_type)` — python statement` — markdown list item
+- L1722: `- L524: `        flags = 0x01` — python statement` — markdown list item
+- L1723: `- L525: `        flags2 = 0x00` — python statement` — markdown list item
+- L1724: `- L526: `` — blank line` — markdown list item
+- L1725: `- L527: `        heading_rad = math.radians(heading_deg)` — python statement` — markdown list item
+- L1726: `- L528: `        vel_n_mm = int(speed_mps * 1000 * math.cos(heading_rad))` — python statement` — markdown list item
+- L1727: `- L529: `        vel_e_mm = int(speed_mps * 1000 * math.sin(heading_rad))` — python statement` — markdown list item
+- L1728: `- L530: `        vel_d_mm = 0` — python statement` — markdown list item
+- L1729: `- L531: `` — blank line` — markdown list item
+- L1730: `- L532: `        lat_1e7 = int(lat_deg * 1e7)` — python statement` — markdown list item
+- L1731: `- L533: `        lon_1e7 = int(lon_deg * 1e7)` — python statement` — markdown list item
+- L1732: `- L534: `        alt_mm = int(alt_m * 1000)` — python statement` — markdown list item
+- L1733: `- L535: `        h_msl_mm = alt_mm` — python statement` — markdown list item
+- L1734: `- L536: `` — blank line` — markdown list item
+- L1735: `- L537: `        time_of_week_ms = (` — python statement` — markdown list item
+- L1736: `- L538: `            (now.hour * 3600 + now.minute * 60 + now.second) * 1000` — python statement` — markdown list item
+- L1737: `- L539: `            + now.microsecond // 1000` — python statement` — markdown list item
+- L1738: `- L540: `        )` — python statement` — markdown list item
+- L1739: `- L541: `        payload = struct.pack(` — python statement` — markdown list item
+- L1740: `- L542: `            "<IHBBBBBBIiBBBBiiiiIIiiiiiIIHBBBBBBi",` — python statement` — markdown list item
+- L1741: `- L543: `            time_of_week_ms,` — python statement` — markdown list item
+- L1742: `- L544: `            now.year,` — python statement` — markdown list item
+- L1743: `- L545: `            now.month,` — python statement` — markdown list item
+- L1744: `- L546: `            now.day,` — python statement` — markdown list item
+- L1745: `- L547: `            now.hour,` — python statement` — markdown list item
+- L1746: `- L548: `            now.minute,` — python statement` — markdown list item
+- L1747: `- L549: `            now.second,` — python statement` — markdown list item
+- L1748: `- L550: `            flags,` — python statement` — markdown list item
+- L1749: `- L551: `            0,  # tAcc` — python statement` — markdown list item
+- L1750: `- L552: `            0,  # nano` — python statement` — markdown list item
+- L1751: `- L553: `            gps_fix,` — python statement` — markdown list item
+- L1752: `- L554: `            flags,` — python statement` — markdown list item
+- L1753: `- L555: `            flags2,` — python statement` — markdown list item
+- L1754: `- L556: `            num_sats,` — python statement` — markdown list item
+- L1755: `- L557: `            lon_1e7,` — python statement` — markdown list item
+- L1756: `- L558: `            lat_1e7,` — python statement` — markdown list item
+- L1757: `- L559: `            alt_mm,` — python statement` — markdown list item
+- L1758: `- L560: `            h_msl_mm,` — python statement` — markdown list item
+- L1759: `- L561: `            500,  # hAcc` — python statement` — markdown list item
+- L1760: `- L562: `            1000,  # vAcc` — python statement` — markdown list item
+- L1761: `- L563: `            vel_n_mm,` — python statement` — markdown list item
+- L1762: `- L564: `            vel_e_mm,` — python statement` — markdown list item
+- L1763: `- L565: `            vel_d_mm,` — python statement` — markdown list item
+- L1764: `- L566: `            int(speed_mps * 1000),  # gSpeed` — python statement` — markdown list item
+- L1765: `- L567: `            int(heading_deg * 1e5),  # headMot` — python statement` — markdown list item
+- L1766: `- L568: `            1000,  # sAcc` — python statement` — markdown list item
+- L1767: `- L569: `            10000,  # headAcc` — python statement` — markdown list item
+- L1768: `- L570: `            0,  # pDOP` — python statement` — markdown list item
+- L1769: `- L571: `            0,` — python statement` — markdown list item
+- L1770: `- L572: `            0,` — python statement` — markdown list item
+- L1771: `- L573: `            0,` — python statement` — markdown list item
+- L1772: `- L574: `            0,` — python statement` — markdown list item
+- L1773: `- L575: `            0,` — python statement` — markdown list item
+- L1774: `- L576: `            0,  # reserved and flags3` — python statement` — markdown list item
+- L1775: `- L577: `            0,  # headVeh` — python statement` — markdown list item
+- L1776: `- L578: `        )` — python statement` — markdown list item
+- L1777: `- L579: `        return cls._create_ubx_message(0x01, 0x07, payload)` — return statement` — markdown list item
+- L1778: `- L580: `` — blank line` — markdown list item
+- L1779: `- L581: `    def send(self, lat, lon, alt_m, vx_e, vy_n, ekf_ok=True):` — function definition` — markdown list item
+- L1780: `- L582: `        """Send a UBX navigation burst for the current state."""` — module docstring boundary` — markdown list item
+- L1781: `- L583: `        speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)` — python statement` — markdown list item
+- L1782: `- L584: `        if speed_mps < 0.05:` — conditional branch` — markdown list item
+- L1783: `- L585: `            course_deg = self._last_course` — python statement` — markdown list item
+- L1784: `- L586: `        else:` — conditional branch` — markdown list item
+- L1785: `- L587: `            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0` — python statement` — markdown list item
+- L1786: `- L588: `            if abs(delta) > self.max_heading_delta_deg:` — conditional branch` — markdown list item
+- L1787: `- L589: `                course_deg = (` — python statement` — markdown list item
+- L1788: `- L590: `                    self._last_course` — python statement` — markdown list item
+- L1789: `- L591: `                    + self.max_heading_delta_deg * (1 if delta > 0 else -1)` — python statement` — markdown list item
+- L1790: `- L592: `                ) % 360.0` — python statement` — markdown list item
+- L1791: `- L593: `        self._last_course = course_deg` — python statement` — markdown list item
+- L1792: `- L594: `        sats = self._fake_sats.update(ekf_ok=ekf_ok)` — python statement` — markdown list item
+- L1793: `- L595: `        now = datetime.utcnow()` — python statement` — markdown list item
+- L1794: `- L596: `        time_of_week_ms = (` — python statement` — markdown list item
+- L1795: `- L597: `            (now.hour * 3600 + now.minute * 60 + now.second) * 1000` — python statement` — markdown list item
+- L1796: `- L598: `            + now.microsecond // 1000` — python statement` — markdown list item
+- L1797: `- L599: `        )` — python statement` — markdown list item
+- L1798: `- L600: `        pvt = self._create_nav_pvt(` — python statement` — markdown list item
+- L1799: `- L601: `            lat, lon, alt_m, speed_mps, course_deg, sats, now, self.fix_type` — python statement` — markdown list item
+- L1800: `- L602: `        )` — python statement` — markdown list item
+- L1801: `- L603: `        posllh = self._create_nav_posllh(lat, lon, alt_m, time_of_week_ms)` — python statement` — markdown list item
+- L1802: `- L604: `        velned = self._create_nav_velned(speed_mps, course_deg, time_of_week_ms)` — python statement` — markdown list item
+- L1803: `- L605: `        sol = self._create_nav_sol(sats, time_of_week_ms, self.fix_type)` — python statement` — markdown list item
+- L1804: `- L606: `        self._ser.write(pvt)` — python statement` — markdown list item
+- L1805: `- L607: `        self._ser.write(posllh)` — python statement` — markdown list item
+- L1806: `- L608: `        self._ser.write(velned)` — python statement` — markdown list item
+- L1807: `- L609: `        self._ser.write(sol)` — python statement` — markdown list item
+- L1808: `- L610: `        if self.raw_print:` — conditional branch` — markdown list item
+- L1809: `- L611: `            print(f"UBX RAW NAV-PVT: {_bytes_hex(pvt)}")` — python statement` — markdown list item
+- L1810: `- L612: `            print(f"UBX RAW NAV-POSLLH: {_bytes_hex(posllh)}")` — python statement` — markdown list item
+- L1811: `- L613: `            print(f"UBX RAW NAV-VELNED: {_bytes_hex(velned)}")` — python statement` — markdown list item
+- L1812: `- L614: `            print(f"UBX RAW NAV-SOL: {_bytes_hex(sol)}")` — python statement` — markdown list item
+- L1813: `- L615: `        self._last_send = time.time()` — python statement` — markdown list item
+- L1814: `- L616: `        return {` — return statement` — markdown list item
+- L1815: `- L617: `            "pvt": pvt,` — python statement` — markdown list item
+- L1816: `- L618: `            "posllh": posllh,` — python statement` — markdown list item
+- L1817: `- L619: `            "velned": velned,` — python statement` — markdown list item
+- L1818: `- L620: `            "sol": sol,` — python statement` — markdown list item
+- L1819: `- L621: `            "sats": sats,` — python statement` — markdown list item
+- L1820: `- L622: `            "speed_mps": speed_mps,` — python statement` — markdown list item
+- L1821: `- L623: `            "course_deg": course_deg,` — python statement` — markdown list item
+- L1822: `- L624: `        }` — python statement` — markdown list item
+- L1823: `- L625: `` — blank line` — markdown list item
+- L1824: `- L626: `` — blank line` — markdown list item
+- L1825: `- L627: `def main():` — function definition` — markdown list item
+- L1826: `- L628: `    """Entry point for VO processing and GPS/MAVLink output."""` — module docstring boundary` — markdown list item
+- L1827: `- L629: `    configs = _load_configs()` — python statement` — markdown list item
+- L1828: `- L630: `    pixhawk_cfg = configs["pixhawk"]` — python statement` — markdown list item
+- L1829: `- L631: `    # Output mode controls how odometry and GPS data are consumed/emitted.` — comment` — markdown list item
+- L1830: `- L632: `    output_mode = str(pixhawk_cfg.get("output_mode", OUTPUT_MODE)).strip().lower()` — python statement` — markdown list item
+- L1831: `- L633: `    if output_mode not in {"odometry", "vps_gps"}:` — conditional branch` — markdown list item
+- L1832: `- L634: `        print(f"Unknown output_mode '{output_mode}', defaulting to '{OUTPUT_MODE}'.")` — python statement` — markdown list item
+- L1833: `- L635: `        output_mode = OUTPUT_MODE` — python statement` — markdown list item
+- L1834: `- L636: `    vio_mode = str(pixhawk_cfg.get("vio_mode", VIO_MODE)).strip().lower()` — python statement` — markdown list item
+- L1835: `- L637: `    if vio_mode not in {"vo", "vio_imu"}:` — conditional branch` — markdown list item
+- L1836: `- L638: `        print(f"Unknown vio_mode '{vio_mode}', defaulting to '{VIO_MODE}'.")` — python statement` — markdown list item
+- L1837: `- L639: `        vio_mode = VIO_MODE` — python statement` — markdown list item
+- L1838: `- L640: `    gps_input_cfg = pixhawk_cfg.get("gps_input", {})` — python statement` — markdown list item
+- L1839: `- L641: `    gps_input_enabled = bool(gps_input_cfg.get("enabled", True))` — python statement` — markdown list item
+- L1840: `- L642: `    gps_input_port = gps_input_cfg.get("port")` — python statement` — markdown list item
+- L1841: `- L643: `    gps_input_baud_raw = gps_input_cfg.get("baud")` — python statement` — markdown list item
+- L1842: `- L644: `    if isinstance(gps_input_baud_raw, str) and gps_input_baud_raw.lower() == "auto":` — conditional branch` — markdown list item
+- L1843: `- L645: `        gps_input_baud = "auto"` — python statement` — markdown list item
+- L1844: `- L646: `    else:` — conditional branch` — markdown list item
+- L1845: `- L647: `        gps_input_baud = int(gps_input_baud_raw) if gps_input_baud_raw is not None else None` — python statement` — markdown list item
+- L1846: `- L648: `    gps_input_fmt = gps_input_cfg.get("format", GPS_SERIAL_FORMAT)` — python statement` — markdown list item
+- L1847: `- L649: `    gps_input_wait_s = float(gps_input_cfg.get("init_wait_s", 60.0))` — python statement` — markdown list item
+- L1848: `- L650: `    gps_input_min_fix = int(gps_input_cfg.get("min_fix_type", GPS_MIN_FIX_TYPE))` — python statement` — markdown list item
+- L1849: `- L651: `    gps_input_reader = None` — python statement` — markdown list item
+- L1850: `- L652: `    vo, mavlink_interface = build_vo_pipeline()` — python statement` — markdown list item
+- L1851: `- L653: `    vio_imu_cfg = pixhawk_cfg.get("vio_imu", {})` — python statement` — markdown list item
+- L1852: `- L654: `    vio_imu_print = bool(vio_imu_cfg.get("print", True))` — python statement` — markdown list item
+- L1853: `- L655: `    vio_imu_print_interval_s = float(vio_imu_cfg.get("print_interval_s", 0.5))` — python statement` — markdown list item
+- L1854: `- L656: `    imu_estimator = None` — python statement` — markdown list item
+- L1855: `- L657: `    imu_last_print = {"time": 0.0}` — python statement` — markdown list item
+- L1856: `- L658: `    if vio_mode == "vio_imu":` — conditional branch` — markdown list item
+- L1857: `- L659: `        if mavlink_interface is None:` — conditional branch` — markdown list item
+- L1858: `- L660: `            raise RuntimeError("vio_imu mode requires a MAVLink connection.")` — error raise` — markdown list item
+- L1859: `- L661: `        imu_rate_hz = float(pixhawk_cfg.get("imu_rate_hz", vio_imu.IMU_RATE_HZ))` — python statement` — markdown list item
+- L1860: `- L662: `        print("VIO mode: VO + IMU velocity integration.")` — python statement` — markdown list item
+- L1861: `- L663: `        mavlink_interface.request_message_interval(` — python statement` — markdown list item
+- L1862: `- L664: `            msg_id=mavutil.mavlink.MAVLINK_MSG_ID_HIGHRES_IMU,` — python statement` — markdown list item
+- L1863: `- L665: `            rate_hz=imu_rate_hz,` — python statement` — markdown list item
+- L1864: `- L666: `        )` — python statement` — markdown list item
+- L1865: `- L667: `        mavlink_interface.request_message_interval(` — python statement` — markdown list item
+- L1866: `- L668: `            msg_id=mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU,` — python statement` — markdown list item
+- L1867: `- L669: `            rate_hz=imu_rate_hz,` — python statement` — markdown list item
+- L1868: `- L670: `        )` — python statement` — markdown list item
+- L1869: `- L671: `        imu_estimator = vio_imu.ImuVelocityEstimator()` — python statement` — markdown list item
+- L1870: `- L672: `    selector = PositionSourceSelector(` — python statement` — markdown list item
+- L1871: `- L673: `        drift_threshold_m=pixhawk_cfg.get("gps_drift_threshold_m", GPS_DRIFT_THRESHOLD_M),` — python statement` — markdown list item
+- L1872: `- L674: `        gps_timeout_s=pixhawk_cfg.get("gps_timeout_s", GPS_TIMEOUT_S),` — python statement` — markdown list item
+- L1873: `- L675: `        min_fix_type=pixhawk_cfg.get("gps_min_fix_type", GPS_MIN_FIX_TYPE),` — python statement` — markdown list item
+- L1874: `- L676: `    )` — python statement` — markdown list item
+- L1875: `- L677: `    gps_output_cfg = pixhawk_cfg.get("gps_output", {})` — python statement` — markdown list item
+- L1876: `- L678: `    gps_output_enabled = bool(gps_output_cfg.get("enabled", False))` — python statement` — markdown list item
+- L1877: `- L679: `    gps_output_format = str(gps_output_cfg.get("format", "nmea")).lower()` — python statement` — markdown list item
+- L1878: `- L680: `    gps_output_port = gps_output_cfg.get("port", GPS_OUTPUT_PORT)` — python statement` — markdown list item
+- L1879: `- L681: `    gps_output_baud = int(gps_output_cfg.get("baud", GPS_OUTPUT_BAUD))` — python statement` — markdown list item
+- L1880: `- L682: `    gps_output_rate_hz = float(gps_output_cfg.get("rate_hz", GPS_OUTPUT_RATE_HZ))` — python statement` — markdown list item
+- L1881: `- L683: `    gps_output_fix_quality = int(` — python statement` — markdown list item
+- L1882: `- L684: `        gps_output_cfg.get("fix_quality", GPS_OUTPUT_FIX_QUALITY)` — python statement` — markdown list item
+- L1883: `- L685: `    )` — python statement` — markdown list item
+- L1884: `- L686: `    gps_output_min_sats = int(gps_output_cfg.get("min_sats", GPS_OUTPUT_MIN_SATS))` — python statement` — markdown list item
+- L1885: `- L687: `    gps_output_max_sats = int(gps_output_cfg.get("max_sats", GPS_OUTPUT_MAX_SATS))` — python statement` — markdown list item
+- L1886: `- L688: `    gps_output_update_s = float(` — python statement` — markdown list item
+- L1887: `- L689: `        gps_output_cfg.get("update_s", GPS_OUTPUT_UPDATE_S)` — python statement` — markdown list item
+- L1888: `- L690: `    )` — python statement` — markdown list item
+- L1889: `- L691: `    gps_output_print = bool(gps_output_cfg.get("print", True))` — python statement` — markdown list item
+- L1890: `- L692: `    gps_output_raw_print = bool(gps_output_cfg.get("raw_print", False))` — python statement` — markdown list item
+- L1891: `- L693: `    nmea_emitter = None` — python statement` — markdown list item
+- L1892: `- L694: `    ubx_emitter = None` — python statement` — markdown list item
+- L1893: `- L695: `    vps_gps_cfg = pixhawk_cfg.get("vps_gps", {})` — python statement` — markdown list item
+- L1894: `- L696: `    fake_gps_emitter = FakeGpsEmitter(` — python statement` — markdown list item
+- L1895: `- L697: `        send_interval_s=float(` — python statement` — markdown list item
+- L1896: `- L698: `            vps_gps_cfg.get("send_interval_s", ODOM_GPS_SEND_INTERVAL_S)` — python statement` — markdown list item
+- L1897: `- L699: `        ),` — python statement` — markdown list item
+- L1898: `- L700: `        smooth_alpha=float(vps_gps_cfg.get("smooth_alpha", FAKE_GPS_SMOOTH_ALPHA)),` — python statement` — markdown list item
+- L1899: `- L701: `        max_step_m=float(vps_gps_cfg.get("max_step_m", FAKE_GPS_MAX_STEP_M)),` — python statement` — markdown list item
+- L1900: `- L702: `    )` — python statement` — markdown list item
+- L1901: `- L703: `    vps_gps_fix_type = int(vps_gps_cfg.get("fix_type", ODOM_GPS_FIX_TYPE))` — python statement` — markdown list item
+- L1902: `- L704: `    vps_gps_sats = int(vps_gps_cfg.get("satellites", ODOM_GPS_SATS))` — python statement` — markdown list item
+- L1903: `- L705: `    vps_gps_print = bool(vps_gps_cfg.get("print", True))` — python statement` — markdown list item
+- L1904: `- L706: `    if gps_output_enabled and gps_output_format in {"nmea", "ubx_nmea", "ubx+nmea"}:` — conditional branch` — markdown list item
+- L1905: `- L707: `        nmea_emitter = NmeaSerialEmitter(` — python statement` — markdown list item
+- L1906: `- L708: `            port=gps_output_port,` — python statement` — markdown list item
+- L1907: `- L709: `            baud=gps_output_baud,` — python statement` — markdown list item
+- L1908: `- L710: `            rate_hz=gps_output_rate_hz,` — python statement` — markdown list item
+- L1909: `- L711: `            fix_quality=gps_output_fix_quality,` — python statement` — markdown list item
+- L1910: `- L712: `            min_sats=gps_output_min_sats,` — python statement` — markdown list item
+- L1911: `- L713: `            max_sats=gps_output_max_sats,` — python statement` — markdown list item
+- L1912: `- L714: `            update_s=gps_output_update_s,` — python statement` — markdown list item
+- L1913: `- L715: `            raw_print=gps_output_raw_print,` — python statement` — markdown list item
+- L1914: `- L716: `        )` — python statement` — markdown list item
+- L1915: `- L717: `    if gps_output_enabled and gps_output_format in {"ubx", "ubx_nmea", "ubx+nmea"}:` — conditional branch` — markdown list item
+- L1916: `- L718: `        ubx_emitter = UbxSerialEmitter(` — python statement` — markdown list item
+- L1917: `- L719: `            port=gps_output_port,` — python statement` — markdown list item
+- L1918: `- L720: `            baud=gps_output_baud,` — python statement` — markdown list item
+- L1919: `- L721: `            rate_hz=gps_output_rate_hz,` — python statement` — markdown list item
+- L1920: `- L722: `            fix_type=vps_gps_fix_type,` — python statement` — markdown list item
+- L1921: `- L723: `            min_sats=gps_output_min_sats,` — python statement` — markdown list item
+- L1922: `- L724: `            max_sats=gps_output_max_sats,` — python statement` — markdown list item
+- L1923: `- L725: `            update_s=gps_output_update_s,` — python statement` — markdown list item
+- L1924: `- L726: `            raw_print=gps_output_raw_print,` — python statement` — markdown list item
+- L1925: `- L727: `        )` — python statement` — markdown list item
+- L1926: `- L728: `    gps_origin = pixhawk_cfg.get("gps_origin", {})` — python statement` — markdown list item
+- L1927: `- L729: `    cfg_lat = gps_origin.get("lat")` — python statement` — markdown list item
+- L1928: `- L730: `    cfg_lon = gps_origin.get("lon")` — python statement` — markdown list item
+- L1929: `- L731: `    cfg_alt = gps_origin.get("alt")` — python statement` — markdown list item
+- L1930: `- L732: `    if GPS_ORIGIN_LAT is not None and GPS_ORIGIN_LON is not None:` — conditional branch` — markdown list item
+- L1931: `- L733: `        try:` — exception handling` — markdown list item
+- L1932: `- L734: `            origin_lat = float(GPS_ORIGIN_LAT)` — python statement` — markdown list item
+- L1933: `- L735: `            origin_lon = float(GPS_ORIGIN_LON)` — python statement` — markdown list item
+- L1934: `- L736: `            origin_alt = float(GPS_ORIGIN_ALT) if GPS_ORIGIN_ALT is not None else None` — python statement` — markdown list item
+- L1935: `- L737: `            selector.set_gps_origin(origin_lat, origin_lon, origin_alt)` — python statement` — markdown list item
+- L1936: `- L738: `            print(` — python statement` — markdown list item
+- L1937: `- L739: `                "Using manual GPS origin: "` — python statement` — markdown list item
+- L1938: `- L740: `                f"lat={origin_lat:.7f} lon={origin_lon:.7f} alt_m={origin_alt or 0.0:.2f}"` — python statement` — markdown list item
+- L1939: `- L741: `            )` — python statement` — markdown list item
+- L1940: `- L742: `        except ValueError:` — exception handling` — markdown list item
+- L1941: `- L743: `            print("Invalid GPS_ORIGIN_* values; expected numeric strings.")` — python statement` — markdown list item
+- L1942: `- L744: `    elif gps_input_enabled:` — conditional branch` — markdown list item
+- L1943: `- L745: `        if gps_input_port is None:` — conditional branch` — markdown list item
+- L1944: `- L746: `            raise ValueError("gps_input.port must be set in config/pixhawk.yaml")` — error raise` — markdown list item
+- L1945: `- L747: `        if gps_input_baud is None:` — conditional branch` — markdown list item
+- L1946: `- L748: `            raise ValueError("gps_input.baud must be set in config/pixhawk.yaml")` — error raise` — markdown list item
+- L1947: `- L749: `        try:` — exception handling` — markdown list item
+- L1948: `- L750: `            gps_input_reader = GpsSerialReader(` — python statement` — markdown list item
+- L1949: `- L751: `                gps_input_port, baud=gps_input_baud, fmt=gps_input_fmt` — python statement` — markdown list item
+- L1950: `- L752: `            )` — python statement` — markdown list item
+- L1951: `- L753: `            print(` — python statement` — markdown list item
+- L1952: `- L754: `                f"Waiting for GPS fix on {gps_input_port} @ {gps_input_baud} "` — python statement` — markdown list item
+- L1953: `- L755: `                f"(timeout {gps_input_wait_s:.0f}s)"` — python statement` — markdown list item
+- L1954: `- L756: `            )` — python statement` — markdown list item
+- L1955: `- L757: `            deadline = time.time() + gps_input_wait_s` — python statement` — markdown list item
+- L1956: `- L758: `            while time.time() < deadline:` — loop` — markdown list item
+- L1957: `- L759: `                fix, fix_time = gps_input_reader.read_messages()` — python statement` — markdown list item
+- L1958: `- L760: `                if fix is not None and fix.get("fix_type", 0) >= gps_input_min_fix:` — conditional branch` — markdown list item
+- L1959: `- L761: `                    selector.set_gps_origin(` — python statement` — markdown list item
+- L1960: `- L762: `                        fix["lat"], fix["lon"], fix.get("alt_m")` — python statement` — markdown list item
+- L1961: `- L763: `                    )` — python statement` — markdown list item
+- L1962: `- L764: `                    print(` — python statement` — markdown list item
+- L1963: `- L765: `                        "Using GPS origin from serial: "` — python statement` — markdown list item
+- L1964: `- L766: `                        f"lat={fix['lat']:.7f} lon={fix['lon']:.7f} "` — python statement` — markdown list item
+- L1965: `- L767: `                        f"alt_m={(fix.get('alt_m') or 0.0):.2f}"` — python statement` — markdown list item
+- L1966: `- L768: `                    )` — python statement` — markdown list item
+- L1967: `- L769: `                    break` — python statement` — markdown list item
+- L1968: `- L770: `                time.sleep(0.1)` — python statement` — markdown list item
+- L1969: `- L771: `            if selector.gps_origin() is None:` — conditional branch` — markdown list item
+- L1970: `- L772: `                if cfg_lat is not None and cfg_lon is not None:` — conditional branch` — markdown list item
+- L1971: `- L773: `                    selector.set_gps_origin(` — python statement` — markdown list item
+- L1972: `- L774: `                        float(cfg_lat),` — python statement` — markdown list item
+- L1973: `- L775: `                        float(cfg_lon),` — python statement` — markdown list item
+- L1974: `- L776: `                        float(cfg_alt) if cfg_alt else None,` — python statement` — markdown list item
+- L1975: `- L777: `                    )` — python statement` — markdown list item
+- L1976: `- L778: `                    print(` — python statement` — markdown list item
+- L1977: `- L779: `                        "GPS origin fallback: "` — python statement` — markdown list item
+- L1978: `- L780: `                        f"lat={float(cfg_lat):.7f} lon={float(cfg_lon):.7f} "` — python statement` — markdown list item
+- L1979: `- L781: `                        f"alt_m={float(cfg_alt) if cfg_alt else 0.0:.2f}"` — python statement` — markdown list item
+- L1980: `- L782: `                    )` — python statement` — markdown list item
+- L1981: `- L783: `                else:` — conditional branch` — markdown list item
+- L1982: `- L784: `                    print("GPS origin not set; set gps_origin in config or env.")` — python statement` — markdown list item
+- L1983: `- L785: `        except Exception as exc:` — exception handling` — markdown list item
+- L1984: `- L786: `            print(f"Warning: GPS input not available ({exc})")` — python statement` — markdown list item
+- L1985: `- L787: `    elif cfg_lat is not None and cfg_lon is not None:` — conditional branch` — markdown list item
+- L1986: `- L788: `        selector.set_gps_origin(float(cfg_lat), float(cfg_lon), float(cfg_alt) if cfg_alt else None)` — python statement` — markdown list item
+- L1987: `- L789: `    last_source = {"value": None}` — python statement` — markdown list item
+- L1988: `- L790: `    last_report = {"time": 0.0}` — python statement` — markdown list item
+- L1989: `- L791: `    last_report_times = {"gps": 0.0, "lidar": 0.0}` — python statement` — markdown list item
+- L1990: `- L792: `    last_odom_gps_send = {"time": 0.0}` — python statement` — markdown list item
+- L1991: `- L793: `    last_fake_gps = {"time": None, "x": None, "y": None, "z": None}` — python statement` — markdown list item
+- L1992: `- L794: `    last_odom_send = {"time": 0.0}` — python statement` — markdown list item
+- L1993: `- L795: `    last_odom_print = {"time": 0.0}` — python statement` — markdown list item
+- L1994: `- L796: `    last_att_warn = {"time": 0.0}` — python statement` — markdown list item
+- L1995: `- L797: `    last_vel = {"time": None, "x": None, "y": None, "z": None}` — python statement` — markdown list item
+- L1996: `- L798: `    last_vio_imu = {"time": None, "x": None, "y": None, "z": None}` — python statement` — markdown list item
+- L1997: `- L799: `    ` — blank line` — markdown list item
+- L1998: `- L800: `` — blank line` — markdown list item
+- L1999: `- L801: `    def _odom_to_gps(x_m, y_m, z_m):` — function definition` — markdown list item
+- L2000: `- L802: `        origin = selector.gps_origin()` — python statement` — markdown list item
+- L2001: `- L803: `        if origin is None:` — conditional branch` — markdown list item
+- L2002: `- L804: `            return None` — return statement` — markdown list item
+- L2003: `- L805: `        # Convert local ENU offsets to lat/lon using the configured origin.` — comment` — markdown list item
+- L2004: `- L806: `        lat, lon = selector.local_to_ll(x_m, y_m, origin)` — python statement` — markdown list item
+- L2005: `- L807: `        alt_base = 0.0 if origin[2] is None else origin[2]` — python statement` — markdown list item
+- L2006: `- L808: `        alt_m = alt_base + (0.0 if z_m is None else z_m)` — python statement` — markdown list item
+- L2007: `- L809: `        return lat, lon, alt_m` — return statement` — markdown list item
+- L2008: `- L810: `` — blank line` — markdown list item
+- L2009: `- L811: `    def on_update(x_m, y_m, z_m, dx_m, dy_m, dz_m, *_rest):` — function definition` — markdown list item
+- L2010: `- L812: `        now = time.time()` — python statement` — markdown list item
+- L2011: `- L813: `        if mavlink_interface is not None:` — conditional branch` — markdown list item
+- L2012: `- L814: `            mavlink_interface.recv_attitude()` — python statement` — markdown list item
+- L2013: `- L815: `        if vio_mode == "vio_imu" and imu_estimator is not None:` — conditional branch` — markdown list item
+- L2014: `- L816: `            att = mavlink_interface.get_last_attitude()` — python statement` — markdown list item
+- L2015: `- L817: `            if att is not None:` — conditional branch` — markdown list item
+- L2016: `- L818: `                imu_estimator.update_attitude(att["roll"], att["pitch"], att["yaw"])` — python statement` — markdown list item
+- L2017: `- L819: `            while True:` — loop` — markdown list item
+- L2018: `- L820: `                imu_msg = mavlink_interface.master.recv_match(` — python statement` — markdown list item
+- L2019: `- L821: `                    type=["HIGHRES_IMU", "RAW_IMU"],` — python statement` — markdown list item
+- L2020: `- L822: `                    blocking=False,` — python statement` — markdown list item
+- L2021: `- L823: `                )` — python statement` — markdown list item
+- L2022: `- L824: `                if imu_msg is None:` — conditional branch` — markdown list item
+- L2023: `- L825: `                    break` — python statement` — markdown list item
+- L2024: `- L826: `                result = imu_estimator.process_message(imu_msg)` — python statement` — markdown list item
+- L2025: `- L827: `                if result is None:` — conditional branch` — markdown list item
+- L2026: `- L828: `                    continue` — python statement` — markdown list item
+- L2027: `- L829: `                vx, vy, vz, frame = result` — python statement` — markdown list item
+- L2028: `- L830: `                now = time.time()` — python statement` — markdown list item
+- L2029: `- L831: `                if (` — conditional branch` — markdown list item
+- L2030: `- L832: `                    vio_imu_print` — python statement` — markdown list item
+- L2031: `- L833: `                    and now - imu_last_print["time"] >= vio_imu_print_interval_s` — python statement` — markdown list item
+- L2032: `- L834: `                ):` — python statement` — markdown list item
+- L2033: `- L835: `                    print(` — python statement` — markdown list item
+- L2034: `- L836: `                        f"IMU({frame}) Vx: {vx:.3f} | Vy: {vy:.3f} | Vz: {vz:.3f} m/s"` — python statement` — markdown list item
+- L2035: `- L837: `                    )` — python statement` — markdown list item
+- L2036: `- L838: `                    imu_last_print["time"] = now` — python statement` — markdown list item
+- L2037: `- L839: `        if vio_mode == "vio_imu":` — conditional branch` — markdown list item
+- L2038: `- L840: `            print_interval_s = pixhawk_cfg.get("print_interval_s", PRINT_INTERVAL_S)` — python statement` — markdown list item
+- L2039: `- L841: `            last_time = last_vio_imu["time"]` — python statement` — markdown list item
+- L2040: `- L842: `            if last_time is None or now - last_time >= print_interval_s:` — conditional branch` — markdown list item
+- L2041: `- L843: `                if (` — conditional branch` — markdown list item
+- L2042: `- L844: `                    last_time is not None` — python statement` — markdown list item
+- L2043: `- L845: `                    and now > last_time` — python statement` — markdown list item
+- L2044: `- L846: `                    and last_vio_imu["x"] is not None` — python statement` — markdown list item
+- L2045: `- L847: `                    and last_vio_imu["y"] is not None` — python statement` — markdown list item
+- L2046: `- L848: `                    and last_vio_imu["z"] is not None` — python statement` — markdown list item
+- L2047: `- L849: `                ):` — python statement` — markdown list item
+- L2048: `- L850: `                    dt = now - last_time` — python statement` — markdown list item
+- L2049: `- L851: `                    vx_enu = (x_m - last_vio_imu["x"]) / dt` — python statement` — markdown list item
+- L2050: `- L852: `                    vy_enu = (y_m - last_vio_imu["y"]) / dt` — python statement` — markdown list item
+- L2051: `- L853: `                    vz_enu = (z_m - last_vio_imu["z"]) / dt` — python statement` — markdown list item
+- L2052: `- L854: `                else:` — conditional branch` — markdown list item
+- L2053: `- L855: `                    vx_enu = 0.0` — python statement` — markdown list item
+- L2054: `- L856: `                    vy_enu = 0.0` — python statement` — markdown list item
+- L2055: `- L857: `                    vz_enu = 0.0` — python statement` — markdown list item
+- L2056: `- L858: `                print(` — python statement` — markdown list item
+- L2057: `- L859: `                    "VO XYZ: "` — python statement` — markdown list item
+- L2058: `- L860: `                    f"X={x_m:.2f} Y={y_m:.2f} Z={z_m:.2f} | "` — python statement` — markdown list item
+- L2059: `- L861: `                    f"Vx={vx_enu:.2f} Vy={vy_enu:.2f} Vz={vz_enu:.2f} m/s"` — python statement` — markdown list item
+- L2060: `- L862: `                )` — python statement` — markdown list item
+- L2061: `- L863: `                last_vio_imu["time"] = now` — python statement` — markdown list item
+- L2062: `- L864: `                last_vio_imu["x"] = x_m` — python statement` — markdown list item
+- L2063: `- L865: `                last_vio_imu["y"] = y_m` — python statement` — markdown list item
+- L2064: `- L866: `                last_vio_imu["z"] = z_m` — python statement` — markdown list item
+- L2065: `- L867: `` — blank line` — markdown list item
+- L2066: `- L868: `        if gps_input_reader is not None:` — conditional branch` — markdown list item
+- L2067: `- L869: `            fix, fix_time = gps_input_reader.read_messages()` — python statement` — markdown list item
+- L2068: `- L870: `            if fix is not None and fix.get("fix_type", 0) >= gps_input_min_fix:` — conditional branch` — markdown list item
+- L2069: `- L871: `                selector.update_gps(` — python statement` — markdown list item
+- L2070: `- L872: `                    fix["lat"],` — python statement` — markdown list item
+- L2071: `- L873: `                    fix["lon"],` — python statement` — markdown list item
+- L2072: `- L874: `                    fix.get("alt_m"),` — python statement` — markdown list item
+- L2073: `- L875: `                    fix.get("fix_type"),` — python statement` — markdown list item
+- L2074: `- L876: `                    timestamp=fix_time or now,` — python statement` — markdown list item
+- L2075: `- L877: `                )` — python statement` — markdown list item
+- L2076: `- L878: `` — blank line` — markdown list item
+- L2077: `- L879: `        lidar_driver = vo.height_estimator.lidar_driver` — python statement` — markdown list item
+- L2078: `- L880: `        print_lidar = pixhawk_cfg.get("print_lidar_values", PRINT_LIDAR_VALUES)` — python statement` — markdown list item
+- L2079: `- L881: `        print_interval_s = pixhawk_cfg.get("print_interval_s", PRINT_INTERVAL_S)` — python statement` — markdown list item
+- L2080: `- L882: `        if print_lidar and lidar_driver is not None:` — conditional branch` — markdown list item
+- L2081: `- L883: `            distance_m = lidar_driver.current_m` — python statement` — markdown list item
+- L2082: `- L884: `            if distance_m is not None:` — conditional branch` — markdown list item
+- L2083: `- L885: `                if now - last_report_times["lidar"] >= print_interval_s:` — conditional branch` — markdown list item
+- L2084: `- L886: `                    last_report_times["lidar"] = now` — python statement` — markdown list item
+- L2085: `- L887: `` — blank line` — markdown list item
+- L2086: `- L888: `        selector.update_odometry(x_m, y_m, z_m, timestamp=now)` — python statement` — markdown list item
+- L2087: `- L889: `        source = selector.current_source(now)` — python statement` — markdown list item
+- L2088: `- L890: `        if source != last_source["value"]:` — conditional branch` — markdown list item
+- L2089: `- L891: `            drift = selector.drift_m()` — python statement` — markdown list item
+- L2090: `- L892: `            drift_text = "n/a" if drift is None else f"{drift:.2f}m"` — python statement` — markdown list item
+- L2091: `- L893: `            reason = ""` — python statement` — markdown list item
+- L2092: `- L894: `            if source == "odometry":` — conditional branch` — markdown list item
+- L2093: `- L895: `                if not selector.gps_available(now):` — conditional branch` — markdown list item
+- L2094: `- L896: `                    reason = "gps missing/invalid"` — python statement` — markdown list item
+- L2095: `- L897: `                elif drift is not None and drift > GPS_DRIFT_THRESHOLD_M:` — conditional branch` — markdown list item
+- L2096: `- L898: `                    reason = "gps drift high (possible spoofing)"` — python statement` — markdown list item
+- L2097: `- L899: `            if reason:` — conditional branch` — markdown list item
+- L2098: `- L900: `                print(f"Position source -> {source} (drift: {drift_text}, reason: {reason})")` — python statement` — markdown list item
+- L2099: `- L901: `            else:` — conditional branch` — markdown list item
+- L2100: `- L902: `                print(f"Position source -> {source} (drift: {drift_text})")` — python statement` — markdown list item
+- L2101: `- L903: `            last_source["value"] = source` — python statement` — markdown list item
+- L2102: `- L904: `` — blank line` — markdown list item
+- L2103: `- L905: `        if output_mode == "vps_gps":` — conditional branch` — markdown list item
+- L2104: `- L906: `            if mavlink_interface is None:` — conditional branch` — markdown list item
+- L2105: `- L907: `                if now - last_odom_gps_send["time"] >= 2.0:` — conditional branch` — markdown list item
+- L2106: `- L908: `                    print("VPS->GPS: MAVLink unavailable; cannot send fake GPS.")` — python statement` — markdown list item
+- L2107: `- L909: `                    last_odom_gps_send["time"] = now` — python statement` — markdown list item
+- L2108: `- L910: `            elif fake_gps_emitter.ready(now):` — conditional branch` — markdown list item
+- L2109: `- L911: `                x_s, y_s, z_s = fake_gps_emitter._smooth_position(x_m, y_m, z_m)` — python statement` — markdown list item
+- L2110: `- L912: `                odom_gps = _odom_to_gps(x_s, y_s, z_s)` — python statement` — markdown list item
+- L2111: `- L913: `                if odom_gps is not None:` — conditional branch` — markdown list item
+- L2112: `- L914: `                    lat, lon, alt_m = odom_gps` — python statement` — markdown list item
+- L2113: `- L915: `                    if (` — conditional branch` — markdown list item
+- L2114: `- L916: `                        last_fake_gps["time"] is not None` — python statement` — markdown list item
+- L2115: `- L917: `                        and now > last_fake_gps["time"]` — python statement` — markdown list item
+- L2116: `- L918: `                        and last_fake_gps["x"] is not None` — python statement` — markdown list item
+- L2117: `- L919: `                        and last_fake_gps["y"] is not None` — python statement` — markdown list item
+- L2118: `- L920: `                        and last_fake_gps["z"] is not None` — python statement` — markdown list item
+- L2119: `- L921: `                    ):` — python statement` — markdown list item
+- L2120: `- L922: `                        dt = now - last_fake_gps["time"]` — python statement` — markdown list item
+- L2121: `- L923: `                        vx_enu = (x_s - last_fake_gps["x"]) / dt` — python statement` — markdown list item
+- L2122: `- L924: `                        vy_enu = (y_s - last_fake_gps["y"]) / dt` — python statement` — markdown list item
+- L2123: `- L925: `                        vz_enu = (z_s - last_fake_gps["z"]) / dt` — python statement` — markdown list item
+- L2124: `- L926: `                    else:` — conditional branch` — markdown list item
+- L2125: `- L927: `                        vx_enu = 0.0` — python statement` — markdown list item
+- L2126: `- L928: `                        vy_enu = 0.0` — python statement` — markdown list item
+- L2127: `- L929: `                        vz_enu = 0.0` — python statement` — markdown list item
+- L2128: `- L930: `                    speed_mps, heading_deg = speed_course_from_enu(vx_enu, vy_enu)` — python statement` — markdown list item
+- L2129: `- L931: `                    vn = vy_enu` — python statement` — markdown list item
+- L2130: `- L932: `                    ve = vx_enu` — python statement` — markdown list item
+- L2131: `- L933: `                    vd = -vz_enu` — python statement` — markdown list item
+- L2132: `- L934: `                    if nmea_emitter is not None or ubx_emitter is not None:` — conditional branch` — markdown list item
+- L2133: `- L935: `                        nmea_payload = None` — python statement` — markdown list item
+- L2134: `- L936: `                        ubx_payload = None` — python statement` — markdown list item
+- L2135: `- L937: `                        if nmea_emitter is not None and nmea_emitter.ready(now):` — conditional branch` — markdown list item
+- L2136: `- L938: `                            nmea_payload = nmea_emitter.send(` — python statement` — markdown list item
+- L2137: `- L939: `                                lat, lon, alt_m, vx_enu, vy_enu` — python statement` — markdown list item
+- L2138: `- L940: `                            )` — python statement` — markdown list item
+- L2139: `- L941: `                        if ubx_emitter is not None and ubx_emitter.ready(now):` — conditional branch` — markdown list item
+- L2140: `- L942: `                            ubx_payload = ubx_emitter.send(` — python statement` — markdown list item
+- L2141: `- L943: `                                lat, lon, alt_m, vx_enu, vy_enu` — python statement` — markdown list item
+- L2142: `- L944: `                            )` — python statement` — markdown list item
+- L2143: `- L945: `                        if gps_output_print and (nmea_payload or ubx_payload):` — conditional branch` — markdown list item
+- L2144: `- L946: `                            sats_display = vps_gps_sats` — python statement` — markdown list item
+- L2145: `- L947: `                            if nmea_payload and "sats" in nmea_payload:` — conditional branch` — markdown list item
+- L2146: `- L948: `                                sats_display = nmea_payload["sats"]` — python statement` — markdown list item
+- L2147: `- L949: `                            elif ubx_payload and "sats" in ubx_payload:` — conditional branch` — markdown list item
+- L2148: `- L950: `                                sats_display = ubx_payload["sats"]` — python statement` — markdown list item
+- L2149: `- L951: `                            if nmea_payload and ubx_payload:` — conditional branch` — markdown list item
+- L2150: `- L952: `                                sent_label = "UBX-NAV-PVT, POSLLH, VELNED, SOL + NMEA GGA, RMC"` — python statement` — markdown list item
+- L2151: `- L953: `                                prefix = "VPS->GPS"` — python statement` — markdown list item
+- L2152: `- L954: `                            elif ubx_payload:` — conditional branch` — markdown list item
+- L2153: `- L955: `                                sent_label = "UBX-NAV-PVT, POSLLH, VELNED, SOL"` — python statement` — markdown list item
+- L2154: `- L956: `                                prefix = "VPS->UBX"` — python statement` — markdown list item
+- L2155: `- L957: `                            else:` — conditional branch` — markdown list item
+- L2156: `- L958: `                                sent_label = "NMEA GGA, RMC"` — python statement` — markdown list item
+- L2157: `- L959: `                                prefix = "VPS->NMEA"` — python statement` — markdown list item
+- L2158: `- L960: `                            print(` — python statement` — markdown list item
+- L2159: `- L961: `                                f"{prefix}:\n"` — python statement` — markdown list item
+- L2160: `- L962: `                                f"LAT : {abs(lat):.6f}° {'N' if lat >= 0 else 'S'}\n"` — python statement` — markdown list item
+- L2161: `- L963: `                                f"LON : {abs(lon):.6f}° {'E' if lon >= 0 else 'W'}\n"` — python statement` — markdown list item
+- L2162: `- L964: `                                f"ALT : {alt_m:.1f} m\n"` — python statement` — markdown list item
+- L2163: `- L965: `                                f"SPD : {speed_mps:.2f} m/s\n"` — python statement` — markdown list item
+- L2164: `- L966: `                                f"HDG : {heading_deg:.1f}°\n"` — python statement` — markdown list item
+- L2165: `- L967: `                                f"SATS: {sats_display}\n"` — python statement` — markdown list item
+- L2166: `- L968: `                                f"Sent: {sent_label}"` — python statement` — markdown list item
+- L2167: `- L969: `                            )` — python statement` — markdown list item
+- L2168: `- L970: `                            print("-" * 50)` — python statement` — markdown list item
+- L2169: `- L971: `                    else:` — conditional branch` — markdown list item
+- L2170: `- L972: `                        mavlink_interface.send_gps_input(` — python statement` — markdown list item
+- L2171: `- L973: `                            lat,` — python statement` — markdown list item
+- L2172: `- L974: `                            lon,` — python statement` — markdown list item
+- L2173: `- L975: `                            alt_m,` — python statement` — markdown list item
+- L2174: `- L976: `                            fix_type=vps_gps_fix_type,` — python statement` — markdown list item
+- L2175: `- L977: `                            satellites_visible=vps_gps_sats,` — python statement` — markdown list item
+- L2176: `- L978: `                            vn=vn,` — python statement` — markdown list item
+- L2177: `- L979: `                            ve=ve,` — python statement` — markdown list item
+- L2178: `- L980: `                            vd=vd,` — python statement` — markdown list item
+- L2179: `- L981: `                        )` — python statement` — markdown list item
+- L2180: `- L982: `                        if vps_gps_print:` — conditional branch` — markdown list item
+- L2181: `- L983: `                            print(` — python statement` — markdown list item
+- L2182: `- L984: `                                "VPS->GPS:\n"` — python statement` — markdown list item
+- L2183: `- L985: `                                f"LAT : {abs(lat):.6f}° {'N' if lat >= 0 else 'S'}\n"` — python statement` — markdown list item
+- L2184: `- L986: `                                f"LON : {abs(lon):.6f}° {'E' if lon >= 0 else 'W'}\n"` — python statement` — markdown list item
+- L2185: `- L987: `                                f"ALT : {alt_m:.1f} m\n"` — python statement` — markdown list item
+- L2186: `- L988: `                                f"SPD : {speed_mps:.2f} m/s\n"` — python statement` — markdown list item
+- L2187: `- L989: `                                f"HDG : {heading_deg:.1f}°\n"` — python statement` — markdown list item
+- L2188: `- L990: `                                f"SATS: {vps_gps_sats}\n"` — python statement` — markdown list item
+- L2189: `- L991: `                                "Sent: UBX-NAV-PVT, POSLLH, VELNED, SOL + NMEA GGA, RMC"` — python statement` — markdown list item
+- L2190: `- L992: `                            )` — python statement` — markdown list item
+- L2191: `- L993: `                            print("-" * 50)` — python statement` — markdown list item
+- L2192: `- L994: `                    last_fake_gps["time"] = now` — python statement` — markdown list item
+- L2193: `- L995: `                    last_fake_gps["x"] = x_s` — python statement` — markdown list item
+- L2194: `- L996: `                    last_fake_gps["y"] = y_s` — python statement` — markdown list item
+- L2195: `- L997: `                    last_fake_gps["z"] = z_s` — python statement` — markdown list item
+- L2196: `- L998: `                else:` — conditional branch` — markdown list item
+- L2197: `- L999: `                    if now - last_odom_gps_send["time"] >= 2.0:` — conditional branch` — markdown list item
+- L2198: `- L1000: `                        print("VPS->GPS: missing GPS origin; set gps_origin in config.")` — python statement` — markdown list item
+- L2199: `- L1001: `                fake_gps_emitter.mark_sent(now)` — python statement` — markdown list item
+- L2200: `- L1002: `                last_odom_gps_send["time"] = now` — python statement` — markdown list item
+- L2201: `- L1003: `` — blank line` — markdown list item
+- L2202: `- L1004: `        if mavlink_interface is not None and output_mode == "odometry":` — conditional branch` — markdown list item
+- L2203: `- L1005: `            odom_send_interval_s = pixhawk_cfg.get(` — python statement` — markdown list item
+- L2204: `- L1006: `                "odometry_send_interval_s", ODOMETRY_SEND_INTERVAL_S` — python statement` — markdown list item
+- L2205: `- L1007: `            )` — python statement` — markdown list item
+- L2206: `- L1008: `            if now - last_odom_send["time"] >= odom_send_interval_s:` — conditional branch` — markdown list item
+- L2207: `- L1009: `                att = mavlink_interface.get_last_attitude()` — python statement` — markdown list item
+- L2208: `- L1010: `                if att is not None:` — conditional branch` — markdown list item
+- L2209: `- L1011: `                    roll = att["roll"]` — python statement` — markdown list item
+- L2210: `- L1012: `                    pitch = att["pitch"]` — python statement` — markdown list item
+- L2211: `- L1013: `                    yaw = att["yaw"]` — python statement` — markdown list item
+- L2212: `- L1014: `                    q = _quat_from_rpy(roll, pitch, yaw)` — python statement` — markdown list item
+- L2213: `- L1015: `                    # Convert ENU (VO) into NED for MAVLink odometry.` — comment` — markdown list item
+- L2214: `- L1016: `                    x_ned = y_m` — python statement` — markdown list item
+- L2215: `- L1017: `                    y_ned = x_m` — python statement` — markdown list item
+- L2216: `- L1018: `                    z_ned = -z_m` — python statement` — markdown list item
+- L2217: `- L1019: `                    if (` — conditional branch` — markdown list item
+- L2218: `- L1020: `                        last_vel["time"] is not None` — python statement` — markdown list item
+- L2219: `- L1021: `                        and now > last_vel["time"]` — python statement` — markdown list item
+- L2220: `- L1022: `                        and last_vel["x"] is not None` — python statement` — markdown list item
+- L2221: `- L1023: `                        and last_vel["y"] is not None` — python statement` — markdown list item
+- L2222: `- L1024: `                        and last_vel["z"] is not None` — python statement` — markdown list item
+- L2223: `- L1025: `                    ):` — python statement` — markdown list item
+- L2224: `- L1026: `                        # Estimate velocity via finite differencing between updates.` — comment` — markdown list item
+- L2225: `- L1027: `                        dt = now - last_vel["time"]` — python statement` — markdown list item
+- L2226: `- L1028: `                        dx_enu = x_m - last_vel["x"]` — python statement` — markdown list item
+- L2227: `- L1029: `                        dy_enu = y_m - last_vel["y"]` — python statement` — markdown list item
+- L2228: `- L1030: `                        dz_enu = z_m - last_vel["z"]` — python statement` — markdown list item
+- L2229: `- L1031: `                        vx_enu = dx_enu / dt` — python statement` — markdown list item
+- L2230: `- L1032: `                        vy_enu = dy_enu / dt` — python statement` — markdown list item
+- L2231: `- L1033: `                        vz_enu = dz_enu / dt` — python statement` — markdown list item
+- L2232: `- L1034: `                        vx = vy_enu` — python statement` — markdown list item
+- L2233: `- L1035: `                        vy = vx_enu` — python statement` — markdown list item
+- L2234: `- L1036: `                        vz = -vz_enu` — python statement` — markdown list item
+- L2235: `- L1037: `                    else:` — conditional branch` — markdown list item
+- L2236: `- L1038: `                        vx = 0.0` — python statement` — markdown list item
+- L2237: `- L1039: `                        vy = 0.0` — python statement` — markdown list item
+- L2238: `- L1040: `                        vz = 0.0` — python statement` — markdown list item
+- L2239: `- L1041: `                    mavlink_interface.send_odometry(` — python statement` — markdown list item
+- L2240: `- L1042: `                        x_ned,` — python statement` — markdown list item
+- L2241: `- L1043: `                        y_ned,` — python statement` — markdown list item
+- L2242: `- L1044: `                        z_ned,` — python statement` — markdown list item
+- L2243: `- L1045: `                        q,` — python statement` — markdown list item
+- L2244: `- L1046: `                        vx,` — python statement` — markdown list item
+- L2245: `- L1047: `                        vy,` — python statement` — markdown list item
+- L2246: `- L1048: `                        vz,` — python statement` — markdown list item
+- L2247: `- L1049: `                        roll_rate=0.0,` — python statement` — markdown list item
+- L2248: `- L1050: `                        pitch_rate=0.0,` — python statement` — markdown list item
+- L2249: `- L1051: `                        yaw_rate=0.0,` — python statement` — markdown list item
+- L2250: `- L1052: `                    )` — python statement` — markdown list item
+- L2251: `- L1053: `                    print_interval_s = pixhawk_cfg.get("print_interval_s", PRINT_INTERVAL_S)` — python statement` — markdown list item
+- L2252: `- L1054: `                    if now - last_odom_print["time"] >= print_interval_s:` — conditional branch` — markdown list item
+- L2253: `- L1055: `                        print(` — python statement` — markdown list item
+- L2254: `- L1056: `                            "ODOM(NED) SEND: "` — python statement` — markdown list item
+- L2255: `- L1057: `                            f"X={x_ned:.2f} Y={y_ned:.2f} Z={z_ned:.2f} | "` — python statement` — markdown list item
+- L2256: `- L1058: `                            f"Vx={vx:.2f} Vy={vy:.2f} Vz={vz:.2f} | "` — python statement` — markdown list item
+- L2257: `- L1059: `                            f"R={roll:.2f} P={pitch:.2f} Y={yaw:.2f} | "` — python statement` — markdown list item
+- L2258: `- L1060: `                            f"Q=[{q[0]:.3f},{q[1]:.3f},{q[2]:.3f},{q[3]:.3f}]"` — python statement` — markdown list item
+- L2259: `- L1061: `                        )` — python statement` — markdown list item
+- L2260: `- L1062: `                        last_odom_print["time"] = now` — python statement` — markdown list item
+- L2261: `- L1063: `                    last_odom_send["time"] = now` — python statement` — markdown list item
+- L2262: `- L1064: `                    last_vel["time"] = now` — python statement` — markdown list item
+- L2263: `- L1065: `                    last_vel["x"] = x_m` — python statement` — markdown list item
+- L2264: `- L1066: `                    last_vel["y"] = y_m` — python statement` — markdown list item
+- L2265: `- L1067: `                    last_vel["z"] = z_m` — python statement` — markdown list item
+- L2266: `- L1068: `                elif now - last_att_warn["time"] >= 2.0:` — conditional branch` — markdown list item
+- L2267: `- L1069: `                    print("ODOM(NED) SEND: waiting for ATTITUDE data from Pixhawk...")` — python statement` — markdown list item
+- L2268: `- L1070: `                    last_att_warn["time"] = now` — python statement` — markdown list item
+- L2269: `- L1071: `` — blank line` — markdown list item
+- L2270: `- L1072: `        if now - last_report["time"] >= 1.0:` — conditional branch` — markdown list item
+- L2271: `- L1073: `            position = selector.get_position(now)` — python statement` — markdown list item
+- L2272: `- L1074: `            if position is not None:` — conditional branch` — markdown list item
+- L2273: `- L1075: `                px, py, pz = position` — python statement` — markdown list item
+- L2274: `- L1076: `            last_report["time"] = now` — python statement` — markdown list item
+- L2275: `- L1077: `` — blank line` — markdown list item
+- L2276: `- L1078: `    print("VO + LiDAR started")` — python statement` — markdown list item
+- L2277: `- L1079: `    vo.run(on_update=on_update)` — python statement` — markdown list item
+- L2278: `- L1080: `` — blank line` — markdown list item
+- L2279: `- L1081: `` — blank line` — markdown list item
+- L2280: `- L1082: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L2281: `- L1083: `    main()` — python statement` — markdown list item
+- L2282: `` — blank line
+- L2283: `## `tests/integration/test_indoor_return.py`` — markdown heading
+- L2284: `- Role: Test` — markdown list item
+- L2285: `### Line-by-line` — markdown heading
+- L2286: `- L1: `"""Test Indoor Return module. Provides test indoor return utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2287: `- L2: `` — blank line` — markdown list item
+- L2288: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2289: `- L4: `` — blank line` — markdown list item
+- L2290: `` — blank line
+- L2291: `## `tests/integration/test_pixhawk_loopback.py`` — markdown heading
+- L2292: `- Role: Test` — markdown list item
+- L2293: `### Line-by-line` — markdown heading
+- L2294: `- L1: `"""Test Pixhawk Loopback module. Provides test pixhawk loopback utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2295: `- L2: `` — blank line` — markdown list item
+- L2296: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2297: `- L4: `` — blank line` — markdown list item
+- L2298: `` — blank line
+- L2299: `## `tests/integration/test_vps_pipeline.py`` — markdown heading
+- L2300: `- Role: Test` — markdown list item
+- L2301: `### Line-by-line` — markdown heading
+- L2302: `- L1: `"""Test VPS Pipeline module. Provides test vps pipeline utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2303: `- L2: `` — blank line` — markdown list item
+- L2304: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2305: `- L4: `` — blank line` — markdown list item
+- L2306: `` — blank line
+- L2307: `## `tests/unit/test_geo.py`` — markdown heading
+- L2308: `- Role: Test` — markdown list item
+- L2309: `### Line-by-line` — markdown heading
+- L2310: `- L1: `"""Test Geo module. Provides test geo utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2311: `- L2: `` — blank line` — markdown list item
+- L2312: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2313: `- L4: `` — blank line` — markdown list item
+- L2314: `` — blank line
+- L2315: `## `tests/unit/test_nmea.py`` — markdown heading
+- L2316: `- Role: Test` — markdown list item
+- L2317: `### Line-by-line` — markdown heading
+- L2318: `- L1: `"""Test Nmea module. Provides test nmea utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2319: `- L2: `` — blank line` — markdown list item
+- L2320: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2321: `- L4: `` — blank line` — markdown list item
+- L2322: `` — blank line
+- L2323: `## `tests/unit/test_spoof_detection.py`` — markdown heading
+- L2324: `- Role: Test` — markdown list item
+- L2325: `### Line-by-line` — markdown heading
+- L2326: `- L1: `"""Test Spoof Detection module. Provides test spoof detection utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2327: `- L2: `` — blank line` — markdown list item
+- L2328: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2329: `- L4: `` — blank line` — markdown list item
+- L2330: `` — blank line
+- L2331: `## `tests/unit/test_state_machine.py`` — markdown heading
+- L2332: `- Role: Test` — markdown list item
+- L2333: `### Line-by-line` — markdown heading
+- L2334: `- L1: `"""Test State Machine module. Provides test state machine utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2335: `- L2: `` — blank line` — markdown list item
+- L2336: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2337: `- L4: `` — blank line` — markdown list item
+- L2338: `` — blank line
+- L2339: `## `src/navisar/core/__init__.py`` — markdown heading
+- L2340: `- Role: Source code` — markdown list item
+- L2341: `### Line-by-line` — markdown heading
+- L2342: `- L1: `"""Core package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2343: `- L2: `` — blank line` — markdown list item
+- L2344: `` — blank line
+- L2345: `## `src/navisar/core/mode_manager.py`` — markdown heading
+- L2346: `- Role: Source code` — markdown list item
+- L2347: `### Line-by-line` — markdown heading
+- L2348: `- L1: `"""Mode Manager module. Provides mode manager utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2349: `- L2: `` — blank line` — markdown list item
+- L2350: `- L3: `# Placeholder file` — comment` — markdown list item
+- L2351: `` — blank line
+- L2352: `## `src/navisar/core/safety_manager.py`` — markdown heading
+- L2353: `- Role: Source code` — markdown list item
+- L2354: `### Line-by-line` — markdown heading
+- L2355: `- L1: `"""Safety Manager module. Provides safety manager utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2356: `- L2: `` — blank line` — markdown list item
+- L2357: `- L3: `# Placeholder file` — comment` — markdown list item
+- L2358: `` — blank line
+- L2359: `## `src/navisar/core/state_machine.py`` — markdown heading
+- L2360: `- Role: Source code` — markdown list item
+- L2361: `### Line-by-line` — markdown heading
+- L2362: `- L1: `"` — python statement` — markdown list item
+- L2363: `- L2: `` — blank line` — markdown list item
+- L2364: `- L3: `""State machine placeholder for future navigation logic."""` — python statement` — markdown list item
+- L2365: `` — blank line
+- L2366: `## `src/navisar/gnss_monitor/__init__.py`` — markdown heading
+- L2367: `- Role: Source code` — markdown list item
+- L2368: `### Line-by-line` — markdown heading
+- L2369: `- L1: `"""Gnss Monitor package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2370: `- L2: `` — blank line` — markdown list item
+- L2371: `` — blank line
+- L2372: `## `src/navisar/gnss_monitor/consistency_check.py`` — markdown heading
+- L2373: `- Role: Source code` — markdown list item
+- L2374: `### Line-by-line` — markdown heading
+- L2375: `- L1: `"""Consistency Check module. Provides consistency check utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2376: `- L2: `` — blank line` — markdown list item
+- L2377: `- L3: `# Placeholder for GNSS consistency checks.` — comment` — markdown list item
+- L2378: `` — blank line
+- L2379: `## `src/navisar/gnss_monitor/contested_zone.py`` — markdown heading
+- L2380: `- Role: Source code` — markdown list item
+- L2381: `### Line-by-line` — markdown heading
+- L2382: `- L1: `"""Contested Zone module. Provides contested zone utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2383: `- L2: `` — blank line` — markdown list item
+- L2384: `- L3: `# Placeholder for contested zone logic.` — comment` — markdown list item
+- L2385: `` — blank line
+- L2386: `## `src/navisar/gnss_monitor/spoof_detector.py`` — markdown heading
+- L2387: `- Role: Source code` — markdown list item
+- L2388: `### Line-by-line` — markdown heading
+- L2389: `- L1: `"""Spoof Detector module. Provides spoof detector utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2390: `- L2: `` — blank line` — markdown list item
+- L2391: `- L3: `# Placeholder for GNSS spoof detection.` — comment` — markdown list item
+- L2392: `` — blank line
+- L2393: `## `src/navisar/navigation/__init__.py`` — markdown heading
+- L2394: `- Role: Source code` — markdown list item
+- L2395: `### Line-by-line` — markdown heading
+- L2396: `- L1: `"""Navigation package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2397: `- L2: `` — blank line` — markdown list item
+- L2398: `` — blank line
+- L2399: `## `src/navisar/navigation/backtracking.py`` — markdown heading
+- L2400: `- Role: Source code` — markdown list item
+- L2401: `### Line-by-line` — markdown heading
+- L2402: `- L1: `"""Backtracking module. Provides backtracking utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2403: `- L2: `` — blank line` — markdown list item
+- L2404: `- L3: `# Placeholder file` — comment` — markdown list item
+- L2405: `` — blank line
+- L2406: `## `src/navisar/navigation/indoor_return.py`` — markdown heading
+- L2407: `- Role: Source code` — markdown list item
+- L2408: `### Line-by-line` — markdown heading
+- L2409: `- L1: `"""Indoor Return module. Provides indoor return utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2410: `- L2: `` — blank line` — markdown list item
+- L2411: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2412: `` — blank line
+- L2413: `## `src/navisar/navigation/planner.py`` — markdown heading
+- L2414: `- Role: Source code` — markdown list item
+- L2415: `### Line-by-line` — markdown heading
+- L2416: `- L1: `"""Planner module. Provides planner utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2417: `- L2: `` — blank line` — markdown list item
+- L2418: `- L3: `# Placeholder file` — comment` — markdown list item
+- L2419: `` — blank line
+- L2420: `## `src/navisar/navigation/state_estimator.py`` — markdown heading
+- L2421: `- Role: Source code` — markdown list item
+- L2422: `### Line-by-line` — markdown heading
+- L2423: `- L1: `"""GPS vs odometry selector with drift-based gating."""` — module docstring boundary` — markdown list item
+- L2424: `- L2: `` — blank line` — markdown list item
+- L2425: `- L3: `import math` — import statement` — markdown list item
+- L2426: `- L4: `import time` — import statement` — markdown list item
+- L2427: `- L5: `` — blank line` — markdown list item
+- L2428: `- L6: `` — blank line` — markdown list item
+- L2429: `- L7: `class PositionSourceSelector:` — class definition` — markdown list item
+- L2430: `- L8: `    """Track GPS/odometry sources and select the best position."""` — module docstring boundary` — markdown list item
+- L2431: `- L9: `    def __init__(` — function definition` — markdown list item
+- L2432: `- L10: `        self,` — python statement` — markdown list item
+- L2433: `- L11: `        drift_threshold_m=5.0,` — python statement` — markdown list item
+- L2434: `- L12: `        gps_timeout_s=2.0,` — python statement` — markdown list item
+- L2435: `- L13: `        min_fix_type=3,` — python statement` — markdown list item
+- L2436: `- L14: `    ):` — python statement` — markdown list item
+- L2437: `- L15: `        """Configure drift thresholds and GPS availability rules."""` — module docstring boundary` — markdown list item
+- L2438: `- L16: `        self.drift_threshold_m = drift_threshold_m` — python statement` — markdown list item
+- L2439: `- L17: `        self.gps_timeout_s = gps_timeout_s` — python statement` — markdown list item
+- L2440: `- L18: `        self.min_fix_type = min_fix_type` — python statement` — markdown list item
+- L2441: `- L19: `        self._gps_origin = None` — python statement` — markdown list item
+- L2442: `- L20: `        self._gps_local = None` — python statement` — markdown list item
+- L2443: `- L21: `        self._gps_fix_type = None` — python statement` — markdown list item
+- L2444: `- L22: `        self._gps_time = None` — python statement` — markdown list item
+- L2445: `- L23: `        self._odom = None` — python statement` — markdown list item
+- L2446: `- L24: `        self._odom_time = None` — python statement` — markdown list item
+- L2447: `- L25: `` — blank line` — markdown list item
+- L2448: `- L26: `    def update_gps(self, lat, lon, alt_m, fix_type, timestamp=None):` — function definition` — markdown list item
+- L2449: `- L27: `        """Update GPS position in local ENU coordinates."""` — module docstring boundary` — markdown list item
+- L2450: `- L28: `        if lat is None or lon is None:` — conditional branch` — markdown list item
+- L2451: `- L29: `            return` — python statement` — markdown list item
+- L2452: `- L30: `        if timestamp is None:` — conditional branch` — markdown list item
+- L2453: `- L31: `            timestamp = time.time()` — python statement` — markdown list item
+- L2454: `- L32: `` — blank line` — markdown list item
+- L2455: `- L33: `        if self._gps_origin is None:` — conditional branch` — markdown list item
+- L2456: `- L34: `            # First valid fix anchors the local ENU frame.` — comment` — markdown list item
+- L2457: `- L35: `            self._gps_origin = (lat, lon, alt_m)` — python statement` — markdown list item
+- L2458: `- L36: `` — blank line` — markdown list item
+- L2459: `- L37: `        x_m, y_m = self._ll_to_local(lat, lon, self._gps_origin)` — python statement` — markdown list item
+- L2460: `- L38: `        z_m = 0.0 if alt_m is None else alt_m` — python statement` — markdown list item
+- L2461: `- L39: `        self._gps_local = (x_m, y_m, z_m)` — python statement` — markdown list item
+- L2462: `- L40: `        self._gps_fix_type = fix_type` — python statement` — markdown list item
+- L2463: `- L41: `        self._gps_time = timestamp` — python statement` — markdown list item
+- L2464: `- L42: `` — blank line` — markdown list item
+- L2465: `- L43: `    def update_odometry(self, x_m, y_m, z_m, timestamp=None):` — function definition` — markdown list item
+- L2466: `- L44: `        """Update odometry position in local coordinates."""` — module docstring boundary` — markdown list item
+- L2467: `- L45: `        if timestamp is None:` — conditional branch` — markdown list item
+- L2468: `- L46: `            timestamp = time.time()` — python statement` — markdown list item
+- L2469: `- L47: `        self._odom = (x_m, y_m, z_m)` — python statement` — markdown list item
+- L2470: `- L48: `        self._odom_time = timestamp` — python statement` — markdown list item
+- L2471: `- L49: `` — blank line` — markdown list item
+- L2472: `- L50: `    def gps_available(self, now=None):` — function definition` — markdown list item
+- L2473: `- L51: `        """Return True when a recent, valid GPS fix exists."""` — module docstring boundary` — markdown list item
+- L2474: `- L52: `        if now is None:` — conditional branch` — markdown list item
+- L2475: `- L53: `            now = time.time()` — python statement` — markdown list item
+- L2476: `- L54: `        if self._gps_time is None:` — conditional branch` — markdown list item
+- L2477: `- L55: `            return False` — return statement` — markdown list item
+- L2478: `- L56: `        if now - self._gps_time > self.gps_timeout_s:` — conditional branch` — markdown list item
+- L2479: `- L57: `            return False` — return statement` — markdown list item
+- L2480: `- L58: `        if self._gps_fix_type is not None and self._gps_fix_type < self.min_fix_type:` — conditional branch` — markdown list item
+- L2481: `- L59: `            return False` — return statement` — markdown list item
+- L2482: `- L60: `        return True` — return statement` — markdown list item
+- L2483: `- L61: `` — blank line` — markdown list item
+- L2484: `- L62: `    def drift_m(self):` — function definition` — markdown list item
+- L2485: `- L63: `        """Compute drift between GPS and odometry, if available."""` — module docstring boundary` — markdown list item
+- L2486: `- L64: `        if self._gps_local is None or self._odom is None:` — conditional branch` — markdown list item
+- L2487: `- L65: `            return None` — return statement` — markdown list item
+- L2488: `- L66: `        dx = self._gps_local[0] - self._odom[0]` — python statement` — markdown list item
+- L2489: `- L67: `        dy = self._gps_local[1] - self._odom[1]` — python statement` — markdown list item
+- L2490: `- L68: `        dz = self._gps_local[2] - self._odom[2]` — python statement` — markdown list item
+- L2491: `- L69: `        return math.sqrt(dx * dx + dy * dy + dz * dz)` — return statement` — markdown list item
+- L2492: `- L70: `` — blank line` — markdown list item
+- L2493: `- L71: `    def current_source(self, now=None):` — function definition` — markdown list item
+- L2494: `- L72: `        """Pick the position source based on drift and freshness."""` — module docstring boundary` — markdown list item
+- L2495: `- L73: `        if not self.gps_available(now):` — conditional branch` — markdown list item
+- L2496: `- L74: `            return "odometry"` — return statement` — markdown list item
+- L2497: `- L75: `        drift = self.drift_m()` — python statement` — markdown list item
+- L2498: `- L76: `        # Prefer odometry when GPS drift exceeds the configured threshold.` — comment` — markdown list item
+- L2499: `- L77: `        if drift is not None and drift > self.drift_threshold_m:` — conditional branch` — markdown list item
+- L2500: `- L78: `            return "odometry"` — return statement` — markdown list item
+- L2501: `- L79: `        return "gps"` — return statement` — markdown list item
+- L2502: `- L80: `` — blank line` — markdown list item
+- L2503: `- L81: `    def get_position(self, now=None):` — function definition` — markdown list item
+- L2504: `- L82: `        """Return the current best position estimate."""` — module docstring boundary` — markdown list item
+- L2505: `- L83: `        source = self.current_source(now)` — python statement` — markdown list item
+- L2506: `- L84: `        if source == "gps" and self._gps_local is not None:` — conditional branch` — markdown list item
+- L2507: `- L85: `            return self._gps_local` — return statement` — markdown list item
+- L2508: `- L86: `        return self._odom` — return statement` — markdown list item
+- L2509: `- L87: `` — blank line` — markdown list item
+- L2510: `- L88: `    def gps_origin(self):` — function definition` — markdown list item
+- L2511: `- L89: `        """Return the current GPS origin, if set."""` — module docstring boundary` — markdown list item
+- L2512: `- L90: `        return self._gps_origin` — return statement` — markdown list item
+- L2513: `- L91: `` — blank line` — markdown list item
+- L2514: `- L92: `    def set_gps_origin(self, lat, lon, alt_m=None):` — function definition` — markdown list item
+- L2515: `- L93: `        """Set the origin for local ENU conversion."""` — module docstring boundary` — markdown list item
+- L2516: `- L94: `        if lat is None or lon is None:` — conditional branch` — markdown list item
+- L2517: `- L95: `            return` — python statement` — markdown list item
+- L2518: `- L96: `        self._gps_origin = (lat, lon, alt_m)` — python statement` — markdown list item
+- L2519: `- L97: `` — blank line` — markdown list item
+- L2520: `- L98: `    @staticmethod` — python statement` — markdown list item
+- L2521: `- L99: `    def local_to_ll(x_m, y_m, origin):` — function definition` — markdown list item
+- L2522: `- L100: `        """Convert local ENU meters to latitude/longitude."""` — module docstring boundary` — markdown list item
+- L2523: `- L101: `        lat0, lon0, _alt0 = origin` — python statement` — markdown list item
+- L2524: `- L102: `        radius_m = 6378137.0` — python statement` — markdown list item
+- L2525: `- L103: `        lat0_rad = math.radians(lat0)` — python statement` — markdown list item
+- L2526: `- L104: `        dlat = y_m / radius_m` — python statement` — markdown list item
+- L2527: `- L105: `        dlon = x_m / (radius_m * math.cos(lat0_rad))` — python statement` — markdown list item
+- L2528: `- L106: `        lat = lat0 + math.degrees(dlat)` — python statement` — markdown list item
+- L2529: `- L107: `        lon = lon0 + math.degrees(dlon)` — python statement` — markdown list item
+- L2530: `- L108: `        return lat, lon` — return statement` — markdown list item
+- L2531: `- L109: `` — blank line` — markdown list item
+- L2532: `- L110: `    @staticmethod` — python statement` — markdown list item
+- L2533: `- L111: `    def _ll_to_local(lat, lon, origin):` — function definition` — markdown list item
+- L2534: `- L112: `        """Convert latitude/longitude to local ENU meters."""` — module docstring boundary` — markdown list item
+- L2535: `- L113: `        lat0, lon0, _alt0 = origin` — python statement` — markdown list item
+- L2536: `- L114: `        radius_m = 6378137.0` — python statement` — markdown list item
+- L2537: `- L115: `        lat_rad = math.radians(lat)` — python statement` — markdown list item
+- L2538: `- L116: `        lat0_rad = math.radians(lat0)` — python statement` — markdown list item
+- L2539: `- L117: `        dlat = math.radians(lat - lat0)` — python statement` — markdown list item
+- L2540: `- L118: `        dlon = math.radians(lon - lon0)` — python statement` — markdown list item
+- L2541: `- L119: `        x_m = dlon * radius_m * math.cos(lat0_rad)` — python statement` — markdown list item
+- L2542: `- L120: `        y_m = dlat * radius_m` — python statement` — markdown list item
+- L2543: `- L121: `        return x_m, y_m` — return statement` — markdown list item
+- L2544: `` — blank line
+- L2545: `## `src/navisar/navigation/trajectory.py`` — markdown heading
+- L2546: `- Role: Source code` — markdown list item
+- L2547: `### Line-by-line` — markdown heading
+- L2548: `- L1: `"""Trajectory module. Provides trajectory utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2549: `- L2: `` — blank line` — markdown list item
+- L2550: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2551: `` — blank line
+- L2552: `## `src/navisar/pixhawk/__init__.py`` — markdown heading
+- L2553: `- Role: Source code` — markdown list item
+- L2554: `### Line-by-line` — markdown heading
+- L2555: `- L1: `"""Pixhawk package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2556: `- L2: `` — blank line` — markdown list item
+- L2557: `` — blank line
+- L2558: `## `src/navisar/pixhawk/command_sender.py`` — markdown heading
+- L2559: `- Role: Source code` — markdown list item
+- L2560: `### Line-by-line` — markdown heading
+- L2561: `- L1: `"""Command Sender module. Provides command sender utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2562: `- L2: `` — blank line` — markdown list item
+- L2563: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L2564: `` — blank line
+- L2565: `## `src/navisar/pixhawk/fake_gps_nmea.py`` — markdown heading
+- L2566: `- Role: Source code` — markdown list item
+- L2567: `### Line-by-line` — markdown heading
+- L2568: `- L1: `"""Fake GPS Nmea module. Provides fake gps nmea utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2569: `- L2: `` — blank line` — markdown list item
+- L2570: `- L3: `import datetime as _dt` — import statement` — markdown list item
+- L2571: `- L4: `import math` — import statement` — markdown list item
+- L2572: `- L5: `` — blank line` — markdown list item
+- L2573: `- L6: `EARTH_RADIUS_M = 6378137.0` — python statement` — markdown list item
+- L2574: `- L7: `` — blank line` — markdown list item
+- L2575: `- L8: `` — blank line` — markdown list item
+- L2576: `- L9: `def enu_to_gps(x_e, y_n, z_u, lat0, lon0, alt0):` — function definition` — markdown list item
+- L2577: `- L10: `    """Convert ENU offsets to latitude/longitude/altitude."""` — module docstring boundary` — markdown list item
+- L2578: `- L11: `    dlat = y_n / EARTH_RADIUS_M` — python statement` — markdown list item
+- L2579: `- L12: `    dlon = x_e / (EARTH_RADIUS_M * math.cos(math.radians(lat0)))` — python statement` — markdown list item
+- L2580: `- L13: `    lat = lat0 + math.degrees(dlat)` — python statement` — markdown list item
+- L2581: `- L14: `    lon = lon0 + math.degrees(dlon)` — python statement` — markdown list item
+- L2582: `- L15: `    alt = alt0 + z_u` — python statement` — markdown list item
+- L2583: `- L16: `    return lat, lon, alt` — return statement` — markdown list item
+- L2584: `- L17: `` — blank line` — markdown list item
+- L2585: `- L18: `` — blank line` — markdown list item
+- L2586: `- L19: `def _nmea_checksum(sentence_body):` — function definition` — markdown list item
+- L2587: `- L20: `    """Compute NMEA checksum for a sentence body."""` — module docstring boundary` — markdown list item
+- L2588: `- L21: `    checksum = 0` — python statement` — markdown list item
+- L2589: `- L22: `    for ch in sentence_body:` — loop` — markdown list item
+- L2590: `- L23: `        checksum ^= ord(ch)` — python statement` — markdown list item
+- L2591: `- L24: `    return f"{checksum:02X}"` — return statement` — markdown list item
+- L2592: `- L25: `` — blank line` — markdown list item
+- L2593: `- L26: `` — blank line` — markdown list item
+- L2594: `- L27: `def _wrap_nmea(sentence_body):` — function definition` — markdown list item
+- L2595: `- L28: `    """Wrap a sentence body with NMEA framing and checksum."""` — module docstring boundary` — markdown list item
+- L2596: `- L29: `    return f"${sentence_body}*{_nmea_checksum(sentence_body)}\r\n"` — return statement` — markdown list item
+- L2597: `- L30: `` — blank line` — markdown list item
+- L2598: `- L31: `` — blank line` — markdown list item
+- L2599: `- L32: `def _format_lat(lat):` — function definition` — markdown list item
+- L2600: `- L33: `    """Format latitude in NMEA degrees/minutes."""` — module docstring boundary` — markdown list item
+- L2601: `- L34: `    lat_abs = abs(lat)` — python statement` — markdown list item
+- L2602: `- L35: `    lat_deg = int(lat_abs)` — python statement` — markdown list item
+- L2603: `- L36: `    lat_min = (lat_abs - lat_deg) * 60.0` — python statement` — markdown list item
+- L2604: `- L37: `    lat_dir = "N" if lat >= 0 else "S"` — python statement` — markdown list item
+- L2605: `- L38: `    return f"{lat_deg:02d}{lat_min:07.4f}", lat_dir` — return statement` — markdown list item
+- L2606: `- L39: `` — blank line` — markdown list item
+- L2607: `- L40: `` — blank line` — markdown list item
+- L2608: `- L41: `def _format_lon(lon):` — function definition` — markdown list item
+- L2609: `- L42: `    """Format longitude in NMEA degrees/minutes."""` — module docstring boundary` — markdown list item
+- L2610: `- L43: `    lon_abs = abs(lon)` — python statement` — markdown list item
+- L2611: `- L44: `    lon_deg = int(lon_abs)` — python statement` — markdown list item
+- L2612: `- L45: `    lon_min = (lon_abs - lon_deg) * 60.0` — python statement` — markdown list item
+- L2613: `- L46: `    lon_dir = "E" if lon >= 0 else "W"` — python statement` — markdown list item
+- L2614: `- L47: `    return f"{lon_deg:03d}{lon_min:07.4f}", lon_dir` — return statement` — markdown list item
+- L2615: `- L48: `` — blank line` — markdown list item
+- L2616: `- L49: `` — blank line` — markdown list item
+- L2617: `- L50: `def _utc_time_fields(now=None):` — function definition` — markdown list item
+- L2618: `- L51: `    """Return NMEA time/date fields in UTC."""` — module docstring boundary` — markdown list item
+- L2619: `- L52: `    if now is None:` — conditional branch` — markdown list item
+- L2620: `- L53: `        now = _dt.datetime.utcnow()` — python statement` — markdown list item
+- L2621: `- L54: `    time_str = now.strftime("%H%M%S")` — python statement` — markdown list item
+- L2622: `- L55: `    frac = f"{now.microsecond / 1_000_000:.2f}"[1:]` — python statement` — markdown list item
+- L2623: `- L56: `    date_str = now.strftime("%d%m%y")` — python statement` — markdown list item
+- L2624: `- L57: `    return f"{time_str}{frac}", date_str` — return statement` — markdown list item
+- L2625: `- L58: `` — blank line` — markdown list item
+- L2626: `- L59: `` — blank line` — markdown list item
+- L2627: `- L60: `def gga_sentence(` — function definition` — markdown list item
+- L2628: `- L61: `    lat,` — python statement` — markdown list item
+- L2629: `- L62: `    lon,` — python statement` — markdown list item
+- L2630: `- L63: `    alt_m,` — python statement` — markdown list item
+- L2631: `- L64: `    fix_quality=1,` — python statement` — markdown list item
+- L2632: `- L65: `    satellites=10,` — python statement` — markdown list item
+- L2633: `- L66: `    hdop=0.9,` — python statement` — markdown list item
+- L2634: `- L67: `    geoid_sep_m=0.0,` — python statement` — markdown list item
+- L2635: `- L68: `    now=None,` — python statement` — markdown list item
+- L2636: `- L69: `):` — python statement` — markdown list item
+- L2637: `- L70: `    """Build a GGA fix sentence."""` — module docstring boundary` — markdown list item
+- L2638: `- L71: `    time_str, _date_str = _utc_time_fields(now)` — python statement` — markdown list item
+- L2639: `- L72: `    lat_str, lat_dir = _format_lat(lat)` — python statement` — markdown list item
+- L2640: `- L73: `    lon_str, lon_dir = _format_lon(lon)` — python statement` — markdown list item
+- L2641: `- L74: `    body = (` — python statement` — markdown list item
+- L2642: `- L75: `        f"GPGGA,{time_str},{lat_str},{lat_dir},"` — python statement` — markdown list item
+- L2643: `- L76: `        f"{lon_str},{lon_dir},{fix_quality},{satellites:02d},"` — python statement` — markdown list item
+- L2644: `- L77: `        f"{hdop:.1f},{alt_m:.1f},M,{geoid_sep_m:.1f},M,,"` — python statement` — markdown list item
+- L2645: `- L78: `    )` — python statement` — markdown list item
+- L2646: `- L79: `    return _wrap_nmea(body)` — return statement` — markdown list item
+- L2647: `- L80: `` — blank line` — markdown list item
+- L2648: `- L81: `` — blank line` — markdown list item
+- L2649: `- L82: `def rmc_sentence(` — function definition` — markdown list item
+- L2650: `- L83: `    lat,` — python statement` — markdown list item
+- L2651: `- L84: `    lon,` — python statement` — markdown list item
+- L2652: `- L85: `    speed_mps,` — python statement` — markdown list item
+- L2653: `- L86: `    course_deg,` — python statement` — markdown list item
+- L2654: `- L87: `    status="A",` — python statement` — markdown list item
+- L2655: `- L88: `    now=None,` — python statement` — markdown list item
+- L2656: `- L89: `):` — python statement` — markdown list item
+- L2657: `- L90: `    """Build an RMC navigation sentence."""` — module docstring boundary` — markdown list item
+- L2658: `- L91: `    time_str, date_str = _utc_time_fields(now)` — python statement` — markdown list item
+- L2659: `- L92: `    lat_str, lat_dir = _format_lat(lat)` — python statement` — markdown list item
+- L2660: `- L93: `    lon_str, lon_dir = _format_lon(lon)` — python statement` — markdown list item
+- L2661: `- L94: `    speed_knots = speed_mps * 1.94384` — python statement` — markdown list item
+- L2662: `- L95: `    body = (` — python statement` — markdown list item
+- L2663: `- L96: `        f"GPRMC,{time_str},{status},{lat_str},{lat_dir},"` — python statement` — markdown list item
+- L2664: `- L97: `        f"{lon_str},{lon_dir},{speed_knots:.1f},{course_deg:.1f},{date_str},,,A"` — python statement` — markdown list item
+- L2665: `- L98: `    )` — python statement` — markdown list item
+- L2666: `- L99: `    return _wrap_nmea(body)` — return statement` — markdown list item
+- L2667: `- L100: `` — blank line` — markdown list item
+- L2668: `- L101: `` — blank line` — markdown list item
+- L2669: `- L102: `def speed_course_from_enu(vx_e, vy_n):` — function definition` — markdown list item
+- L2670: `- L103: `    """Compute ground speed and course from ENU velocities."""` — module docstring boundary` — markdown list item
+- L2671: `- L104: `    speed = math.hypot(vx_e, vy_n)` — python statement` — markdown list item
+- L2672: `- L105: `    if speed < 1e-3:` — conditional branch` — markdown list item
+- L2673: `- L106: `        return 0.0, 0.0` — return statement` — markdown list item
+- L2674: `- L107: `    course_rad = math.atan2(vx_e, vy_n)` — python statement` — markdown list item
+- L2675: `- L108: `    course_deg = (math.degrees(course_rad) + 360.0) % 360.0` — python statement` — markdown list item
+- L2676: `- L109: `    return speed, course_deg` — return statement` — markdown list item
+- L2677: `` — blank line
+- L2678: `## `src/navisar/pixhawk/gps_injector.py`` — markdown heading
+- L2679: `- Role: Source code` — markdown list item
+- L2680: `### Line-by-line` — markdown heading
+- L2681: `- L1: `"""GPS Injector module. Provides gps injector utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L2682: `- L2: `` — blank line` — markdown list item
+- L2683: `- L3: `import argparse` — import statement` — markdown list item
+- L2684: `- L4: `import time` — import statement` — markdown list item
+- L2685: `- L5: `import random` — import statement` — markdown list item
+- L2686: `- L6: `from dataclasses import dataclass` — import statement` — markdown list item
+- L2687: `- L7: `from pathlib import Path` — import statement` — markdown list item
+- L2688: `- L8: `` — blank line` — markdown list item
+- L2689: `- L9: `import serial` — import statement` — markdown list item
+- L2690: `- L10: `try:` — exception handling` — markdown list item
+- L2691: `- L11: `    import yaml` — import statement` — markdown list item
+- L2692: `- L12: `except ModuleNotFoundError as exc:` — exception handling` — markdown list item
+- L2693: `- L13: `    raise ModuleNotFoundError(` — error raise` — markdown list item
+- L2694: `- L14: `        "Missing dependency 'PyYAML' (module 'yaml'). "` — python statement` — markdown list item
+- L2695: `- L15: `        "Install with `pip install pyyaml` or `pip install -r requirements.txt`."` — python statement` — markdown list item
+- L2696: `- L16: `    ) from exc` — python statement` — markdown list item
+- L2697: `- L17: `` — blank line` — markdown list item
+- L2698: `- L18: `from navisar.pixhawk.fake_gps_nmea import enu_to_gps, gga_sentence, rmc_sentence, speed_course_from_enu` — import statement` — markdown list item
+- L2699: `- L19: `` — blank line` — markdown list item
+- L2700: `- L20: `` — blank line` — markdown list item
+- L2701: `- L21: `@dataclass` — python statement` — markdown list item
+- L2702: `- L22: `class HomeLocation:` — class definition` — markdown list item
+- L2703: `- L23: `    """Home reference used for ENU-to-GPS conversion."""` — module docstring boundary` — markdown list item
+- L2704: `- L24: `    lat: float` — python statement` — markdown list item
+- L2705: `- L25: `    lon: float` — python statement` — markdown list item
+- L2706: `- L26: `    alt: float` — python statement` — markdown list item
+- L2707: `- L27: `` — blank line` — markdown list item
+- L2708: `- L28: `` — blank line` — markdown list item
+- L2709: `- L29: `def load_home(path):` — function definition` — markdown list item
+- L2710: `- L30: `    """Load home location from a YAML file."""` — module docstring boundary` — markdown list item
+- L2711: `- L31: `    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}` — python statement` — markdown list item
+- L2712: `- L32: `    lat = data.get("lat")` — python statement` — markdown list item
+- L2713: `- L33: `    lon = data.get("lon")` — python statement` — markdown list item
+- L2714: `- L34: `    alt = data.get("alt")` — python statement` — markdown list item
+- L2715: `- L35: `    if lat is None or lon is None or alt is None:` — conditional branch` — markdown list item
+- L2716: `- L36: `        raise ValueError("Home file must define lat, lon, alt")` — error raise` — markdown list item
+- L2717: `- L37: `    return HomeLocation(float(lat), float(lon), float(alt))` — return statement` — markdown list item
+- L2718: `- L38: `` — blank line` — markdown list item
+- L2719: `- L39: `` — blank line` — markdown list item
+- L2720: `- L40: `def hdop_from_sats(sats):` — function definition` — markdown list item
+- L2721: `- L41: `    """Estimate HDOP from a satellite count heuristic."""` — module docstring boundary` — markdown list item
+- L2722: `- L42: `    if sats < 15:` — conditional branch` — markdown list item
+- L2723: `- L43: `        return 1.3` — return statement` — markdown list item
+- L2724: `- L44: `    if sats < 18:` — conditional branch` — markdown list item
+- L2725: `- L45: `        return 1.0` — return statement` — markdown list item
+- L2726: `- L46: `    return 0.7` — return statement` — markdown list item
+- L2727: `- L47: `` — blank line` — markdown list item
+- L2728: `- L48: `` — blank line` — markdown list item
+- L2729: `- L49: `class FakeSatellites:` — class definition` — markdown list item
+- L2730: `- L50: `    """Simple satellite-count simulator for NMEA output."""` — module docstring boundary` — markdown list item
+- L2731: `- L51: `    def __init__(self, min_sats=14, max_sats=20, update_s=7.0):` — function definition` — markdown list item
+- L2732: `- L52: `        """Initialize bounds and update cadence."""` — module docstring boundary` — markdown list item
+- L2733: `- L53: `        self.min_sats = min_sats` — python statement` — markdown list item
+- L2734: `- L54: `        self.max_sats = max_sats` — python statement` — markdown list item
+- L2735: `- L55: `        self.update_s = update_s` — python statement` — markdown list item
+- L2736: `- L56: `        self.sats = min_sats` — python statement` — markdown list item
+- L2737: `- L57: `        self.last_update = time.time()` — python statement` — markdown list item
+- L2738: `- L58: `` — blank line` — markdown list item
+- L2739: `- L59: `    def update(self, ekf_ok=True):` — function definition` — markdown list item
+- L2740: `- L60: `        """Update and return the simulated satellite count."""` — module docstring boundary` — markdown list item
+- L2741: `- L61: `        now = time.time()` — python statement` — markdown list item
+- L2742: `- L62: `        if now - self.last_update < self.update_s:` — conditional branch` — markdown list item
+- L2743: `- L63: `            return self.sats` — return statement` — markdown list item
+- L2744: `- L64: `        self.last_update = now` — python statement` — markdown list item
+- L2745: `- L65: `` — blank line` — markdown list item
+- L2746: `- L66: `        if not ekf_ok:` — conditional branch` — markdown list item
+- L2747: `- L67: `            self.sats = max(12, self.sats - 1)` — python statement` — markdown list item
+- L2748: `- L68: `            return self.sats` — return statement` — markdown list item
+- L2749: `- L69: `` — blank line` — markdown list item
+- L2750: `- L70: `        if self.sats < 18:` — conditional branch` — markdown list item
+- L2751: `- L71: `            self.sats += 1` — python statement` — markdown list item
+- L2752: `- L72: `        else:` — conditional branch` — markdown list item
+- L2753: `- L73: `            self.sats += random.choice([-1, 0, 1])` — python statement` — markdown list item
+- L2754: `- L74: `            self.sats = max(18, min(self.max_sats, self.sats))` — python statement` — markdown list item
+- L2755: `- L75: `` — blank line` — markdown list item
+- L2756: `- L76: `        if now % 60.0 < 5.0:` — conditional branch` — markdown list item
+- L2757: `- L77: `            self.sats = max(18, self.sats - 1)` — python statement` — markdown list item
+- L2758: `- L78: `` — blank line` — markdown list item
+- L2759: `- L79: `        self.sats = max(self.min_sats, min(self.max_sats, self.sats))` — python statement` — markdown list item
+- L2760: `- L80: `        return self.sats` — return statement` — markdown list item
+- L2761: `- L81: `` — blank line` — markdown list item
+- L2762: `- L82: `` — blank line` — markdown list item
+- L2763: `- L83: `class NmeaGpsInjector:` — class definition` — markdown list item
+- L2764: `- L84: `    """Convert VPS odometry into NMEA serial output."""` — module docstring boundary` — markdown list item
+- L2765: `- L85: `    def __init__(` — function definition` — markdown list item
+- L2766: `- L86: `        self,` — python statement` — markdown list item
+- L2767: `- L87: `        port,` — python statement` — markdown list item
+- L2768: `- L88: `        baud,` — python statement` — markdown list item
+- L2769: `- L89: `        home,` — python statement` — markdown list item
+- L2770: `- L90: `        rate_hz=5.0,` — python statement` — markdown list item
+- L2771: `- L91: `        frame="enu",` — python statement` — markdown list item
+- L2772: `- L92: `        fix_quality=1,` — python statement` — markdown list item
+- L2773: `- L93: `        satellites=10,` — python statement` — markdown list item
+- L2774: `- L94: `        hdop=0.9,` — python statement` — markdown list item
+- L2775: `- L95: `    ):` — python statement` — markdown list item
+- L2776: `- L96: `        """Configure the injector and smoothing parameters."""` — module docstring boundary` — markdown list item
+- L2777: `- L97: `        self.port = port` — python statement` — markdown list item
+- L2778: `- L98: `        self.baud = baud` — python statement` — markdown list item
+- L2779: `- L99: `        self.home = home` — python statement` — markdown list item
+- L2780: `- L100: `        # Enforce 5-10 Hz update rate to keep GPS smooth and stable.` — comment` — markdown list item
+- L2781: `- L101: `        self.rate_hz = min(max(rate_hz, 5.0), 10.0)` — python statement` — markdown list item
+- L2782: `- L102: `        self.frame = frame` — python statement` — markdown list item
+- L2783: `- L103: `        self.fix_quality = fix_quality` — python statement` — markdown list item
+- L2784: `- L104: `        self.satellites = satellites` — python statement` — markdown list item
+- L2785: `- L105: `        self.hdop = hdop` — python statement` — markdown list item
+- L2786: `- L106: `        self._ser = None` — python statement` — markdown list item
+- L2787: `- L107: `        self._last_send = 0.0` — python statement` — markdown list item
+- L2788: `- L108: `        self._last_pos = None` — python statement` — markdown list item
+- L2789: `- L109: `        self._last_time = None` — python statement` — markdown list item
+- L2790: `- L110: `        self._smooth_alpha = 0.2` — python statement` — markdown list item
+- L2791: `- L111: `        self._max_step_m = 1.5` — python statement` — markdown list item
+- L2792: `- L112: `        self._max_speed_delta_mps = 2.0` — python statement` — markdown list item
+- L2793: `- L113: `        self._max_heading_delta_deg = 20.0` — python statement` — markdown list item
+- L2794: `- L114: `        self._smoothed = None` — python statement` — markdown list item
+- L2795: `- L115: `        self._last_speed = 0.0` — python statement` — markdown list item
+- L2796: `- L116: `        self._last_course = 0.0` — python statement` — markdown list item
+- L2797: `- L117: `        self._fake_sats = FakeSatellites()` — python statement` — markdown list item
+- L2798: `- L118: `` — blank line` — markdown list item
+- L2799: `- L119: `    def _open(self):` — function definition` — markdown list item
+- L2800: `- L120: `        """Open the serial connection."""` — module docstring boundary` — markdown list item
+- L2801: `- L121: `        self._ser = serial.Serial(self.port, self.baud, timeout=0)` — python statement` — markdown list item
+- L2802: `- L122: `` — blank line` — markdown list item
+- L2803: `- L123: `    def _transform_to_enu(self, x, y, z, vx, vy, vz):` — function definition` — markdown list item
+- L2804: `- L124: `        """Convert input frame to ENU if needed."""` — module docstring boundary` — markdown list item
+- L2805: `- L125: `        if self.frame == "ned":` — conditional branch` — markdown list item
+- L2806: `- L126: `            x_e = y` — python statement` — markdown list item
+- L2807: `- L127: `            y_n = x` — python statement` — markdown list item
+- L2808: `- L128: `            z_u = -z` — python statement` — markdown list item
+- L2809: `- L129: `            vx_e = vy` — python statement` — markdown list item
+- L2810: `- L130: `            vy_n = vx` — python statement` — markdown list item
+- L2811: `- L131: `            vz_u = -vz` — python statement` — markdown list item
+- L2812: `- L132: `            return x_e, y_n, z_u, vx_e, vy_n, vz_u` — return statement` — markdown list item
+- L2813: `- L133: `            return x, y, z, vx, vy, vz` — return statement` — markdown list item
+- L2814: `- L134: `` — blank line` — markdown list item
+- L2815: `- L135: `    def _smooth_state(self, x, y, z, vx, vy):` — function definition` — markdown list item
+- L2816: `- L136: `        """Apply smoothing and clamp sudden jumps in state."""` — module docstring boundary` — markdown list item
+- L2817: `- L137: `        if self._smoothed is None:` — conditional branch` — markdown list item
+- L2818: `- L138: `            self._smoothed = (x, y, z)` — python statement` — markdown list item
+- L2819: `- L139: `            return x, y, z, float(vx), float(vy)` — return statement` — markdown list item
+- L2820: `- L140: `        px, py, pz = self._smoothed` — python statement` — markdown list item
+- L2821: `- L141: `        nx = px + self._smooth_alpha * (x - px)` — python statement` — markdown list item
+- L2822: `- L142: `        ny = py + self._smooth_alpha * (y - py)` — python statement` — markdown list item
+- L2823: `- L143: `        nz = pz + self._smooth_alpha * (z - pz)` — python statement` — markdown list item
+- L2824: `- L144: `        dx = nx - px` — python statement` — markdown list item
+- L2825: `- L145: `        dy = ny - py` — python statement` — markdown list item
+- L2826: `- L146: `        dz = nz - pz` — python statement` — markdown list item
+- L2827: `- L147: `        step = float((dx * dx + dy * dy + dz * dz) ** 0.5)` — python statement` — markdown list item
+- L2828: `- L148: `        if self._max_step_m > 0.0 and step > self._max_step_m:` — conditional branch` — markdown list item
+- L2829: `- L149: `            scale = self._max_step_m / step` — python statement` — markdown list item
+- L2830: `- L150: `            nx = px + dx * scale` — python statement` — markdown list item
+- L2831: `- L151: `            ny = py + dy * scale` — python statement` — markdown list item
+- L2832: `- L152: `            nz = pz + dz * scale` — python statement` — markdown list item
+- L2833: `- L153: `        self._smoothed = (nx, ny, nz)` — python statement` — markdown list item
+- L2834: `- L154: `        vx_s = vx` — python statement` — markdown list item
+- L2835: `- L155: `        vy_s = vy` — python statement` — markdown list item
+- L2836: `- L156: `        speed = float((vx_s * vx_s + vy_s * vy_s) ** 0.5)` — python statement` — markdown list item
+- L2837: `- L157: `        if abs(speed - self._last_speed) > self._max_speed_delta_mps:` — conditional branch` — markdown list item
+- L2838: `- L158: `            if speed > 1e-3:` — conditional branch` — markdown list item
+- L2839: `- L159: `                scale = (self._last_speed + self._max_speed_delta_mps) / speed` — python statement` — markdown list item
+- L2840: `- L160: `                vx_s *= scale` — python statement` — markdown list item
+- L2841: `- L161: `                vy_s *= scale` — python statement` — markdown list item
+- L2842: `- L162: `                speed = float((vx_s * vx_s + vy_s * vy_s) ** 0.5)` — python statement` — markdown list item
+- L2843: `- L163: `        self._last_speed = speed` — python statement` — markdown list item
+- L2844: `- L164: `        return nx, ny, nz, vx_s, vy_s` — return statement` — markdown list item
+- L2845: `- L165: `` — blank line` — markdown list item
+- L2846: `- L166: `    def _maybe_send(self, x, y, z, vx, vy, vz):` — function definition` — markdown list item
+- L2847: `- L167: `        """Send NMEA updates when the rate limit allows."""` — module docstring boundary` — markdown list item
+- L2848: `- L168: `        now = time.time()` — python statement` — markdown list item
+- L2849: `- L169: `        if now - self._last_send < (1.0 / self.rate_hz):` — conditional branch` — markdown list item
+- L2850: `- L170: `            return` — python statement` — markdown list item
+- L2851: `- L171: `        x_e, y_n, z_u, vx_e, vy_n, _vz_u = self._transform_to_enu(x, y, z, vx, vy, vz)` — python statement` — markdown list item
+- L2852: `- L172: `        x_e, y_n, z_u, vx_e, vy_n = self._smooth_state(x_e, y_n, z_u, vx_e, vy_n)` — python statement` — markdown list item
+- L2853: `- L173: `        lat, lon, alt = enu_to_gps(x_e, y_n, z_u, self.home.lat, self.home.lon, self.home.alt)` — python statement` — markdown list item
+- L2854: `- L174: `        speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)` — python statement` — markdown list item
+- L2855: `- L175: `        if speed_mps < 0.05:` — conditional branch` — markdown list item
+- L2856: `- L176: `            course_deg = self._last_course` — python statement` — markdown list item
+- L2857: `- L177: `        else:` — conditional branch` — markdown list item
+- L2858: `- L178: `            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0` — python statement` — markdown list item
+- L2859: `- L179: `            if abs(delta) > self._max_heading_delta_deg:` — conditional branch` — markdown list item
+- L2860: `- L180: `                course_deg = (self._last_course + self._max_heading_delta_deg * (1 if delta > 0 else -1)) % 360.0` — python statement` — markdown list item
+- L2861: `- L181: `        self._last_course = course_deg` — python statement` — markdown list item
+- L2862: `- L182: `        sats = self._fake_sats.update(ekf_ok=True)` — python statement` — markdown list item
+- L2863: `- L183: `        hdop = hdop_from_sats(sats)` — python statement` — markdown list item
+- L2864: `- L184: `        gga = gga_sentence(` — python statement` — markdown list item
+- L2865: `- L185: `            lat,` — python statement` — markdown list item
+- L2866: `- L186: `            lon,` — python statement` — markdown list item
+- L2867: `- L187: `            alt,` — python statement` — markdown list item
+- L2868: `- L188: `            fix_quality=self.fix_quality,` — python statement` — markdown list item
+- L2869: `- L189: `            satellites=sats,` — python statement` — markdown list item
+- L2870: `- L190: `            hdop=hdop,` — python statement` — markdown list item
+- L2871: `- L191: `        )` — python statement` — markdown list item
+- L2872: `- L192: `        rmc = rmc_sentence(` — python statement` — markdown list item
+- L2873: `- L193: `            lat,` — python statement` — markdown list item
+- L2874: `- L194: `            lon,` — python statement` — markdown list item
+- L2875: `- L195: `            speed_mps,` — python statement` — markdown list item
+- L2876: `- L196: `            course_deg,` — python statement` — markdown list item
+- L2877: `- L197: `            status="A" if self.fix_quality > 0 else "V",` — python statement` — markdown list item
+- L2878: `- L198: `        )` — python statement` — markdown list item
+- L2879: `- L199: `        self._ser.write(gga.encode("ascii"))` — python statement` — markdown list item
+- L2880: `- L200: `        self._ser.write(rmc.encode("ascii"))` — python statement` — markdown list item
+- L2881: `- L201: `        self._last_send = now` — python statement` — markdown list item
+- L2882: `- L202: `` — blank line` — markdown list item
+- L2883: `- L203: `    def run_from_vo(self):` — function definition` — markdown list item
+- L2884: `- L204: `        """Run the VO pipeline and forward updates as NMEA."""` — module docstring boundary` — markdown list item
+- L2885: `- L205: `        from navisar.main import build_vo_pipeline` — import statement` — markdown list item
+- L2886: `- L206: `` — blank line` — markdown list item
+- L2887: `- L207: `        vo, _mavlink_interface = build_vo_pipeline()` — python statement` — markdown list item
+- L2888: `- L208: `` — blank line` — markdown list item
+- L2889: `- L209: `        def on_update(x, y, z, dx_m, dy_m, dz_m, *_rest):` — function definition` — markdown list item
+- L2890: `- L210: `            now = time.time()` — python statement` — markdown list item
+- L2891: `- L211: `            if self._last_pos is None:` — conditional branch` — markdown list item
+- L2892: `- L212: `                self._last_pos = (x, y, z)` — python statement` — markdown list item
+- L2893: `- L213: `                self._last_time = now` — python statement` — markdown list item
+- L2894: `- L214: `                return` — python statement` — markdown list item
+- L2895: `- L215: `            dt = max(1e-3, now - self._last_time)` — python statement` — markdown list item
+- L2896: `- L216: `            vx = (x - self._last_pos[0]) / dt` — python statement` — markdown list item
+- L2897: `- L217: `            vy = (y - self._last_pos[1]) / dt` — python statement` — markdown list item
+- L2898: `- L218: `            vz = (z - self._last_pos[2]) / dt` — python statement` — markdown list item
+- L2899: `- L219: `            self._last_pos = (x, y, z)` — python statement` — markdown list item
+- L2900: `- L220: `            self._last_time = now` — python statement` — markdown list item
+- L2901: `- L221: `            self._maybe_send(x, y, z, vx, vy, vz)` — python statement` — markdown list item
+- L2902: `- L222: `` — blank line` — markdown list item
+- L2903: `- L223: `        self._open()` — python statement` — markdown list item
+- L2904: `- L224: `        print(f"Sending NMEA on {self.port} @ {self.baud} ({self.rate_hz} Hz)")` — python statement` — markdown list item
+- L2905: `- L225: `        vo.run(on_update=on_update)` — python statement` — markdown list item
+- L2906: `- L226: `` — blank line` — markdown list item
+- L2907: `- L227: `` — blank line` — markdown list item
+- L2908: `- L228: `def _build_arg_parser():` — function definition` — markdown list item
+- L2909: `- L229: `    """Build the CLI argument parser."""` — module docstring boundary` — markdown list item
+- L2910: `- L230: `    parser = argparse.ArgumentParser(description="Inject VPS as fake GPS over NMEA.")` — python statement` — markdown list item
+- L2911: `- L231: `    parser.add_argument("--port", required=True, help="Serial port (e.g. /dev/ttyAMA0)")` — python statement` — markdown list item
+- L2912: `- L232: `    parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate")` — python statement` — markdown list item
+- L2913: `- L233: `    parser.add_argument("--rate", type=float, default=5.0, help="NMEA send rate (Hz)")` — python statement` — markdown list item
+- L2914: `- L234: `    parser.add_argument("--home", default="data/home_locations/site_A.yaml", help="Home YAML file")` — python statement` — markdown list item
+- L2915: `- L235: `    parser.add_argument("--frame", choices=["enu", "ned"], default="enu", help="VPS frame")` — python statement` — markdown list item
+- L2916: `- L236: `    parser.add_argument("--fix-quality", type=int, default=1, help="NMEA fix quality")` — python statement` — markdown list item
+- L2917: `- L237: `    parser.add_argument("--satellites", type=int, default=10, help="NMEA satellites count")` — python statement` — markdown list item
+- L2918: `- L238: `    parser.add_argument("--hdop", type=float, default=0.9, help="NMEA HDOP")` — python statement` — markdown list item
+- L2919: `- L239: `    return parser` — return statement` — markdown list item
+- L2920: `- L240: `` — blank line` — markdown list item
+- L2921: `- L241: `` — blank line` — markdown list item
+- L2922: `- L242: `def main():` — function definition` — markdown list item
+- L2923: `- L243: `    """CLI entry point for the GPS injector."""` — module docstring boundary` — markdown list item
+- L2924: `- L244: `    args = _build_arg_parser().parse_args()` — python statement` — markdown list item
+- L2925: `- L245: `    home = load_home(args.home)` — python statement` — markdown list item
+- L2926: `- L246: `    injector = NmeaGpsInjector(` — python statement` — markdown list item
+- L2927: `- L247: `        port=args.port,` — python statement` — markdown list item
+- L2928: `- L248: `        baud=args.baud,` — python statement` — markdown list item
+- L2929: `- L249: `        home=home,` — python statement` — markdown list item
+- L2930: `- L250: `        rate_hz=args.rate,` — python statement` — markdown list item
+- L2931: `- L251: `        frame=args.frame,` — python statement` — markdown list item
+- L2932: `- L252: `        fix_quality=args.fix_quality,` — python statement` — markdown list item
+- L2933: `- L253: `        satellites=args.satellites,` — python statement` — markdown list item
+- L2934: `- L254: `        hdop=args.hdop,` — python statement` — markdown list item
+- L2935: `- L255: `    )` — python statement` — markdown list item
+- L2936: `- L256: `    injector.run_from_vo()` — python statement` — markdown list item
+- L2937: `- L257: `` — blank line` — markdown list item
+- L2938: `- L258: `` — blank line` — markdown list item
+- L2939: `- L259: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L2940: `- L260: `    main()` — python statement` — markdown list item
+- L2941: `` — blank line
+- L2942: `## `src/navisar/pixhawk/mavlink_client.py`` — markdown heading
+- L2943: `- Role: Source code` — markdown list item
+- L2944: `### Line-by-line` — markdown heading
+- L2945: `- L1: `"""MAVLink wrapper for Pixhawk IO (GPS, attitude, odometry)."""` — module docstring boundary` — markdown list item
+- L2946: `- L2: `` — blank line` — markdown list item
+- L2947: `- L3: `import time` — import statement` — markdown list item
+- L2948: `- L4: `` — blank line` — markdown list item
+- L2949: `- L5: `import serial` — import statement` — markdown list item
+- L2950: `- L6: `` — blank line` — markdown list item
+- L2951: `- L7: `from pymavlink import mavutil` — import statement` — markdown list item
+- L2952: `- L8: `` — blank line` — markdown list item
+- L2953: `- L9: `` — blank line` — markdown list item
+- L2954: `- L10: `class MavlinkInterface:` — class definition` — markdown list item
+- L2955: `- L11: `    """Thin wrapper around pymavlink for Pixhawk IO."""` — module docstring boundary` — markdown list item
+- L2956: `- L12: `    def __init__(self, device, baud=115200, heartbeat_timeout=5.0):` — function definition` — markdown list item
+- L2957: `- L13: `        """Connect to the MAVLink device and wait for heartbeat."""` — module docstring boundary` — markdown list item
+- L2958: `- L14: `        self.device = device` — python statement` — markdown list item
+- L2959: `- L15: `        self.baud = baud` — python statement` — markdown list item
+- L2960: `- L16: `        self.master = mavutil.mavlink_connection(device, baud=baud)` — python statement` — markdown list item
+- L2961: `- L17: `        self._last_attitude = None` — python statement` — markdown list item
+- L2962: `- L18: `        self._last_error_time = 0.0` — python statement` — markdown list item
+- L2963: `- L19: `        self._wait_heartbeat(heartbeat_timeout)` — python statement` — markdown list item
+- L2964: `- L20: `` — blank line` — markdown list item
+- L2965: `- L21: `    def _wait_heartbeat(self, timeout):` — function definition` — markdown list item
+- L2966: `- L22: `        """Block until a heartbeat is received or timeout occurs."""` — module docstring boundary` — markdown list item
+- L2967: `- L23: `        try:` — exception handling` — markdown list item
+- L2968: `- L24: `            self.master.wait_heartbeat(timeout=timeout)` — python statement` — markdown list item
+- L2969: `- L25: `        except Exception as exc:` — exception handling` — markdown list item
+- L2970: `- L26: `            raise RuntimeError("Failed to receive MAVLink heartbeat") from exc` — error raise` — markdown list item
+- L2971: `- L27: `` — blank line` — markdown list item
+- L2972: `- L28: `    def recv_distance_sensor(self):` — function definition` — markdown list item
+- L2973: `- L29: `        """Receive a non-blocking DISTANCE_SENSOR message."""` — module docstring boundary` — markdown list item
+- L2974: `- L30: `        return self.master.recv_match(type="DISTANCE_SENSOR", blocking=False)` — return statement` — markdown list item
+- L2975: `- L31: `` — blank line` — markdown list item
+- L2976: `- L32: `    def request_message_interval(self, msg_id, rate_hz):` — function definition` — markdown list item
+- L2977: `- L33: `        """Request periodic MAVLink messages by ID."""` — module docstring boundary` — markdown list item
+- L2978: `- L34: `        if rate_hz <= 0:` — conditional branch` — markdown list item
+- L2979: `- L35: `            return` — python statement` — markdown list item
+- L2980: `- L36: `        # MAV_CMD_SET_MESSAGE_INTERVAL expects microseconds between messages.` — comment` — markdown list item
+- L2981: `- L37: `        interval_us = int(1_000_000 / rate_hz)` — python statement` — markdown list item
+- L2982: `- L38: `        self.master.mav.command_long_send(` — python statement` — markdown list item
+- L2983: `- L39: `            self.master.target_system,` — python statement` — markdown list item
+- L2984: `- L40: `            self.master.target_component,` — python statement` — markdown list item
+- L2985: `- L41: `            mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,` — python statement` — markdown list item
+- L2986: `- L42: `            0,` — python statement` — markdown list item
+- L2987: `- L43: `            msg_id,` — python statement` — markdown list item
+- L2988: `- L44: `            interval_us,` — python statement` — markdown list item
+- L2989: `- L45: `            0,` — python statement` — markdown list item
+- L2990: `- L46: `            0,` — python statement` — markdown list item
+- L2991: `- L47: `            0,` — python statement` — markdown list item
+- L2992: `- L48: `            0,` — python statement` — markdown list item
+- L2993: `- L49: `            0,` — python statement` — markdown list item
+- L2994: `- L50: `        )` — python statement` — markdown list item
+- L2995: `- L51: `` — blank line` — markdown list item
+- L2996: `- L52: `    def recv_gps(self):` — function definition` — markdown list item
+- L2997: `- L53: `        """Receive and parse the latest GPS message."""` — module docstring boundary` — markdown list item
+- L2998: `- L54: `        msg = self.recv_gps_raw()` — python statement` — markdown list item
+- L2999: `- L55: `        return self._parse_gps_msg(msg)` — return statement` — markdown list item
+- L3000: `- L56: `` — blank line` — markdown list item
+- L3001: `- L57: `    def recv_gps_raw(self):` — function definition` — markdown list item
+- L3002: `- L58: `        """Receive the raw GPS message without parsing."""` — module docstring boundary` — markdown list item
+- L3003: `- L59: `        return self.master.recv_match(` — return statement` — markdown list item
+- L3004: `- L60: `            type=["GPS_RAW_INT", "GLOBAL_POSITION_INT"],` — python statement` — markdown list item
+- L3005: `- L61: `            blocking=False,` — python statement` — markdown list item
+- L3006: `- L62: `        )` — python statement` — markdown list item
+- L3007: `- L63: `` — blank line` — markdown list item
+- L3008: `- L64: `    def recv_attitude(self):` — function definition` — markdown list item
+- L3009: `- L65: `        """Receive an ATTITUDE message and cache it."""` — module docstring boundary` — markdown list item
+- L3010: `- L66: `        try:` — exception handling` — markdown list item
+- L3011: `- L67: `            msg = self.master.recv_match(type="ATTITUDE", blocking=False)` — python statement` — markdown list item
+- L3012: `- L68: `        except serial.SerialException as exc:` — exception handling` — markdown list item
+- L3013: `- L69: `            now = time.time()` — python statement` — markdown list item
+- L3014: `- L70: `            if now - self._last_error_time > 2.0:` — conditional branch` — markdown list item
+- L3015: `- L71: `                self._last_error_time = now` — python statement` — markdown list item
+- L3016: `- L72: `                print(f"Warning: MAVLink serial error ({exc})")` — python statement` — markdown list item
+- L3017: `- L73: `            return None` — return statement` — markdown list item
+- L3018: `- L74: `        if msg is None:` — conditional branch` — markdown list item
+- L3019: `- L75: `            return None` — return statement` — markdown list item
+- L3020: `- L76: `        att = {` — python statement` — markdown list item
+- L3021: `- L77: `            "roll": float(msg.roll),` — python statement` — markdown list item
+- L3022: `- L78: `            "pitch": float(msg.pitch),` — python statement` — markdown list item
+- L3023: `- L79: `            "yaw": float(msg.yaw),` — python statement` — markdown list item
+- L3024: `- L80: `            "roll_rate": float(msg.rollspeed),` — python statement` — markdown list item
+- L3025: `- L81: `            "pitch_rate": float(msg.pitchspeed),` — python statement` — markdown list item
+- L3026: `- L82: `            "yaw_rate": float(msg.yawspeed),` — python statement` — markdown list item
+- L3027: `- L83: `            "time_s": time.time(),` — python statement` — markdown list item
+- L3028: `- L84: `        }` — python statement` — markdown list item
+- L3029: `- L85: `        self._last_attitude = att` — python statement` — markdown list item
+- L3030: `- L86: `        return att` — return statement` — markdown list item
+- L3031: `- L87: `` — blank line` — markdown list item
+- L3032: `- L88: `    def recv_imu(self):` — function definition` — markdown list item
+- L3033: `- L89: `        """Receive a HIGHRES_IMU message and return parsed accel/gyro data."""` — module docstring boundary` — markdown list item
+- L3034: `- L90: `        try:` — exception handling` — markdown list item
+- L3035: `- L91: `            msg = self.master.recv_match(type="HIGHRES_IMU", blocking=False)` — python statement` — markdown list item
+- L3036: `- L92: `        except serial.SerialException as exc:` — exception handling` — markdown list item
+- L3037: `- L93: `            now = time.time()` — python statement` — markdown list item
+- L3038: `- L94: `            if now - self._last_error_time > 2.0:` — conditional branch` — markdown list item
+- L3039: `- L95: `                self._last_error_time = now` — python statement` — markdown list item
+- L3040: `- L96: `                print(f"Warning: MAVLink serial error ({exc})")` — python statement` — markdown list item
+- L3041: `- L97: `            return None` — return statement` — markdown list item
+- L3042: `- L98: `        if msg is None:` — conditional branch` — markdown list item
+- L3043: `- L99: `            return None` — return statement` — markdown list item
+- L3044: `- L100: `        time_usec = getattr(msg, "time_usec", None)` — python statement` — markdown list item
+- L3045: `- L101: `        time_s = time_usec * 1e-6 if time_usec else time.time()` — python statement` — markdown list item
+- L3046: `- L102: `        return {` — return statement` — markdown list item
+- L3047: `- L103: `            "ax": float(msg.xacc),` — python statement` — markdown list item
+- L3048: `- L104: `            "ay": float(msg.yacc),` — python statement` — markdown list item
+- L3049: `- L105: `            "az": float(msg.zacc),` — python statement` — markdown list item
+- L3050: `- L106: `            "gx": float(msg.xgyro),` — python statement` — markdown list item
+- L3051: `- L107: `            "gy": float(msg.ygyro),` — python statement` — markdown list item
+- L3052: `- L108: `            "gz": float(msg.zgyro),` — python statement` — markdown list item
+- L3053: `- L109: `            "time_s": float(time_s),` — python statement` — markdown list item
+- L3054: `- L110: `        }` — python statement` — markdown list item
+- L3055: `- L111: `` — blank line` — markdown list item
+- L3056: `- L112: `    def get_last_attitude(self):` — function definition` — markdown list item
+- L3057: `- L113: `        """Return the last cached attitude, if any."""` — module docstring boundary` — markdown list item
+- L3058: `- L114: `        return self._last_attitude` — return statement` — markdown list item
+- L3059: `- L115: `` — blank line` — markdown list item
+- L3060: `- L116: `    def recv_gps_with_raw(self):` — function definition` — markdown list item
+- L3061: `- L117: `        """Return parsed GPS data plus the raw message."""` — module docstring boundary` — markdown list item
+- L3062: `- L118: `        msg = self.recv_gps_raw()` — python statement` — markdown list item
+- L3063: `- L119: `        return self._parse_gps_msg(msg), msg` — return statement` — markdown list item
+- L3064: `- L120: `` — blank line` — markdown list item
+- L3065: `- L121: `    def send_gps_input(` — function definition` — markdown list item
+- L3066: `- L122: `        self,` — python statement` — markdown list item
+- L3067: `- L123: `        lat,` — python statement` — markdown list item
+- L3068: `- L124: `        lon,` — python statement` — markdown list item
+- L3069: `- L125: `        alt_m,` — python statement` — markdown list item
+- L3070: `- L126: `        fix_type=3,` — python statement` — markdown list item
+- L3071: `- L127: `        satellites_visible=10,` — python statement` — markdown list item
+- L3072: `- L128: `        vn=0.0,` — python statement` — markdown list item
+- L3073: `- L129: `        ve=0.0,` — python statement` — markdown list item
+- L3074: `- L130: `        vd=0.0,` — python statement` — markdown list item
+- L3075: `- L131: `        speed_accuracy=0.5,` — python statement` — markdown list item
+- L3076: `- L132: `        horiz_accuracy=1.0,` — python statement` — markdown list item
+- L3077: `- L133: `        vert_accuracy=1.0,` — python statement` — markdown list item
+- L3078: `- L134: `        time_usec=None,` — python statement` — markdown list item
+- L3079: `- L135: `    ):` — python statement` — markdown list item
+- L3080: `- L136: `        """Send GPS_INPUT data to Pixhawk."""` — module docstring boundary` — markdown list item
+- L3081: `- L137: `        if time_usec is None:` — conditional branch` — markdown list item
+- L3082: `- L138: `            time_usec = int(time.time() * 1_000_000)` — python statement` — markdown list item
+- L3083: `- L139: `        # MAVLink expects lat/lon in 1e7 degrees and altitude in meters.` — comment` — markdown list item
+- L3084: `- L140: `        self.master.mav.gps_input_send(` — python statement` — markdown list item
+- L3085: `- L141: `            time_usec,` — python statement` — markdown list item
+- L3086: `- L142: `            0,` — python statement` — markdown list item
+- L3087: `- L143: `            0,` — python statement` — markdown list item
+- L3088: `- L144: `            0,` — python statement` — markdown list item
+- L3089: `- L145: `            0,` — python statement` — markdown list item
+- L3090: `- L146: `            fix_type,` — python statement` — markdown list item
+- L3091: `- L147: `            int(lat * 1e7),` — python statement` — markdown list item
+- L3092: `- L148: `            int(lon * 1e7),` — python statement` — markdown list item
+- L3093: `- L149: `            float(alt_m),` — python statement` — markdown list item
+- L3094: `- L150: `            float(horiz_accuracy),` — python statement` — markdown list item
+- L3095: `- L151: `            float(vert_accuracy),` — python statement` — markdown list item
+- L3096: `- L152: `            float(vn),` — python statement` — markdown list item
+- L3097: `- L153: `            float(ve),` — python statement` — markdown list item
+- L3098: `- L154: `            float(vd),` — python statement` — markdown list item
+- L3099: `- L155: `            float(speed_accuracy),` — python statement` — markdown list item
+- L3100: `- L156: `            float(horiz_accuracy),` — python statement` — markdown list item
+- L3101: `- L157: `            float(vert_accuracy),` — python statement` — markdown list item
+- L3102: `- L158: `            satellites_visible,` — python statement` — markdown list item
+- L3103: `- L159: `        )` — python statement` — markdown list item
+- L3104: `- L160: `` — blank line` — markdown list item
+- L3105: `- L161: `    def send_odometry(` — function definition` — markdown list item
+- L3106: `- L162: `        self,` — python statement` — markdown list item
+- L3107: `- L163: `        x,` — python statement` — markdown list item
+- L3108: `- L164: `        y,` — python statement` — markdown list item
+- L3109: `- L165: `        z,` — python statement` — markdown list item
+- L3110: `- L166: `        q,` — python statement` — markdown list item
+- L3111: `- L167: `        vx,` — python statement` — markdown list item
+- L3112: `- L168: `        vy,` — python statement` — markdown list item
+- L3113: `- L169: `        vz,` — python statement` — markdown list item
+- L3114: `- L170: `        roll_rate=0.0,` — python statement` — markdown list item
+- L3115: `- L171: `        pitch_rate=0.0,` — python statement` — markdown list item
+- L3116: `- L172: `        yaw_rate=0.0,` — python statement` — markdown list item
+- L3117: `- L173: `        time_usec=None,` — python statement` — markdown list item
+- L3118: `- L174: `        frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED,` — python statement` — markdown list item
+- L3119: `- L175: `        pose_covariance=None,` — python statement` — markdown list item
+- L3120: `- L176: `        velocity_covariance=None,` — python statement` — markdown list item
+- L3121: `- L177: `        reset_counter=0,` — python statement` — markdown list item
+- L3122: `- L178: `        estimator_type=mavutil.mavlink.MAV_ESTIMATOR_TYPE_VISION,` — python statement` — markdown list item
+- L3123: `- L179: `        quality=100,` — python statement` — markdown list item
+- L3124: `- L180: `    ):` — python statement` — markdown list item
+- L3125: `- L181: `        """Send MAVLink ODOMETRY message."""` — module docstring boundary` — markdown list item
+- L3126: `- L182: `        if time_usec is None:` — conditional branch` — markdown list item
+- L3127: `- L183: `            time_usec = int(time.time() * 1_000_000)` — python statement` — markdown list item
+- L3128: `- L184: `        if pose_covariance is None:` — conditional branch` — markdown list item
+- L3129: `- L185: `            # Default covariance reflects modest confidence in VO estimates.` — comment` — markdown list item
+- L3130: `- L186: `            pose_covariance = self._diag_covariance(` — python statement` — markdown list item
+- L3131: `- L187: `                [0.04, 0.04, 0.09, 0.03, 0.03, 0.03]` — python statement` — markdown list item
+- L3132: `- L188: `            )` — python statement` — markdown list item
+- L3133: `- L189: `        if velocity_covariance is None:` — conditional branch` — markdown list item
+- L3134: `- L190: `            velocity_covariance = self._diag_covariance(` — python statement` — markdown list item
+- L3135: `- L191: `                [0.25, 0.25, 0.25, 0.09, 0.09, 0.09]` — python statement` — markdown list item
+- L3136: `- L192: `            )` — python statement` — markdown list item
+- L3137: `- L193: `        self.master.mav.odometry_send(` — python statement` — markdown list item
+- L3138: `- L194: `            time_usec,` — python statement` — markdown list item
+- L3139: `- L195: `            frame,` — python statement` — markdown list item
+- L3140: `- L196: `            frame,` — python statement` — markdown list item
+- L3141: `- L197: `            x,` — python statement` — markdown list item
+- L3142: `- L198: `            y,` — python statement` — markdown list item
+- L3143: `- L199: `            z,` — python statement` — markdown list item
+- L3144: `- L200: `            q,` — python statement` — markdown list item
+- L3145: `- L201: `            vx,` — python statement` — markdown list item
+- L3146: `- L202: `            vy,` — python statement` — markdown list item
+- L3147: `- L203: `            vz,` — python statement` — markdown list item
+- L3148: `- L204: `            roll_rate,` — python statement` — markdown list item
+- L3149: `- L205: `            pitch_rate,` — python statement` — markdown list item
+- L3150: `- L206: `            yaw_rate,` — python statement` — markdown list item
+- L3151: `- L207: `            pose_covariance,` — python statement` — markdown list item
+- L3152: `- L208: `            velocity_covariance,` — python statement` — markdown list item
+- L3153: `- L209: `            int(reset_counter),` — python statement` — markdown list item
+- L3154: `- L210: `            int(estimator_type),` — python statement` — markdown list item
+- L3155: `- L211: `            int(quality),` — python statement` — markdown list item
+- L3156: `- L212: `        )` — python statement` — markdown list item
+- L3157: `- L213: `` — blank line` — markdown list item
+- L3158: `- L214: `    @staticmethod` — python statement` — markdown list item
+- L3159: `- L215: `    def _parse_gps_msg(msg):` — function definition` — markdown list item
+- L3160: `- L216: `        """Parse MAVLink GPS messages into a dict."""` — module docstring boundary` — markdown list item
+- L3161: `- L217: `        if msg is None:` — conditional branch` — markdown list item
+- L3162: `- L218: `            return None` — return statement` — markdown list item
+- L3163: `- L219: `        msg_type = msg.get_type()` — python statement` — markdown list item
+- L3164: `- L220: `        if msg_type == "GPS_RAW_INT":` — conditional branch` — markdown list item
+- L3165: `- L221: `            if msg.lat == 0 and msg.lon == 0:` — conditional branch` — markdown list item
+- L3166: `- L222: `                return None` — return statement` — markdown list item
+- L3167: `- L223: `            return {` — return statement` — markdown list item
+- L3168: `- L224: `                "lat": msg.lat / 1e7,` — python statement` — markdown list item
+- L3169: `- L225: `                "lon": msg.lon / 1e7,` — python statement` — markdown list item
+- L3170: `- L226: `                "alt_m": msg.alt / 1000.0,` — python statement` — markdown list item
+- L3171: `- L227: `                "fix_type": msg.fix_type,` — python statement` — markdown list item
+- L3172: `- L228: `            }` — python statement` — markdown list item
+- L3173: `- L229: `        if msg_type == "GLOBAL_POSITION_INT":` — conditional branch` — markdown list item
+- L3174: `- L230: `            if msg.lat == 0 and msg.lon == 0:` — conditional branch` — markdown list item
+- L3175: `- L231: `                return None` — return statement` — markdown list item
+- L3176: `- L232: `            return {` — return statement` — markdown list item
+- L3177: `- L233: `                "lat": msg.lat / 1e7,` — python statement` — markdown list item
+- L3178: `- L234: `                "lon": msg.lon / 1e7,` — python statement` — markdown list item
+- L3179: `- L235: `                "alt_m": msg.alt / 1000.0,` — python statement` — markdown list item
+- L3180: `- L236: `                "fix_type": None,` — python statement` — markdown list item
+- L3181: `- L237: `            }` — python statement` — markdown list item
+- L3182: `- L238: `        return None` — return statement` — markdown list item
+- L3183: `- L239: `` — blank line` — markdown list item
+- L3184: `- L240: `    @staticmethod` — python statement` — markdown list item
+- L3185: `- L241: `    def _diag_covariance(diag):` — function definition` — markdown list item
+- L3186: `- L242: `        """Expand a 6D diagonal covariance into MAVLink format."""` — module docstring boundary` — markdown list item
+- L3187: `- L243: `        if len(diag) != 6:` — conditional branch` — markdown list item
+- L3188: `- L244: `            raise ValueError("Expected 6 diagonal covariance values.")` — error raise` — markdown list item
+- L3189: `- L245: `        cov = [0.0] * 21` — python statement` — markdown list item
+- L3190: `- L246: `        diag_indices = [0, 6, 11, 15, 18, 20]` — python statement` — markdown list item
+- L3191: `- L247: `        for idx, value in zip(diag_indices, diag):` — loop` — markdown list item
+- L3192: `- L248: `            cov[idx] = float(value)` — python statement` — markdown list item
+- L3193: `- L249: `        return cov` — return statement` — markdown list item
+- L3194: `` — blank line
+- L3195: `## `src/navisar/pixhawk/vision_odometry.py`` — markdown heading
+- L3196: `- Role: Source code` — markdown list item
+- L3197: `### Line-by-line` — markdown heading
+- L3198: `- L1: `"""Vision Odometry module. Provides vision odometry utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3199: `- L2: `` — blank line` — markdown list item
+- L3200: `- L3: `# Placeholder file.` — comment` — markdown list item
+- L3201: `` — blank line
+- L3202: `## `src/navisar/sensors/__init__.py`` — markdown heading
+- L3203: `- Role: Source code` — markdown list item
+- L3204: `### Line-by-line` — markdown heading
+- L3205: `- L1: `"""Sensors package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3206: `- L2: `` — blank line` — markdown list item
+- L3207: `` — blank line
+- L3208: `## `src/navisar/sensors/camera.py`` — markdown heading
+- L3209: `- Role: Source code` — markdown list item
+- L3210: `### Line-by-line` — markdown heading
+- L3211: `- L1: `"""Camera driver factory and compatibility helpers."""` — module docstring boundary` — markdown list item
+- L3212: `- L2: `` — blank line` — markdown list item
+- L3213: `- L3: `from navisar.sensors.cameras.opencv import OpenCVCamera` — import statement` — markdown list item
+- L3214: `- L4: `` — blank line` — markdown list item
+- L3215: `- L5: `` — blank line` — markdown list item
+- L3216: `- L6: `CameraDriver = OpenCVCamera` — python statement` — markdown list item
+- L3217: `- L7: `` — blank line` — markdown list item
+- L3218: `- L8: `` — blank line` — markdown list item
+- L3219: `- L9: `def create_camera_driver(camera_cfg):` — function definition` — markdown list item
+- L3220: `- L10: `    """Instantiate a camera driver from config."""` — module docstring boundary` — markdown list item
+- L3221: `- L11: `    model = str(camera_cfg.get("model", "opencv")).strip().lower()` — python statement` — markdown list item
+- L3222: `- L12: `    width = camera_cfg.get("width", 640)` — python statement` — markdown list item
+- L3223: `- L13: `    height = camera_cfg.get("height", 480)` — python statement` — markdown list item
+- L3224: `- L14: `` — blank line` — markdown list item
+- L3225: `- L15: `    if model in {"opencv", "usb", "generic"}:` — conditional branch` — markdown list item
+- L3226: `- L16: `        index = camera_cfg.get("index", 0)` — python statement` — markdown list item
+- L3227: `- L17: `        return OpenCVCamera(index=index, width=width, height=height)` — return statement` — markdown list item
+- L3228: `- L18: `` — blank line` — markdown list item
+- L3229: `- L19: `    if model in {"ov9281", "ov9821"}:` — conditional branch` — markdown list item
+- L3230: `- L20: `        from navisar.sensors.cameras.ov9281 import OV9281Camera` — import statement` — markdown list item
+- L3231: `- L21: `` — blank line` — markdown list item
+- L3232: `- L22: `        format_name = camera_cfg.get("format", "YUV420")` — python statement` — markdown list item
+- L3233: `- L23: `        return OV9281Camera(width=width, height=height, format_name=format_name)` — return statement` — markdown list item
+- L3234: `- L24: `` — blank line` — markdown list item
+- L3235: `- L25: `    raise ValueError(f"Unknown camera model '{model}'")` — error raise` — markdown list item
+- L3236: `` — blank line
+- L3237: `## `src/navisar/sensors/gps_serial.py`` — markdown heading
+- L3238: `- Role: Source code` — markdown list item
+- L3239: `### Line-by-line` — markdown heading
+- L3240: `- L1: `"""GPS Serial module. Provides gps serial utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3241: `- L2: `` — blank line` — markdown list item
+- L3242: `- L3: `import time` — import statement` — markdown list item
+- L3243: `- L4: `` — blank line` — markdown list item
+- L3244: `- L5: `import serial` — import statement` — markdown list item
+- L3245: `- L6: `from serial.tools import list_ports` — import statement` — markdown list item
+- L3246: `- L7: `` — blank line` — markdown list item
+- L3247: `- L8: `DEFAULT_BAUDS = [4800, 9600, 19200, 38400, 57600, 115200]` — python statement` — markdown list item
+- L3248: `- L9: `DEFAULT_PROBE_SECONDS = 3.0` — python statement` — markdown list item
+- L3249: `- L10: `` — blank line` — markdown list item
+- L3250: `- L11: `` — blank line` — markdown list item
+- L3251: `- L12: `def _detect_ports():` — function definition` — markdown list item
+- L3252: `- L13: `    ports = list(list_ports.comports())` — python statement` — markdown list item
+- L3253: `- L14: `    if not ports:` — conditional branch` — markdown list item
+- L3254: `- L15: `        return []` — return statement` — markdown list item
+- L3255: `- L16: `    preferred = []` — python statement` — markdown list item
+- L3256: `- L17: `    fallback = []` — python statement` — markdown list item
+- L3257: `- L18: `    for port in ports:` — loop` — markdown list item
+- L3258: `- L19: `        desc = (port.description or "").lower()` — python statement` — markdown list item
+- L3259: `- L20: `        device = port.device or ""` — python statement` — markdown list item
+- L3260: `- L21: `        if "/dev/serial/by-id" in device:` — conditional branch` — markdown list item
+- L3261: `- L22: `            preferred.append(device)` — python statement` — markdown list item
+- L3262: `- L23: `        elif device.startswith(("/dev/ttyUSB", "/dev/ttyACM", "/dev/ttyAMA", "/dev/ttyS")):` — conditional branch` — markdown list item
+- L3263: `- L24: `            preferred.append(device)` — python statement` — markdown list item
+- L3264: `- L25: `        elif "usb" in desc or "uart" in desc or "cp210" in desc or "ch340" in desc:` — conditional branch` — markdown list item
+- L3265: `- L26: `            preferred.append(device)` — python statement` — markdown list item
+- L3266: `- L27: `        else:` — conditional branch` — markdown list item
+- L3267: `- L28: `            fallback.append(device)` — python statement` — markdown list item
+- L3268: `- L29: `    return preferred + fallback` — return statement` — markdown list item
+- L3269: `- L30: `` — blank line` — markdown list item
+- L3270: `- L31: `` — blank line` — markdown list item
+- L3271: `- L32: `def _read_nmea(ser, seconds, verbose=True):` — function definition` — markdown list item
+- L3272: `- L33: `    end_time = time.time() + seconds` — python statement` — markdown list item
+- L3273: `- L34: `    while time.time() < end_time:` — loop` — markdown list item
+- L3274: `- L35: `        line = ser.readline()` — python statement` — markdown list item
+- L3275: `- L36: `        if not line:` — conditional branch` — markdown list item
+- L3276: `- L37: `            continue` — python statement` — markdown list item
+- L3277: `- L38: `        if line.startswith(b"$"):` — conditional branch` — markdown list item
+- L3278: `- L39: `            if verbose:` — conditional branch` — markdown list item
+- L3279: `- L40: `                try:` — exception handling` — markdown list item
+- L3280: `- L41: `                    print(line.decode("ascii", errors="ignore").strip())` — python statement` — markdown list item
+- L3281: `- L42: `                except Exception:` — exception handling` — markdown list item
+- L3282: `- L43: `                    pass` — python statement` — markdown list item
+- L3283: `- L44: `            return True` — return statement` — markdown list item
+- L3284: `- L45: `    return False` — return statement` — markdown list item
+- L3285: `- L46: `` — blank line` — markdown list item
+- L3286: `- L47: `` — blank line` — markdown list item
+- L3287: `- L48: `def find_gps_port_and_baud(` — function definition` — markdown list item
+- L3288: `- L49: `    port=None,` — python statement` — markdown list item
+- L3289: `- L50: `    bauds=None,` — python statement` — markdown list item
+- L3290: `- L51: `    probe_seconds=DEFAULT_PROBE_SECONDS,` — python statement` — markdown list item
+- L3291: `- L52: `    verbose=True,` — python statement` — markdown list item
+- L3292: `- L53: `):` — python statement` — markdown list item
+- L3293: `- L54: `    ports = [port] if port else _detect_ports()` — python statement` — markdown list item
+- L3294: `- L55: `    if not ports:` — conditional branch` — markdown list item
+- L3295: `- L56: `        return None` — return statement` — markdown list item
+- L3296: `- L57: `    for candidate in ports:` — loop` — markdown list item
+- L3297: `- L58: `        for baud in bauds or DEFAULT_BAUDS:` — loop` — markdown list item
+- L3298: `- L59: `            try:` — exception handling` — markdown list item
+- L3299: `- L60: `                if verbose:` — conditional branch` — markdown list item
+- L3300: `- L61: `                    print(f"Probing on {candidate} @ {baud} baud for {probe_seconds}s...")` — python statement` — markdown list item
+- L3301: `- L62: `                with serial.Serial(candidate, baud, timeout=1) as ser:` — context manager` — markdown list item
+- L3302: `- L63: `                    if _read_nmea(ser, probe_seconds, verbose=verbose):` — conditional branch` — markdown list item
+- L3303: `- L64: `                        return candidate, baud` — return statement` — markdown list item
+- L3304: `- L65: `            except serial.SerialException as exc:` — exception handling` — markdown list item
+- L3305: `- L66: `                if verbose:` — conditional branch` — markdown list item
+- L3306: `- L67: `                    print(f"Failed to open {candidate} @ {baud}: {exc}")` — python statement` — markdown list item
+- L3307: `- L68: `    return None` — return statement` — markdown list item
+- L3308: `- L69: `` — blank line` — markdown list item
+- L3309: `- L70: `` — blank line` — markdown list item
+- L3310: `- L71: `class GpsSerialReader:` — class definition` — markdown list item
+- L3311: `- L72: `    """Read NMEA GPS data from a serial port."""` — module docstring boundary` — markdown list item
+- L3312: `- L73: `    def __init__(` — function definition` — markdown list item
+- L3313: `- L74: `        self,` — python statement` — markdown list item
+- L3314: `- L75: `        port,` — python statement` — markdown list item
+- L3315: `- L76: `        baud=9600,` — python statement` — markdown list item
+- L3316: `- L77: `        fmt="auto",` — python statement` — markdown list item
+- L3317: `- L78: `        probe_seconds=DEFAULT_PROBE_SECONDS,` — python statement` — markdown list item
+- L3318: `- L79: `        bauds=None,` — python statement` — markdown list item
+- L3319: `- L80: `        verbose=True,` — python statement` — markdown list item
+- L3320: `- L81: `    ):` — python statement` — markdown list item
+- L3321: `- L82: `        """Open the serial port and set parse format."""` — module docstring boundary` — markdown list item
+- L3322: `- L83: `        port_is_auto = port is None or str(port).lower() == "auto"` — python statement` — markdown list item
+- L3323: `- L84: `        baud_is_auto = baud is None or str(baud).lower() == "auto"` — python statement` — markdown list item
+- L3324: `- L85: `        if port_is_auto or baud_is_auto:` — conditional branch` — markdown list item
+- L3325: `- L86: `            choice = find_gps_port_and_baud(` — python statement` — markdown list item
+- L3326: `- L87: `                port=None if port_is_auto else port,` — python statement` — markdown list item
+- L3327: `- L88: `                bauds=bauds,` — python statement` — markdown list item
+- L3328: `- L89: `                probe_seconds=probe_seconds,` — python statement` — markdown list item
+- L3329: `- L90: `                verbose=verbose,` — python statement` — markdown list item
+- L3330: `- L91: `            )` — python statement` — markdown list item
+- L3331: `- L92: `            if not choice:` — conditional branch` — markdown list item
+- L3332: `- L93: `                raise RuntimeError("No NMEA data received. Check wiring, port, and baud rate.")` — error raise` — markdown list item
+- L3333: `- L94: `            port, baud = choice` — python statement` — markdown list item
+- L3334: `- L95: `            if verbose:` — conditional branch` — markdown list item
+- L3335: `- L96: `                print(f"Locked GPS on {port} @ {baud}")` — python statement` — markdown list item
+- L3336: `- L97: `        self.port = port` — python statement` — markdown list item
+- L3337: `- L98: `        self.baud = baud` — python statement` — markdown list item
+- L3338: `- L99: `        self.fmt = (fmt or "auto").lower()` — python statement` — markdown list item
+- L3339: `- L100: `        self._ser = serial.Serial(port, baud, timeout=0)` — python statement` — markdown list item
+- L3340: `- L101: `        self._last_fix = None` — python statement` — markdown list item
+- L3341: `- L102: `        self._last_time = None` — python statement` — markdown list item
+- L3342: `- L103: `` — blank line` — markdown list item
+- L3343: `- L104: `    def read_messages(self, max_lines=10):` — function definition` — markdown list item
+- L3344: `- L105: `        """Read up to max_lines and return latest fix/time."""` — module docstring boundary` — markdown list item
+- L3345: `- L106: `        for _ in range(max_lines):` — loop` — markdown list item
+- L3346: `- L107: `            line = self._ser.readline()` — python statement` — markdown list item
+- L3347: `- L108: `            if not line:` — conditional branch` — markdown list item
+- L3348: `- L109: `                break` — python statement` — markdown list item
+- L3349: `- L110: `            fix = self._parse_line(line)` — python statement` — markdown list item
+- L3350: `- L111: `            if fix is not None:` — conditional branch` — markdown list item
+- L3351: `- L112: `                self._last_fix = fix` — python statement` — markdown list item
+- L3352: `- L113: `                self._last_time = time.time()` — python statement` — markdown list item
+- L3353: `- L114: `        return self._last_fix, self._last_time` — return statement` — markdown list item
+- L3354: `- L115: `` — blank line` — markdown list item
+- L3355: `- L116: `    def _parse_line(self, raw):` — function definition` — markdown list item
+- L3356: `- L117: `        """Decode a raw line and parse supported NMEA messages."""` — module docstring boundary` — markdown list item
+- L3357: `- L118: `        if not raw:` — conditional branch` — markdown list item
+- L3358: `- L119: `            return None` — return statement` — markdown list item
+- L3359: `- L120: `        if self.fmt in ("auto", "nmea"):` — conditional branch` — markdown list item
+- L3360: `- L121: `            if raw.startswith(b"$"):` — conditional branch` — markdown list item
+- L3361: `- L122: `                try:` — exception handling` — markdown list item
+- L3362: `- L123: `                    text = raw.decode("ascii", errors="ignore").strip()` — python statement` — markdown list item
+- L3363: `- L124: `                except Exception:` — exception handling` — markdown list item
+- L3364: `- L125: `                    return None` — return statement` — markdown list item
+- L3365: `- L126: `                return _parse_nmea(text)` — return statement` — markdown list item
+- L3366: `- L127: `        return None` — return statement` — markdown list item
+- L3367: `- L128: `` — blank line` — markdown list item
+- L3368: `- L129: `` — blank line` — markdown list item
+- L3369: `- L130: `def _parse_nmea(line):` — function definition` — markdown list item
+- L3370: `- L131: `    """Parse an NMEA sentence and return a fix dict."""` — module docstring boundary` — markdown list item
+- L3371: `- L132: `    if not line.startswith("$"):` — conditional branch` — markdown list item
+- L3372: `- L133: `        return None` — return statement` — markdown list item
+- L3373: `- L134: `    if "*" in line:` — conditional branch` — markdown list item
+- L3374: `- L135: `        line = line.split("*", 1)[0]` — python statement` — markdown list item
+- L3375: `- L136: `    fields = line.split(",")` — python statement` — markdown list item
+- L3376: `- L137: `    if not fields:` — conditional branch` — markdown list item
+- L3377: `- L138: `        return None` — return statement` — markdown list item
+- L3378: `- L139: `    msg = fields[0][3:] if len(fields[0]) >= 6 else fields[0]` — python statement` — markdown list item
+- L3379: `- L140: `    if msg.endswith("GGA"):` — conditional branch` — markdown list item
+- L3380: `- L141: `        return _parse_gga(fields)` — return statement` — markdown list item
+- L3381: `- L142: `    if msg.endswith("RMC"):` — conditional branch` — markdown list item
+- L3382: `- L143: `        return _parse_rmc(fields)` — return statement` — markdown list item
+- L3383: `- L144: `    return None` — return statement` — markdown list item
+- L3384: `- L145: `` — blank line` — markdown list item
+- L3385: `- L146: `` — blank line` — markdown list item
+- L3386: `- L147: `def _parse_gga(fields):` — function definition` — markdown list item
+- L3387: `- L148: `    """Parse a GGA sentence into a fix dict."""` — module docstring boundary` — markdown list item
+- L3388: `- L149: `    if len(fields) < 10:` — conditional branch` — markdown list item
+- L3389: `- L150: `        return None` — return statement` — markdown list item
+- L3390: `- L151: `    lat = _nmea_to_decimal(fields[2], fields[3])` — python statement` — markdown list item
+- L3391: `- L152: `    lon = _nmea_to_decimal(fields[4], fields[5])` — python statement` — markdown list item
+- L3392: `- L153: `    fix_quality = _safe_int(fields[6])` — python statement` — markdown list item
+- L3393: `- L154: `    sats = _safe_int(fields[7])` — python statement` — markdown list item
+- L3394: `- L155: `    alt = _safe_float(fields[9])` — python statement` — markdown list item
+- L3395: `- L156: `    if lat is None or lon is None:` — conditional branch` — markdown list item
+- L3396: `- L157: `        return None` — return statement` — markdown list item
+- L3397: `- L158: `    fix_type = 3 if fix_quality and fix_quality > 0 else 0` — python statement` — markdown list item
+- L3398: `- L159: `    return {` — return statement` — markdown list item
+- L3399: `- L160: `        "lat": lat,` — python statement` — markdown list item
+- L3400: `- L161: `        "lon": lon,` — python statement` — markdown list item
+- L3401: `- L162: `        "alt_m": alt,` — python statement` — markdown list item
+- L3402: `- L163: `        "fix_type": fix_type,` — python statement` — markdown list item
+- L3403: `- L164: `        "sats": sats,` — python statement` — markdown list item
+- L3404: `- L165: `    }` — python statement` — markdown list item
+- L3405: `- L166: `` — blank line` — markdown list item
+- L3406: `- L167: `` — blank line` — markdown list item
+- L3407: `- L168: `def _parse_rmc(fields):` — function definition` — markdown list item
+- L3408: `- L169: `    """Parse an RMC sentence into a fix dict."""` — module docstring boundary` — markdown list item
+- L3409: `- L170: `    if len(fields) < 7:` — conditional branch` — markdown list item
+- L3410: `- L171: `        return None` — return statement` — markdown list item
+- L3411: `- L172: `    status = fields[2] if len(fields) > 2 else ""` — python statement` — markdown list item
+- L3412: `- L173: `    lat = _nmea_to_decimal(fields[3], fields[4])` — python statement` — markdown list item
+- L3413: `- L174: `    lon = _nmea_to_decimal(fields[5], fields[6])` — python statement` — markdown list item
+- L3414: `- L175: `    if lat is None or lon is None:` — conditional branch` — markdown list item
+- L3415: `- L176: `        return None` — return statement` — markdown list item
+- L3416: `- L177: `    fix_type = 3 if status == "A" else 0` — python statement` — markdown list item
+- L3417: `- L178: `    return {` — return statement` — markdown list item
+- L3418: `- L179: `        "lat": lat,` — python statement` — markdown list item
+- L3419: `- L180: `        "lon": lon,` — python statement` — markdown list item
+- L3420: `- L181: `        "alt_m": None,` — python statement` — markdown list item
+- L3421: `- L182: `        "fix_type": fix_type,` — python statement` — markdown list item
+- L3422: `- L183: `        "sats": None,` — python statement` — markdown list item
+- L3423: `- L184: `    }` — python statement` — markdown list item
+- L3424: `- L185: `` — blank line` — markdown list item
+- L3425: `- L186: `` — blank line` — markdown list item
+- L3426: `- L187: `def _nmea_to_decimal(value, hemi):` — function definition` — markdown list item
+- L3427: `- L188: `    """Convert NMEA lat/lon fields into decimal degrees."""` — module docstring boundary` — markdown list item
+- L3428: `- L189: `    if not value or not hemi:` — conditional branch` — markdown list item
+- L3429: `- L190: `        return None` — return statement` — markdown list item
+- L3430: `- L191: `    try:` — exception handling` — markdown list item
+- L3431: `- L192: `        val = float(value)` — python statement` — markdown list item
+- L3432: `- L193: `    except ValueError:` — exception handling` — markdown list item
+- L3433: `- L194: `        return None` — return statement` — markdown list item
+- L3434: `- L195: `    hemi = hemi.upper()` — python statement` — markdown list item
+- L3435: `- L196: `    if hemi in ("N", "S"):` — conditional branch` — markdown list item
+- L3436: `- L197: `        deg = int(val / 100)` — python statement` — markdown list item
+- L3437: `- L198: `        minutes = val - (deg * 100)` — python statement` — markdown list item
+- L3438: `- L199: `        dec = deg + minutes / 60.0` — python statement` — markdown list item
+- L3439: `- L200: `        if hemi == "S":` — conditional branch` — markdown list item
+- L3440: `- L201: `            dec = -dec` — python statement` — markdown list item
+- L3441: `- L202: `        return dec` — return statement` — markdown list item
+- L3442: `- L203: `    if hemi in ("E", "W"):` — conditional branch` — markdown list item
+- L3443: `- L204: `        deg = int(val / 100)` — python statement` — markdown list item
+- L3444: `- L205: `        minutes = val - (deg * 100)` — python statement` — markdown list item
+- L3445: `- L206: `        dec = deg + minutes / 60.0` — python statement` — markdown list item
+- L3446: `- L207: `        if hemi == "W":` — conditional branch` — markdown list item
+- L3447: `- L208: `            dec = -dec` — python statement` — markdown list item
+- L3448: `- L209: `        return dec` — return statement` — markdown list item
+- L3449: `- L210: `    return None` — return statement` — markdown list item
+- L3450: `- L211: `` — blank line` — markdown list item
+- L3451: `- L212: `` — blank line` — markdown list item
+- L3452: `- L213: `def _safe_int(value):` — function definition` — markdown list item
+- L3453: `- L214: `    """Convert to int, returning None on failure."""` — module docstring boundary` — markdown list item
+- L3454: `- L215: `    try:` — exception handling` — markdown list item
+- L3455: `- L216: `        return int(value)` — return statement` — markdown list item
+- L3456: `- L217: `    except (TypeError, ValueError):` — exception handling` — markdown list item
+- L3457: `- L218: `        return None` — return statement` — markdown list item
+- L3458: `- L219: `` — blank line` — markdown list item
+- L3459: `- L220: `` — blank line` — markdown list item
+- L3460: `- L221: `def _safe_float(value):` — function definition` — markdown list item
+- L3461: `- L222: `    """Convert to float, returning None on failure."""` — module docstring boundary` — markdown list item
+- L3462: `- L223: `    try:` — exception handling` — markdown list item
+- L3463: `- L224: `        return float(value)` — return statement` — markdown list item
+- L3464: `- L225: `    except (TypeError, ValueError):` — exception handling` — markdown list item
+- L3465: `- L226: `        return None` — return statement` — markdown list item
+- L3466: `` — blank line
+- L3467: `## `src/navisar/sensors/imu.py`` — markdown heading
+- L3468: `- Role: Source code` — markdown list item
+- L3469: `### Line-by-line` — markdown heading
+- L3470: `- L1: `"""IMU module. Provides imu utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3471: `- L2: `` — blank line` — markdown list item
+- L3472: `- L3: `# Placeholder file` — comment` — markdown list item
+- L3473: `` — blank line
+- L3474: `## `src/navisar/sensors/lidar.py`` — markdown heading
+- L3475: `- Role: Source code` — markdown list item
+- L3476: `### Line-by-line` — markdown heading
+- L3477: `- L1: `"""LiDAR module. Provides lidar utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3478: `- L2: `` — blank line` — markdown list item
+- L3479: `- L3: `import time` — import statement` — markdown list item
+- L3480: `- L4: `` — blank line` — markdown list item
+- L3481: `- L5: `` — blank line` — markdown list item
+- L3482: `- L6: `class LidarHeightEstimator:` — class definition` — markdown list item
+- L3483: `- L7: `    """Track LiDAR height from MAVLink distance sensor messages."""` — module docstring boundary` — markdown list item
+- L3484: `- L8: `    def __init__(` — function definition` — markdown list item
+- L3485: `- L9: `        self,` — python statement` — markdown list item
+- L3486: `- L10: `        mavlink_interface,` — python statement` — markdown list item
+- L3487: `- L11: `        min_m=0.2,` — python statement` — markdown list item
+- L3488: `- L12: `        max_m=10.0,` — python statement` — markdown list item
+- L3489: `- L13: `        fallback_m=1.0,` — python statement` — markdown list item
+- L3490: `- L14: `        distance_divisor=100.0,` — python statement` — markdown list item
+- L3491: `- L15: `    ):` — python statement` — markdown list item
+- L3492: `- L16: `        """Configure valid range and conversion from sensor units."""` — module docstring boundary` — markdown list item
+- L3493: `- L17: `        self.mavlink_interface = mavlink_interface` — python statement` — markdown list item
+- L3494: `- L18: `        self.min_m = min_m` — python statement` — markdown list item
+- L3495: `- L19: `        self.max_m = max_m` — python statement` — markdown list item
+- L3496: `- L20: `        self.current_m = None` — python statement` — markdown list item
+- L3497: `- L21: `        self.raw_distance = None` — python statement` — markdown list item
+- L3498: `- L22: `        self.last_valid_m = fallback_m` — python statement` — markdown list item
+- L3499: `- L23: `        self.last_msg = None` — python statement` — markdown list item
+- L3500: `- L24: `        self.last_msg_time = None` — python statement` — markdown list item
+- L3501: `- L25: `        self.distance_divisor = distance_divisor` — python statement` — markdown list item
+- L3502: `- L26: `` — blank line` — markdown list item
+- L3503: `- L27: `    def update(self):` — function definition` — markdown list item
+- L3504: `- L28: `        """Fetch the latest distance sensor message."""` — module docstring boundary` — markdown list item
+- L3505: `- L29: `        if self.mavlink_interface is None:` — conditional branch` — markdown list item
+- L3506: `- L30: `            return` — python statement` — markdown list item
+- L3507: `- L31: `        msg = self.mavlink_interface.recv_distance_sensor()` — python statement` — markdown list item
+- L3508: `- L32: `        if msg is None:` — conditional branch` — markdown list item
+- L3509: `- L33: `            return` — python statement` — markdown list item
+- L3510: `- L34: `        self.last_msg = msg` — python statement` — markdown list item
+- L3511: `- L35: `        self.last_msg_time = time.time()` — python statement` — markdown list item
+- L3512: `- L36: `        self.raw_distance = msg.current_distance` — python statement` — markdown list item
+- L3513: `- L37: `        height_m = msg.current_distance / self.distance_divisor` — python statement` — markdown list item
+- L3514: `- L38: `        self.current_m = height_m` — python statement` — markdown list item
+- L3515: `- L39: `        if self.min_m < height_m < self.max_m:` — conditional branch` — markdown list item
+- L3516: `- L40: `            self.last_valid_m = height_m` — python statement` — markdown list item
+- L3517: `- L41: `` — blank line` — markdown list item
+- L3518: `- L42: `    def get_height_m(self):` — function definition` — markdown list item
+- L3519: `- L43: `        """Return the best-known height estimate."""` — module docstring boundary` — markdown list item
+- L3520: `- L44: `        # Prefer the most recent raw reading when available, even if out of range.` — comment` — markdown list item
+- L3521: `- L45: `        if self.current_m is not None:` — conditional branch` — markdown list item
+- L3522: `- L46: `            return self.current_m` — return statement` — markdown list item
+- L3523: `- L47: `        return self.last_valid_m` — return statement` — markdown list item
+- L3524: `` — blank line
+- L3525: `## `src/navisar/utils/__init__.py`` — markdown heading
+- L3526: `- Role: Source code` — markdown list item
+- L3527: `### Line-by-line` — markdown heading
+- L3528: `- L1: `"""Utils package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3529: `- L2: `` — blank line` — markdown list item
+- L3530: `` — blank line
+- L3531: `## `src/navisar/utils/frames.py`` — markdown heading
+- L3532: `- Role: Source code` — markdown list item
+- L3533: `### Line-by-line` — markdown heading
+- L3534: `- L1: `"""Frames module. Provides frames utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3535: `- L2: `` — blank line` — markdown list item
+- L3536: `- L3: `# Placeholder for ENU/NED transforms.` — comment` — markdown list item
+- L3537: `` — blank line
+- L3538: `## `src/navisar/utils/geo.py`` — markdown heading
+- L3539: `- Role: Source code` — markdown list item
+- L3540: `### Line-by-line` — markdown heading
+- L3541: `- L1: `"""Geo module. Provides geo utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3542: `- L2: `` — blank line` — markdown list item
+- L3543: `- L3: `# Placeholder for geo conversions.` — comment` — markdown list item
+- L3544: `` — blank line
+- L3545: `## `src/navisar/utils/logging.py`` — markdown heading
+- L3546: `- Role: Source code` — markdown list item
+- L3547: `### Line-by-line` — markdown heading
+- L3548: `- L1: `"""Logging module. Provides logging utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3549: `- L2: `` — blank line` — markdown list item
+- L3550: `- L3: `# Placeholder for logging helpers.` — comment` — markdown list item
+- L3551: `` — blank line
+- L3552: `## `src/navisar/utils/time_sync.py`` — markdown heading
+- L3553: `- Role: Source code` — markdown list item
+- L3554: `### Line-by-line` — markdown heading
+- L3555: `- L1: `"""Time Sync module. Provides time sync utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3556: `- L2: `` — blank line` — markdown list item
+- L3557: `- L3: `# Placeholder for time sync utilities.` — comment` — markdown list item
+- L3558: `` — blank line
+- L3559: `## `src/navisar/vps/__init__.py`` — markdown heading
+- L3560: `- Role: Source code` — markdown list item
+- L3561: `### Line-by-line` — markdown heading
+- L3562: `- L1: `"""VPS package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3563: `- L2: `` — blank line` — markdown list item
+- L3564: `` — blank line
+- L3565: `## `src/navisar/vps/confidence.py`` — markdown heading
+- L3566: `- Role: Source code` — markdown list item
+- L3567: `### Line-by-line` — markdown heading
+- L3568: `- L1: `"""Confidence module. Provides confidence utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3569: `- L2: `` — blank line` — markdown list item
+- L3570: `- L3: `# Placeholder file` — comment` — markdown list item
+- L3571: `` — blank line
+- L3572: `## `src/navisar/vps/feature_tracking.py`` — markdown heading
+- L3573: `- Role: Source code` — markdown list item
+- L3574: `### Line-by-line` — markdown heading
+- L3575: `- L1: `"""Feature detection and tracking with grid-based coverage control."""` — module docstring boundary` — markdown list item
+- L3576: `- L2: `` — blank line` — markdown list item
+- L3577: `- L3: `import cv2` — import statement` — markdown list item
+- L3578: `- L4: `import numpy as np` — import statement` — markdown list item
+- L3579: `- L5: `` — blank line` — markdown list item
+- L3580: `- L6: `` — blank line` — markdown list item
+- L3581: `- L7: `class FeatureTracker:` — class definition` — markdown list item
+- L3582: `- L8: `    """Track visual features with grid-based coverage control."""` — module docstring boundary` — markdown list item
+- L3583: `- L9: `    def __init__(` — function definition` — markdown list item
+- L3584: `- L10: `        self,` — python statement` — markdown list item
+- L3585: `- L11: `        min_features=40,` — python statement` — markdown list item
+- L3586: `- L12: `        max_features=300,` — python statement` — markdown list item
+- L3587: `- L13: `        redetect_interval=10,` — python statement` — markdown list item
+- L3588: `- L14: `        ransac_reproj_thresh=3.0,` — python statement` — markdown list item
+- L3589: `- L15: `        grid_rows=6,` — python statement` — markdown list item
+- L3590: `- L16: `        grid_cols=8,` — python statement` — markdown list item
+- L3591: `- L17: `        per_cell_max_features=30,` — python statement` — markdown list item
+- L3592: `- L18: `        texture_threshold=12.0,` — python statement` — markdown list item
+- L3593: `- L19: `        quality_level=0.2,` — python statement` — markdown list item
+- L3594: `- L20: `    ):` — python statement` — markdown list item
+- L3595: `- L21: `        """Initialize tracking parameters and buffers."""` — module docstring boundary` — markdown list item
+- L3596: `- L22: `        self.min_features = min_features` — python statement` — markdown list item
+- L3597: `- L23: `        self.max_features = max_features` — python statement` — markdown list item
+- L3598: `- L24: `        self.redetect_interval = redetect_interval` — python statement` — markdown list item
+- L3599: `- L25: `        self.ransac_reproj_thresh = ransac_reproj_thresh` — python statement` — markdown list item
+- L3600: `- L26: `        self.grid_rows = grid_rows` — python statement` — markdown list item
+- L3601: `- L27: `        self.grid_cols = grid_cols` — python statement` — markdown list item
+- L3602: `- L28: `        self.per_cell_max_features = per_cell_max_features` — python statement` — markdown list item
+- L3603: `- L29: `        self.texture_threshold = texture_threshold` — python statement` — markdown list item
+- L3604: `- L30: `        self.lk_params = dict(` — python statement` — markdown list item
+- L3605: `- L31: `            winSize=(15, 15),` — python statement` — markdown list item
+- L3606: `- L32: `            maxLevel=2,` — python statement` — markdown list item
+- L3607: `- L33: `            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),` — python statement` — markdown list item
+- L3608: `- L34: `        )` — python statement` — markdown list item
+- L3609: `- L35: `        self.feature_params = dict(` — python statement` — markdown list item
+- L3610: `- L36: `            maxCorners=per_cell_max_features,` — python statement` — markdown list item
+- L3611: `- L37: `            qualityLevel=quality_level,` — python statement` — markdown list item
+- L3612: `- L38: `            minDistance=7,` — python statement` — markdown list item
+- L3613: `- L39: `            blockSize=7,` — python statement` — markdown list item
+- L3614: `- L40: `        )` — python statement` — markdown list item
+- L3615: `- L41: `        self.prev_gray = None` — python statement` — markdown list item
+- L3616: `- L42: `        self.p0 = None` — python statement` — markdown list item
+- L3617: `- L43: `        self.frame_idx = 0` — python statement` — markdown list item
+- L3618: `- L44: `        self._colors = None` — python statement` — markdown list item
+- L3619: `- L45: `        self._grid_colors = None` — python statement` — markdown list item
+- L3620: `- L46: `` — blank line` — markdown list item
+- L3621: `- L47: `    def _init_grid_colors(self):` — function definition` — markdown list item
+- L3622: `- L48: `        """Build per-cell colors for debug visualization."""` — module docstring boundary` — markdown list item
+- L3623: `- L49: `        total = self.grid_rows * self.grid_cols` — python statement` — markdown list item
+- L3624: `- L50: `        if self._grid_colors is not None and len(self._grid_colors) == total:` — conditional branch` — markdown list item
+- L3625: `- L51: `            return` — python statement` — markdown list item
+- L3626: `- L52: `        hues = np.linspace(0, 179, total, endpoint=False).astype(np.uint8)` — python statement` — markdown list item
+- L3627: `- L53: `        hsv = np.zeros((total, 1, 3), dtype=np.uint8)` — python statement` — markdown list item
+- L3628: `- L54: `        hsv[:, 0, 0] = hues` — python statement` — markdown list item
+- L3629: `- L55: `        hsv[:, 0, 1] = 200` — python statement` — markdown list item
+- L3630: `- L56: `        hsv[:, 0, 2] = 255` — python statement` — markdown list item
+- L3631: `- L57: `        bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR).reshape(total, 3)` — python statement` — markdown list item
+- L3632: `- L58: `        self._grid_colors = [tuple(int(c) for c in color) for color in bgr]` — python statement` — markdown list item
+- L3633: `- L59: `` — blank line` — markdown list item
+- L3634: `- L60: `    @staticmethod` — python statement` — markdown list item
+- L3635: `- L61: `    def _cell_texture(roi):` — function definition` — markdown list item
+- L3636: `- L62: `        """Return a simple texture metric for a region."""` — module docstring boundary` — markdown list item
+- L3637: `- L63: `        grad_x = cv2.Sobel(roi, cv2.CV_32F, 1, 0, ksize=3)` — python statement` — markdown list item
+- L3638: `- L64: `        grad_y = cv2.Sobel(roi, cv2.CV_32F, 0, 1, ksize=3)` — python statement` — markdown list item
+- L3639: `- L65: `        magnitude = cv2.magnitude(grad_x, grad_y)` — python statement` — markdown list item
+- L3640: `- L66: `        return float(np.mean(magnitude))` — return statement` — markdown list item
+- L3641: `- L67: `` — blank line` — markdown list item
+- L3642: `- L68: `    def _detect_features_grid(self, gray):` — function definition` — markdown list item
+- L3643: `- L69: `        """Detect features per grid cell for balanced coverage."""` — module docstring boundary` — markdown list item
+- L3644: `- L70: `        self._init_grid_colors()` — python statement` — markdown list item
+- L3645: `- L71: `        height, width = gray.shape[:2]` — python statement` — markdown list item
+- L3646: `- L72: `        cell_h = max(1, height // self.grid_rows)` — python statement` — markdown list item
+- L3647: `- L73: `        cell_w = max(1, width // self.grid_cols)` — python statement` — markdown list item
+- L3648: `- L74: `` — blank line` — markdown list item
+- L3649: `- L75: `        points = []` — python statement` — markdown list item
+- L3650: `- L76: `        colors = []` — python statement` — markdown list item
+- L3651: `- L77: `        for row in range(self.grid_rows):` — loop` — markdown list item
+- L3652: `- L78: `            for col in range(self.grid_cols):` — loop` — markdown list item
+- L3653: `- L79: `                x0 = col * cell_w` — python statement` — markdown list item
+- L3654: `- L80: `                y0 = row * cell_h` — python statement` — markdown list item
+- L3655: `- L81: `                x1 = width if col == self.grid_cols - 1 else x0 + cell_w` — python statement` — markdown list item
+- L3656: `- L82: `                y1 = height if row == self.grid_rows - 1 else y0 + cell_h` — python statement` — markdown list item
+- L3657: `- L83: `                roi = gray[y0:y1, x0:x1]` — python statement` — markdown list item
+- L3658: `- L84: `                if roi.size == 0:` — conditional branch` — markdown list item
+- L3659: `- L85: `                    continue` — python statement` — markdown list item
+- L3660: `- L86: `                if self.texture_threshold is not None:` — conditional branch` — markdown list item
+- L3661: `- L87: `                    if self._cell_texture(roi) < self.texture_threshold:` — conditional branch` — markdown list item
+- L3662: `- L88: `                        continue` — python statement` — markdown list item
+- L3663: `- L89: `                # Detect features per cell to keep spatial distribution balanced.` — comment` — markdown list item
+- L3664: `- L90: `                features = cv2.goodFeaturesToTrack(roi, mask=None, **self.feature_params)` — python statement` — markdown list item
+- L3665: `- L91: `                if features is None:` — conditional branch` — markdown list item
+- L3666: `- L92: `                    continue` — python statement` — markdown list item
+- L3667: `- L93: `                features[:, 0, 0] += x0` — python statement` — markdown list item
+- L3668: `- L94: `                features[:, 0, 1] += y0` — python statement` — markdown list item
+- L3669: `- L95: `                points.append(features)` — python statement` — markdown list item
+- L3670: `- L96: `                cell_color = self._grid_colors[row * self.grid_cols + col]` — python statement` — markdown list item
+- L3671: `- L97: `                colors.extend([cell_color] * len(features))` — python statement` — markdown list item
+- L3672: `- L98: `` — blank line` — markdown list item
+- L3673: `- L99: `        if not points:` — conditional branch` — markdown list item
+- L3674: `- L100: `            return None, None` — return statement` — markdown list item
+- L3675: `- L101: `` — blank line` — markdown list item
+- L3676: `- L102: `        points = np.vstack(points)` — python statement` — markdown list item
+- L3677: `- L103: `        colors = np.array(colors, dtype=np.uint8)` — python statement` — markdown list item
+- L3678: `- L104: `` — blank line` — markdown list item
+- L3679: `- L105: `        if len(points) > self.max_features:` — conditional branch` — markdown list item
+- L3680: `- L106: `            # Retain highest-response corners to respect the global feature cap.` — comment` — markdown list item
+- L3681: `- L107: `            responses = cv2.cornerMinEigenVal(gray, blockSize=self.feature_params["blockSize"])` — python statement` — markdown list item
+- L3682: `- L108: `            coords = points.reshape(-1, 2)` — python statement` — markdown list item
+- L3683: `- L109: `            xs = np.clip(coords[:, 0].astype(int), 0, width - 1)` — python statement` — markdown list item
+- L3684: `- L110: `            ys = np.clip(coords[:, 1].astype(int), 0, height - 1)` — python statement` — markdown list item
+- L3685: `- L111: `            scores = responses[ys, xs]` — python statement` — markdown list item
+- L3686: `- L112: `            top_idx = np.argsort(scores)[-self.max_features :]` — python statement` — markdown list item
+- L3687: `- L113: `            points = coords[top_idx].reshape(-1, 1, 2)` — python statement` — markdown list item
+- L3688: `- L114: `            colors = colors[top_idx]` — python statement` — markdown list item
+- L3689: `- L115: `` — blank line` — markdown list item
+- L3690: `- L116: `        return points, colors` — return statement` — markdown list item
+- L3691: `- L117: `` — blank line` — markdown list item
+- L3692: `- L118: `    def initialize(self, gray):` — function definition` — markdown list item
+- L3693: `- L119: `        """Initialize tracking on the first frame."""` — module docstring boundary` — markdown list item
+- L3694: `- L120: `        self.prev_gray = gray` — python statement` — markdown list item
+- L3695: `- L121: `        self.p0, self._colors = self._detect_features_grid(self.prev_gray)` — python statement` — markdown list item
+- L3696: `- L122: `` — blank line` — markdown list item
+- L3697: `- L123: `    def track(self, gray):` — function definition` — markdown list item
+- L3698: `- L124: `        """Track features into the next frame."""` — module docstring boundary` — markdown list item
+- L3699: `- L125: `        if self.prev_gray is None:` — conditional branch` — markdown list item
+- L3700: `- L126: `            self.initialize(gray)` — python statement` — markdown list item
+- L3701: `- L127: `            self.frame_idx += 1` — python statement` — markdown list item
+- L3702: `- L128: `            return None, None, False` — return statement` — markdown list item
+- L3703: `- L129: `` — blank line` — markdown list item
+- L3704: `- L130: `        reset_mask = False` — python statement` — markdown list item
+- L3705: `- L131: `        if self.p0 is None or len(self.p0) < self.min_features or (` — conditional branch` — markdown list item
+- L3706: `- L132: `            self.frame_idx % self.redetect_interval == 0` — python statement` — markdown list item
+- L3707: `- L133: `        ):` — python statement` — markdown list item
+- L3708: `- L134: `            # Refresh features when count drops or on periodic re-detect.` — comment` — markdown list item
+- L3709: `- L135: `            self.p0, self._colors = self._detect_features_grid(self.prev_gray)` — python statement` — markdown list item
+- L3710: `- L136: `            reset_mask = True` — python statement` — markdown list item
+- L3711: `- L137: `            if self.p0 is None:` — conditional branch` — markdown list item
+- L3712: `- L138: `                self.prev_gray = gray` — python statement` — markdown list item
+- L3713: `- L139: `                self.frame_idx += 1` — python statement` — markdown list item
+- L3714: `- L140: `                return None, None, reset_mask` — return statement` — markdown list item
+- L3715: `- L141: `` — blank line` — markdown list item
+- L3716: `- L142: `        p1, st, _ = cv2.calcOpticalFlowPyrLK(self.prev_gray, gray, self.p0, None, **self.lk_params)` — python statement` — markdown list item
+- L3717: `- L143: `        if p1 is None:` — conditional branch` — markdown list item
+- L3718: `- L144: `            self.prev_gray = gray` — python statement` — markdown list item
+- L3719: `- L145: `            self.frame_idx += 1` — python statement` — markdown list item
+- L3720: `- L146: `            return None, None, reset_mask` — return statement` — markdown list item
+- L3721: `- L147: `` — blank line` — markdown list item
+- L3722: `- L148: `        status = st.reshape(-1).astype(bool)` — python statement` — markdown list item
+- L3723: `- L149: `        good_old = self.p0[status]` — python statement` — markdown list item
+- L3724: `- L150: `        good_new = p1[status]` — python statement` — markdown list item
+- L3725: `- L151: `        colors = None` — python statement` — markdown list item
+- L3726: `- L152: `        if self._colors is not None:` — conditional branch` — markdown list item
+- L3727: `- L153: `            colors = self._colors[status]` — python statement` — markdown list item
+- L3728: `- L154: `        if len(good_old) < 8:` — conditional branch` — markdown list item
+- L3729: `- L155: `            self.prev_gray = gray` — python statement` — markdown list item
+- L3730: `- L156: `            self.frame_idx += 1` — python statement` — markdown list item
+- L3731: `- L157: `            return None, None, reset_mask` — return statement` — markdown list item
+- L3732: `- L158: `` — blank line` — markdown list item
+- L3733: `- L159: `        if len(good_old) >= 6:` — conditional branch` — markdown list item
+- L3734: `- L160: `            # Cull outliers using a partial affine RANSAC fit.` — comment` — markdown list item
+- L3735: `- L161: `            _, inliers = cv2.estimateAffinePartial2D(` — python statement` — markdown list item
+- L3736: `- L162: `                good_old,` — python statement` — markdown list item
+- L3737: `- L163: `                good_new,` — python statement` — markdown list item
+- L3738: `- L164: `                method=cv2.RANSAC,` — python statement` — markdown list item
+- L3739: `- L165: `                ransacReprojThreshold=self.ransac_reproj_thresh,` — python statement` — markdown list item
+- L3740: `- L166: `            )` — python statement` — markdown list item
+- L3741: `- L167: `            if inliers is not None:` — conditional branch` — markdown list item
+- L3742: `- L168: `                inlier_mask = inliers.ravel().astype(bool)` — python statement` — markdown list item
+- L3743: `- L169: `                good_old = good_old[inlier_mask]` — python statement` — markdown list item
+- L3744: `- L170: `                good_new = good_new[inlier_mask]` — python statement` — markdown list item
+- L3745: `- L171: `                if colors is not None:` — conditional branch` — markdown list item
+- L3746: `- L172: `                    colors = colors[inlier_mask]` — python statement` — markdown list item
+- L3747: `- L173: `` — blank line` — markdown list item
+- L3748: `- L174: `        if len(good_old) < 8:` — conditional branch` — markdown list item
+- L3749: `- L175: `            self.prev_gray = gray` — python statement` — markdown list item
+- L3750: `- L176: `            self.frame_idx += 1` — python statement` — markdown list item
+- L3751: `- L177: `            return None, None, reset_mask` — return statement` — markdown list item
+- L3752: `- L178: `` — blank line` — markdown list item
+- L3753: `- L179: `        self.prev_gray = gray` — python statement` — markdown list item
+- L3754: `- L180: `        self.p0 = good_new.reshape(-1, 1, 2)` — python statement` — markdown list item
+- L3755: `- L181: `        self._colors = colors` — python statement` — markdown list item
+- L3756: `- L182: `        self.frame_idx += 1` — python statement` — markdown list item
+- L3757: `- L183: `        return good_old, good_new, reset_mask` — return statement` — markdown list item
+- L3758: `- L184: `` — blank line` — markdown list item
+- L3759: `- L185: `    def current_colors(self):` — function definition` — markdown list item
+- L3760: `- L186: `        """Return a copy of per-feature colors for display."""` — module docstring boundary` — markdown list item
+- L3761: `- L187: `        if self._colors is None:` — conditional branch` — markdown list item
+- L3762: `- L188: `            return None` — return statement` — markdown list item
+- L3763: `- L189: `        return self._colors.copy()` — return statement` — markdown list item
+- L3764: `` — blank line
+- L3765: `## `src/navisar/vps/height_estimator.py`` — markdown heading
+- L3766: `- Role: Source code` — markdown list item
+- L3767: `### Line-by-line` — markdown heading
+- L3768: `- L1: `"""Height Estimator module. Provides height estimator utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3769: `- L2: `` — blank line` — markdown list item
+- L3770: `- L3: `class HeightEstimator:` — class definition` — markdown list item
+- L3771: `- L4: `    """Expose height from LiDAR or fallback constant."""` — module docstring boundary` — markdown list item
+- L3772: `- L5: `    def __init__(self, use_lidar=True, fallback_m=1.0, lidar_driver=None):` — function definition` — markdown list item
+- L3773: `- L6: `        """Configure LiDAR usage and fallback height."""` — module docstring boundary` — markdown list item
+- L3774: `- L7: `        self.use_lidar = use_lidar` — python statement` — markdown list item
+- L3775: `- L8: `        self.fallback_m = fallback_m` — python statement` — markdown list item
+- L3776: `- L9: `        self.lidar_driver = lidar_driver` — python statement` — markdown list item
+- L3777: `- L10: `` — blank line` — markdown list item
+- L3778: `- L11: `    def update(self):` — function definition` — markdown list item
+- L3779: `- L12: `        """Poll the LiDAR driver when enabled."""` — module docstring boundary` — markdown list item
+- L3780: `- L13: `        if self.use_lidar and self.lidar_driver is not None:` — conditional branch` — markdown list item
+- L3781: `- L14: `            self.lidar_driver.update()` — python statement` — markdown list item
+- L3782: `- L15: `` — blank line` — markdown list item
+- L3783: `- L16: `    def get_height_m(self):` — function definition` — markdown list item
+- L3784: `- L17: `        """Return the current height estimate."""` — module docstring boundary` — markdown list item
+- L3785: `- L18: `        if self.use_lidar and self.lidar_driver is not None:` — conditional branch` — markdown list item
+- L3786: `- L19: `            return self.lidar_driver.get_height_m()` — return statement` — markdown list item
+- L3787: `- L20: `        return self.fallback_m` — return statement` — markdown list item
+- L3788: `` — blank line
+- L3789: `## `src/navisar/vps/localization.py`` — markdown heading
+- L3790: `- Role: Source code` — markdown list item
+- L3791: `### Line-by-line` — markdown heading
+- L3792: `- L1: `"""Localization module. Provides localization utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3793: `- L2: `` — blank line` — markdown list item
+- L3794: `- L3: `# Placeholder file` — comment` — markdown list item
+- L3795: `` — blank line
+- L3796: `## `src/navisar/vps/pose_estimator.py`` — markdown heading
+- L3797: `- Role: Source code` — markdown list item
+- L3798: `### Line-by-line` — markdown heading
+- L3799: `- L1: `"""Adapter that delegates pose estimation to the selected algorithm."""` — module docstring boundary` — markdown list item
+- L3800: `- L2: `` — blank line` — markdown list item
+- L3801: `- L3: `from navisar.vps.algorithms.ransac_affine import RansacAffineEstimator` — import statement` — markdown list item
+- L3802: `- L4: `` — blank line` — markdown list item
+- L3803: `- L5: `` — blank line` — markdown list item
+- L3804: `- L6: `class PoseEstimator:` — class definition` — markdown list item
+- L3805: `- L7: `    """Route feature tracks through a motion estimator."""` — module docstring boundary` — markdown list item
+- L3806: `- L8: `    def __init__(self, fx, fy, K, ransac_thresh=1.0, algorithm=None):` — function definition` — markdown list item
+- L3807: `- L9: `        """Store camera intrinsics and selected algorithm."""` — module docstring boundary` — markdown list item
+- L3808: `- L10: `        self.fx = fx` — python statement` — markdown list item
+- L3809: `- L11: `        self.fy = fy` — python statement` — markdown list item
+- L3810: `- L12: `        self.K = K` — python statement` — markdown list item
+- L3811: `- L13: `        self.ransac_thresh = ransac_thresh` — python statement` — markdown list item
+- L3812: `- L14: `        self.algorithm = algorithm or RansacAffineEstimator()` — python statement` — markdown list item
+- L3813: `- L15: `` — blank line` — markdown list item
+- L3814: `- L16: `    def estimate(self, good_old, good_new, height_m):` — function definition` — markdown list item
+- L3815: `- L17: `        """Estimate motion given tracked points and height."""` — module docstring boundary` — markdown list item
+- L3816: `- L18: `        return self.algorithm.estimate(` — return statement` — markdown list item
+- L3817: `- L19: `            good_old,` — python statement` — markdown list item
+- L3818: `- L20: `            good_new,` — python statement` — markdown list item
+- L3819: `- L21: `            height_m,` — python statement` — markdown list item
+- L3820: `- L22: `            self.fx,` — python statement` — markdown list item
+- L3821: `- L23: `            self.fy,` — python statement` — markdown list item
+- L3822: `- L24: `            self.ransac_thresh,` — python statement` — markdown list item
+- L3823: `- L25: `        )` — python statement` — markdown list item
+- L3824: `` — blank line
+- L3825: `## `src/navisar/vps/slam_interface.py`` — markdown heading
+- L3826: `- Role: Source code` — markdown list item
+- L3827: `### Line-by-line` — markdown heading
+- L3828: `- L1: `"""Slam Interface module. Provides slam interface utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L3829: `- L2: `` — blank line` — markdown list item
+- L3830: `- L3: `# Placeholder file` — comment` — markdown list item
+- L3831: `` — blank line
+- L3832: `## `src/navisar/vps/vio_imu.py`` — markdown heading
+- L3833: `- Role: Source code` — markdown list item
+- L3834: `### Line-by-line` — markdown heading
+- L3835: `- L1: `"""IMU-only velocity estimation for VIO fallback mode."""` — module docstring boundary` — markdown list item
+- L3836: `- L2: `` — blank line` — markdown list item
+- L3837: `- L3: `import math` — import statement` — markdown list item
+- L3838: `- L4: `import os` — import statement` — markdown list item
+- L3839: `- L5: `import time` — import statement` — markdown list item
+- L3840: `- L6: `` — blank line` — markdown list item
+- L3841: `- L7: `from pymavlink import mavutil` — import statement` — markdown list item
+- L3842: `- L8: `` — blank line` — markdown list item
+- L3843: `- L9: `` — blank line` — markdown list item
+- L3844: `- L10: `DEVICE = os.getenv("MAVLINK_DEVICE", "/dev/ttyACM0")` — python statement` — markdown list item
+- L3845: `- L11: `BAUD = int(os.getenv("MAVLINK_BAUD", "115200"))` — python statement` — markdown list item
+- L3846: `- L12: `HEARTBEAT_TIMEOUT_S = float(os.getenv("MAVLINK_HEARTBEAT_TIMEOUT_S", "5.0"))` — python statement` — markdown list item
+- L3847: `- L13: `IMU_RATE_HZ = float(os.getenv("MAVLINK_IMU_RATE_HZ", "50.0"))` — python statement` — markdown list item
+- L3848: `- L14: `PRINT_INTERVAL_S = float(os.getenv("MAVLINK_PRINT_INTERVAL_S", "0.1"))` — python statement` — markdown list item
+- L3849: `- L15: `GRAVITY_M_S2 = 9.80665` — python statement` — markdown list item
+- L3850: `- L16: `BIAS_CALIB_S = float(os.getenv("IMU_BIAS_CALIB_S", "3.0"))` — python statement` — markdown list item
+- L3851: `- L17: `VEL_DAMPING = float(os.getenv("IMU_VEL_DAMPING", "0.98"))` — python statement` — markdown list item
+- L3852: `- L18: `` — blank line` — markdown list item
+- L3853: `- L19: `` — blank line` — markdown list item
+- L3854: `- L20: `def _request_message_interval(master, msg_id, rate_hz):` — function definition` — markdown list item
+- L3855: `- L21: `    if rate_hz <= 0:` — conditional branch` — markdown list item
+- L3856: `- L22: `        return` — python statement` — markdown list item
+- L3857: `- L23: `    interval_us = int(1_000_000 / rate_hz)` — python statement` — markdown list item
+- L3858: `- L24: `    master.mav.command_long_send(` — python statement` — markdown list item
+- L3859: `- L25: `        master.target_system,` — python statement` — markdown list item
+- L3860: `- L26: `        master.target_component,` — python statement` — markdown list item
+- L3861: `- L27: `        mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,` — python statement` — markdown list item
+- L3862: `- L28: `        0,` — python statement` — markdown list item
+- L3863: `- L29: `        msg_id,` — python statement` — markdown list item
+- L3864: `- L30: `        interval_us,` — python statement` — markdown list item
+- L3865: `- L31: `        0,` — python statement` — markdown list item
+- L3866: `- L32: `        0,` — python statement` — markdown list item
+- L3867: `- L33: `        0,` — python statement` — markdown list item
+- L3868: `- L34: `        0,` — python statement` — markdown list item
+- L3869: `- L35: `        0,` — python statement` — markdown list item
+- L3870: `- L36: `    )` — python statement` — markdown list item
+- L3871: `- L37: `` — blank line` — markdown list item
+- L3872: `- L38: `` — blank line` — markdown list item
+- L3873: `- L39: `def _rotation_body_to_ned(roll, pitch, yaw):` — function definition` — markdown list item
+- L3874: `- L40: `    cr = math.cos(roll)` — python statement` — markdown list item
+- L3875: `- L41: `    sr = math.sin(roll)` — python statement` — markdown list item
+- L3876: `- L42: `    cp = math.cos(pitch)` — python statement` — markdown list item
+- L3877: `- L43: `    sp = math.sin(pitch)` — python statement` — markdown list item
+- L3878: `- L44: `    cy = math.cos(yaw)` — python statement` — markdown list item
+- L3879: `- L45: `    sy = math.sin(yaw)` — python statement` — markdown list item
+- L3880: `- L46: `` — blank line` — markdown list item
+- L3881: `- L47: `    return (` — return statement` — markdown list item
+- L3882: `- L48: `        (cp * cy, sr * sp * cy - cr * sy, cr * sp * cy + sr * sy),` — python statement` — markdown list item
+- L3883: `- L49: `        (cp * sy, sr * sp * sy + cr * cy, cr * sp * sy - sr * cy),` — python statement` — markdown list item
+- L3884: `- L50: `        (-sp, sr * cp, cr * cp),` — python statement` — markdown list item
+- L3885: `- L51: `    )` — python statement` — markdown list item
+- L3886: `- L52: `` — blank line` — markdown list item
+- L3887: `- L53: `` — blank line` — markdown list item
+- L3888: `- L54: `def _mat_vec_mul(mat, vec):` — function definition` — markdown list item
+- L3889: `- L55: `    return (` — return statement` — markdown list item
+- L3890: `- L56: `        mat[0][0] * vec[0] + mat[0][1] * vec[1] + mat[0][2] * vec[2],` — python statement` — markdown list item
+- L3891: `- L57: `        mat[1][0] * vec[0] + mat[1][1] * vec[1] + mat[1][2] * vec[2],` — python statement` — markdown list item
+- L3892: `- L58: `        mat[2][0] * vec[0] + mat[2][1] * vec[1] + mat[2][2] * vec[2],` — python statement` — markdown list item
+- L3893: `- L59: `    )` — python statement` — markdown list item
+- L3894: `- L60: `` — blank line` — markdown list item
+- L3895: `- L61: `` — blank line` — markdown list item
+- L3896: `- L62: `def _get_msg_time_s(msg):` — function definition` — markdown list item
+- L3897: `- L63: `    time_usec = getattr(msg, "time_usec", 0) or 0` — python statement` — markdown list item
+- L3898: `- L64: `    if time_usec:` — conditional branch` — markdown list item
+- L3899: `- L65: `        return time_usec * 1e-6` — return statement` — markdown list item
+- L3900: `- L66: `    time_boot_ms = getattr(msg, "time_boot_ms", 0) or 0` — python statement` — markdown list item
+- L3901: `- L67: `    if time_boot_ms:` — conditional branch` — markdown list item
+- L3902: `- L68: `        return time_boot_ms * 1e-3` — return statement` — markdown list item
+- L3903: `- L69: `    return None` — return statement` — markdown list item
+- L3904: `- L70: `` — blank line` — markdown list item
+- L3905: `- L71: `` — blank line` — markdown list item
+- L3906: `- L72: `class ImuVelocityEstimator:` — class definition` — markdown list item
+- L3907: `- L73: `    """Estimate velocity by integrating IMU acceleration."""` — module docstring boundary` — markdown list item
+- L3908: `- L74: `` — blank line` — markdown list item
+- L3909: `- L75: `    def __init__(` — function definition` — markdown list item
+- L3910: `- L76: `        self,` — python statement` — markdown list item
+- L3911: `- L77: `        gravity_m_s2=GRAVITY_M_S2,` — python statement` — markdown list item
+- L3912: `- L78: `        bias_calib_s=BIAS_CALIB_S,` — python statement` — markdown list item
+- L3913: `- L79: `        vel_damping=VEL_DAMPING,` — python statement` — markdown list item
+- L3914: `- L80: `    ):` — python statement` — markdown list item
+- L3915: `- L81: `        self.gravity_m_s2 = float(gravity_m_s2)` — python statement` — markdown list item
+- L3916: `- L82: `        self.bias_calib_s = float(bias_calib_s)` — python statement` — markdown list item
+- L3917: `- L83: `        self.vel_damping = float(vel_damping)` — python statement` — markdown list item
+- L3918: `- L84: `        self.last_time_s = None` — python statement` — markdown list item
+- L3919: `- L85: `        self.roll = 0.0` — python statement` — markdown list item
+- L3920: `- L86: `        self.pitch = 0.0` — python statement` — markdown list item
+- L3921: `- L87: `        self.yaw = 0.0` — python statement` — markdown list item
+- L3922: `- L88: `        self.have_attitude = False` — python statement` — markdown list item
+- L3923: `- L89: `        self.vx = 0.0` — python statement` — markdown list item
+- L3924: `- L90: `        self.vy = 0.0` — python statement` — markdown list item
+- L3925: `- L91: `        self.vz = 0.0` — python statement` — markdown list item
+- L3926: `- L92: `        self.bias_samples = []` — python statement` — markdown list item
+- L3927: `- L93: `        self.bias = None` — python statement` — markdown list item
+- L3928: `- L94: `        self.bias_frame = None` — python statement` — markdown list item
+- L3929: `- L95: `        self.calib_start = None` — python statement` — markdown list item
+- L3930: `- L96: `` — blank line` — markdown list item
+- L3931: `- L97: `    def _calibrate_bias(self, ax, ay, az, current_frame):` — function definition` — markdown list item
+- L3932: `- L98: `        if self.bias is not None:` — conditional branch` — markdown list item
+- L3933: `- L99: `            return` — python statement` — markdown list item
+- L3934: `- L100: `        if self.calib_start is None:` — conditional branch` — markdown list item
+- L3935: `- L101: `            self.calib_start = time.time()` — python statement` — markdown list item
+- L3936: `- L102: `            self.bias_frame = current_frame` — python statement` — markdown list item
+- L3937: `- L103: `        if time.time() - self.calib_start <= self.bias_calib_s:` — conditional branch` — markdown list item
+- L3938: `- L104: `            self.bias_samples.append((ax, ay, az))` — python statement` — markdown list item
+- L3939: `- L105: `            return` — python statement` — markdown list item
+- L3940: `- L106: `        if self.bias_samples:` — conditional branch` — markdown list item
+- L3941: `- L107: `            bx = sum(s[0] for s in self.bias_samples) / len(self.bias_samples)` — python statement` — markdown list item
+- L3942: `- L108: `            by = sum(s[1] for s in self.bias_samples) / len(self.bias_samples)` — python statement` — markdown list item
+- L3943: `- L109: `            bz = sum(s[2] for s in self.bias_samples) / len(self.bias_samples)` — python statement` — markdown list item
+- L3944: `- L110: `            self.bias = (bx, by, bz)` — python statement` — markdown list item
+- L3945: `- L111: `            print(` — python statement` — markdown list item
+- L3946: `- L112: `                f"IMU bias calibrated ({self.bias_frame}): "` — python statement` — markdown list item
+- L3947: `- L113: `                f"{self.bias[0]:.4f}, {self.bias[1]:.4f}, {self.bias[2]:.4f}"` — python statement` — markdown list item
+- L3948: `- L114: `            )` — python statement` — markdown list item
+- L3949: `- L115: `        else:` — conditional branch` — markdown list item
+- L3950: `- L116: `            self.bias = (0.0, 0.0, 0.0)` — python statement` — markdown list item
+- L3951: `- L117: `` — blank line` — markdown list item
+- L3952: `- L118: `    def update_attitude(self, roll, pitch, yaw):` — function definition` — markdown list item
+- L3953: `- L119: `        """Update attitude from an external source."""` — module docstring boundary` — markdown list item
+- L3954: `- L120: `        self.roll = float(roll)` — python statement` — markdown list item
+- L3955: `- L121: `        self.pitch = float(pitch)` — python statement` — markdown list item
+- L3956: `- L122: `        self.yaw = float(yaw)` — python statement` — markdown list item
+- L3957: `- L123: `        self.have_attitude = True` — python statement` — markdown list item
+- L3958: `- L124: `` — blank line` — markdown list item
+- L3959: `- L125: `    def process_message(self, msg):` — function definition` — markdown list item
+- L3960: `- L126: `        """Process a MAVLink message and return velocity tuple when updated."""` — module docstring boundary` — markdown list item
+- L3961: `- L127: `        msg_type = msg.get_type()` — python statement` — markdown list item
+- L3962: `- L128: `        if msg_type == "ATTITUDE":` — conditional branch` — markdown list item
+- L3963: `- L129: `            self.roll = msg.roll` — python statement` — markdown list item
+- L3964: `- L130: `            self.pitch = msg.pitch` — python statement` — markdown list item
+- L3965: `- L131: `            self.yaw = msg.yaw` — python statement` — markdown list item
+- L3966: `- L132: `            self.have_attitude = True` — python statement` — markdown list item
+- L3967: `- L133: `            return None` — return statement` — markdown list item
+- L3968: `- L134: `        if msg_type not in ("HIGHRES_IMU", "RAW_IMU"):` — conditional branch` — markdown list item
+- L3969: `- L135: `            return None` — return statement` — markdown list item
+- L3970: `- L136: `` — blank line` — markdown list item
+- L3971: `- L137: `        msg_time_s = _get_msg_time_s(msg)` — python statement` — markdown list item
+- L3972: `- L138: `        if msg_time_s is None:` — conditional branch` — markdown list item
+- L3973: `- L139: `            return None` — return statement` — markdown list item
+- L3974: `- L140: `        if self.last_time_s is None:` — conditional branch` — markdown list item
+- L3975: `- L141: `            self.last_time_s = msg_time_s` — python statement` — markdown list item
+- L3976: `- L142: `            return None` — return statement` — markdown list item
+- L3977: `- L143: `        dt = msg_time_s - self.last_time_s` — python statement` — markdown list item
+- L3978: `- L144: `        if dt <= 0.0 or dt > 1.0:` — conditional branch` — markdown list item
+- L3979: `- L145: `            self.last_time_s = msg_time_s` — python statement` — markdown list item
+- L3980: `- L146: `            return None` — return statement` — markdown list item
+- L3981: `- L147: `        self.last_time_s = msg_time_s` — python statement` — markdown list item
+- L3982: `- L148: `` — blank line` — markdown list item
+- L3983: `- L149: `        if msg_type == "HIGHRES_IMU":` — conditional branch` — markdown list item
+- L3984: `- L150: `            ax, ay, az = msg.xacc, msg.yacc, msg.zacc` — python statement` — markdown list item
+- L3985: `- L151: `        else:` — conditional branch` — markdown list item
+- L3986: `- L152: `            ax = (msg.xacc / 1000.0) * self.gravity_m_s2` — python statement` — markdown list item
+- L3987: `- L153: `            ay = (msg.yacc / 1000.0) * self.gravity_m_s2` — python statement` — markdown list item
+- L3988: `- L154: `            az = (msg.zacc / 1000.0) * self.gravity_m_s2` — python statement` — markdown list item
+- L3989: `- L155: `` — blank line` — markdown list item
+- L3990: `- L156: `        if self.have_attitude:` — conditional branch` — markdown list item
+- L3991: `- L157: `            r_body_to_ned = _rotation_body_to_ned(self.roll, self.pitch, self.yaw)` — python statement` — markdown list item
+- L3992: `- L158: `            ax, ay, az = _mat_vec_mul(r_body_to_ned, (ax, ay, az))` — python statement` — markdown list item
+- L3993: `- L159: `            az -= self.gravity_m_s2` — python statement` — markdown list item
+- L3994: `- L160: `            current_frame = "NED"` — python statement` — markdown list item
+- L3995: `- L161: `        else:` — conditional branch` — markdown list item
+- L3996: `- L162: `            current_frame = "BODY"` — python statement` — markdown list item
+- L3997: `- L163: `` — blank line` — markdown list item
+- L3998: `- L164: `        if (` — conditional branch` — markdown list item
+- L3999: `- L165: `            self.bias is not None` — python statement` — markdown list item
+- L4000: `- L166: `            and self.bias_frame == "BODY"` — python statement` — markdown list item
+- L4001: `- L167: `            and current_frame == "NED"` — python statement` — markdown list item
+- L4002: `- L168: `        ):` — python statement` — markdown list item
+- L4003: `- L169: `            self.bias = None` — python statement` — markdown list item
+- L4004: `- L170: `            self.bias_samples.clear()` — python statement` — markdown list item
+- L4005: `- L171: `            self.bias_frame = None` — python statement` — markdown list item
+- L4006: `- L172: `            self.calib_start = None` — python statement` — markdown list item
+- L4007: `- L173: `` — blank line` — markdown list item
+- L4008: `- L174: `        self._calibrate_bias(ax, ay, az, current_frame)` — python statement` — markdown list item
+- L4009: `- L175: `        if self.bias is None:` — conditional branch` — markdown list item
+- L4010: `- L176: `            return None` — return statement` — markdown list item
+- L4011: `- L177: `` — blank line` — markdown list item
+- L4012: `- L178: `        ax -= self.bias[0]` — python statement` — markdown list item
+- L4013: `- L179: `        ay -= self.bias[1]` — python statement` — markdown list item
+- L4014: `- L180: `        az -= self.bias[2]` — python statement` — markdown list item
+- L4015: `- L181: `` — blank line` — markdown list item
+- L4016: `- L182: `        self.vx = self.vx * self.vel_damping + ax * dt` — python statement` — markdown list item
+- L4017: `- L183: `        self.vy = self.vy * self.vel_damping + ay * dt` — python statement` — markdown list item
+- L4018: `- L184: `        self.vz = self.vz * self.vel_damping + az * dt` — python statement` — markdown list item
+- L4019: `- L185: `` — blank line` — markdown list item
+- L4020: `- L186: `        return self.vx, self.vy, self.vz, current_frame` — return statement` — markdown list item
+- L4021: `- L187: `` — blank line` — markdown list item
+- L4022: `- L188: `` — blank line` — markdown list item
+- L4023: `- L189: `def run_with_master(` — function definition` — markdown list item
+- L4024: `- L190: `    master,` — python statement` — markdown list item
+- L4025: `- L191: `    print_interval_s=PRINT_INTERVAL_S,` — python statement` — markdown list item
+- L4026: `- L192: `    imu_rate_hz=IMU_RATE_HZ,` — python statement` — markdown list item
+- L4027: `- L193: `    print_enabled=True,` — python statement` — markdown list item
+- L4028: `- L194: `):` — python statement` — markdown list item
+- L4029: `- L195: `    """Stream IMU velocities from an existing MAVLink master."""` — module docstring boundary` — markdown list item
+- L4030: `- L196: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_HIGHRES_IMU, imu_rate_hz)` — python statement` — markdown list item
+- L4031: `- L197: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU, imu_rate_hz)` — python statement` — markdown list item
+- L4032: `- L198: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE, imu_rate_hz)` — python statement` — markdown list item
+- L4033: `- L199: `` — blank line` — markdown list item
+- L4034: `- L200: `    estimator = ImuVelocityEstimator()` — python statement` — markdown list item
+- L4035: `- L201: `    last_print = 0.0` — python statement` — markdown list item
+- L4036: `- L202: `    last_msg_time = time.time()` — python statement` — markdown list item
+- L4037: `- L203: `` — blank line` — markdown list item
+- L4038: `- L204: `    while True:` — loop` — markdown list item
+- L4039: `- L205: `        msg = master.recv_match(blocking=True, timeout=1.0)` — python statement` — markdown list item
+- L4040: `- L206: `        if msg is None:` — conditional branch` — markdown list item
+- L4041: `- L207: `            if time.time() - last_msg_time > 5.0 and print_enabled:` — conditional branch` — markdown list item
+- L4042: `- L208: `                print("No IMU messages yet... check stream/rates.")` — python statement` — markdown list item
+- L4043: `- L209: `                last_msg_time = time.time()` — python statement` — markdown list item
+- L4044: `- L210: `            continue` — python statement` — markdown list item
+- L4045: `- L211: `` — blank line` — markdown list item
+- L4046: `- L212: `        last_msg_time = time.time()` — python statement` — markdown list item
+- L4047: `- L213: `        result = estimator.process_message(msg)` — python statement` — markdown list item
+- L4048: `- L214: `        if result is None:` — conditional branch` — markdown list item
+- L4049: `- L215: `            continue` — python statement` — markdown list item
+- L4050: `- L216: `        vx, vy, vz, frame = result` — python statement` — markdown list item
+- L4051: `- L217: `        if not print_enabled:` — conditional branch` — markdown list item
+- L4052: `- L218: `            continue` — python statement` — markdown list item
+- L4053: `- L219: `        now = time.time()` — python statement` — markdown list item
+- L4054: `- L220: `        if print_interval_s > 0.0 and (now - last_print) < print_interval_s:` — conditional branch` — markdown list item
+- L4055: `- L221: `            continue` — python statement` — markdown list item
+- L4056: `- L222: `        last_print = now` — python statement` — markdown list item
+- L4057: `- L223: `        print(f"{frame} Vx: {vx:.3f} | Vy: {vy:.3f} | Vz: {vz:.3f} m/s")` — python statement` — markdown list item
+- L4058: `- L224: `` — blank line` — markdown list item
+- L4059: `- L225: `` — blank line` — markdown list item
+- L4060: `- L226: `def run():` — function definition` — markdown list item
+- L4061: `- L227: `    """Stream IMU velocities and print Vx/Vy/Vz."""` — module docstring boundary` — markdown list item
+- L4062: `- L228: `    print(f"Connecting to MAVLink on {DEVICE} @ {BAUD}...")` — python statement` — markdown list item
+- L4063: `- L229: `    master = mavutil.mavlink_connection(DEVICE, baud=BAUD)` — python statement` — markdown list item
+- L4064: `- L230: `    try:` — exception handling` — markdown list item
+- L4065: `- L231: `        master.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT_S)` — python statement` — markdown list item
+- L4066: `- L232: `    except Exception as exc:` — exception handling` — markdown list item
+- L4067: `- L233: `        raise RuntimeError("Failed to receive MAVLink heartbeat") from exc` — error raise` — markdown list item
+- L4068: `- L234: `` — blank line` — markdown list item
+- L4069: `- L235: `    print("Heartbeat received. Streaming IMU acceleration + attitude...")` — python statement` — markdown list item
+- L4070: `- L236: `    run_with_master(master)` — python statement` — markdown list item
+- L4071: `- L237: `` — blank line` — markdown list item
+- L4072: `- L238: `` — blank line` — markdown list item
+- L4073: `- L239: `if __name__ == "__main__":` — module entry point guard` — markdown list item
+- L4074: `- L240: `    run()` — python statement` — markdown list item
+- L4075: `` — blank line
+- L4076: `## `src/navisar/vps/vio_interface.py`` — markdown heading
+- L4077: `- Role: Source code` — markdown list item
+- L4078: `### Line-by-line` — markdown heading
+- L4079: `- L1: `"""VIO Interface module. Provides vio interface utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L4080: `- L2: `` — blank line` — markdown list item
+- L4081: `- L3: `# Placeholder file` — comment` — markdown list item
+- L4082: `` — blank line
+- L4083: `## `src/navisar/vps/visual_odometry.py`` — markdown heading
+- L4084: `- Role: Source code` — markdown list item
+- L4085: `### Line-by-line` — markdown heading
+- L4086: `- L1: `"""Visual odometry loop with motion gating and optional yaw compensation."""` — module docstring boundary` — markdown list item
+- L4087: `- L2: `` — blank line` — markdown list item
+- L4088: `- L3: `import cv2` — import statement` — markdown list item
+- L4089: `- L4: `import numpy as np` — import statement` — markdown list item
+- L4090: `- L5: `import time` — import statement` — markdown list item
+- L4091: `- L6: `from collections import deque` — import statement` — markdown list item
+- L4092: `- L7: `` — blank line` — markdown list item
+- L4093: `- L8: `` — blank line` — markdown list item
+- L4094: `- L9: `class VisualOdometry:` — class definition` — markdown list item
+- L4095: `- L10: `    """Run a monocular VO pipeline with optional gating and yaw."""` — module docstring boundary` — markdown list item
+- L4096: `- L11: `    def __init__(` — function definition` — markdown list item
+- L4097: `- L12: `        self,` — python statement` — markdown list item
+- L4098: `- L13: `        camera_driver,` — python statement` — markdown list item
+- L4099: `- L14: `        feature_tracker,` — python statement` — markdown list item
+- L4100: `- L15: `        pose_estimator,` — python statement` — markdown list item
+- L4101: `- L16: `        height_estimator,` — python statement` — markdown list item
+- L4102: `- L17: `        dist_coeffs=None,` — python statement` — markdown list item
+- L4103: `- L18: `        metric_threshold=0.02,` — python statement` — markdown list item
+- L4104: `- L19: `        frame_delay_s=0.02,` — python statement` — markdown list item
+- L4105: `- L20: `        img_width=640,` — python statement` — markdown list item
+- L4106: `- L21: `        img_height=480,` — python statement` — markdown list item
+- L4107: `- L22: `        yaw_provider=None,` — python statement` — markdown list item
+- L4108: `- L23: `        min_flow_px=0.4,` — python statement` — markdown list item
+- L4109: `- L24: `        min_height_m=0.1,` — python statement` — markdown list item
+- L4110: `- L25: `        exposure_min_mean=10.0,` — python statement` — markdown list item
+- L4111: `- L26: `        exposure_max_mean=245.0,` — python statement` — markdown list item
+- L4112: `- L27: `        zero_motion_window=8,` — python statement` — markdown list item
+- L4113: `- L28: `        zero_motion_mean_m=0.004,` — python statement` — markdown list item
+- L4114: `- L29: `        zero_motion_std_m=0.002,` — python statement` — markdown list item
+- L4115: `- L30: `        motion_gate_enabled=True,` — python statement` — markdown list item
+- L4116: `- L31: `        min_inlier_ratio=0.5,` — python statement` — markdown list item
+- L4117: `- L32: `        max_flow_mad_px=1.2,` — python statement` — markdown list item
+- L4118: `- L33: `    ):` — python statement` — markdown list item
+- L4119: `- L34: `        """Configure VO components, thresholds, and smoothing."""` — module docstring boundary` — markdown list item
+- L4120: `- L35: `        self.camera_driver = camera_driver` — python statement` — markdown list item
+- L4121: `- L36: `        self.feature_tracker = feature_tracker` — python statement` — markdown list item
+- L4122: `- L37: `        self.pose_estimator = pose_estimator` — python statement` — markdown list item
+- L4123: `- L38: `        self.height_estimator = height_estimator` — python statement` — markdown list item
+- L4124: `- L39: `        self.metric_threshold = metric_threshold` — python statement` — markdown list item
+- L4125: `- L40: `        self.frame_delay_s = frame_delay_s` — python statement` — markdown list item
+- L4126: `- L41: `        self.img_width = img_width` — python statement` — markdown list item
+- L4127: `- L42: `        self.img_height = img_height` — python statement` — markdown list item
+- L4128: `- L43: `        self.yaw_provider = yaw_provider` — python statement` — markdown list item
+- L4129: `- L44: `        self.min_flow_px = min_flow_px` — python statement` — markdown list item
+- L4130: `- L45: `        self.min_height_m = min_height_m` — python statement` — markdown list item
+- L4131: `- L46: `        self.exposure_min_mean = exposure_min_mean` — python statement` — markdown list item
+- L4132: `- L47: `        self.exposure_max_mean = exposure_max_mean` — python statement` — markdown list item
+- L4133: `- L48: `        self.min_inlier_ratio = min_inlier_ratio` — python statement` — markdown list item
+- L4134: `- L49: `        self.max_flow_mad_px = max_flow_mad_px` — python statement` — markdown list item
+- L4135: `- L50: `        self.x = 0.0` — python statement` — markdown list item
+- L4136: `- L51: `        self.y = 0.0` — python statement` — markdown list item
+- L4137: `- L52: `        self.z = 0.0` — python statement` — markdown list item
+- L4138: `- L53: `        self.zero_motion_window = zero_motion_window` — python statement` — markdown list item
+- L4139: `- L54: `        self.zero_motion_mean_m = zero_motion_mean_m` — python statement` — markdown list item
+- L4140: `- L55: `        self.zero_motion_std_m = zero_motion_std_m` — python statement` — markdown list item
+- L4141: `- L56: `        self.motion_gate_enabled = motion_gate_enabled` — python statement` — markdown list item
+- L4142: `- L57: `        self.min_inliers = 30` — python statement` — markdown list item
+- L4143: `- L58: `        self.motion_confirm_frames = 3` — python statement` — markdown list item
+- L4144: `- L59: `        self.motion_window = 5` — python statement` — markdown list item
+- L4145: `- L60: `        self._motion_streak = 0` — python statement` — markdown list item
+- L4146: `- L61: `        self._dx_hist = deque(maxlen=self.motion_window)` — python statement` — markdown list item
+- L4147: `- L62: `        self._dy_hist = deque(maxlen=self.motion_window)` — python statement` — markdown list item
+- L4148: `- L63: `        self._zero_motion_hist = deque(maxlen=self.zero_motion_window)` — python statement` — markdown list item
+- L4149: `- L64: `        self._last_yaw = None` — python statement` — markdown list item
+- L4150: `- L65: `        self._last_yaw_time = None` — python statement` — markdown list item
+- L4151: `- L66: `        self.debug_enabled = False` — python statement` — markdown list item
+- L4152: `- L67: `        self.debug_interval_s = 0.5` — python statement` — markdown list item
+- L4153: `- L68: `        self._last_debug_time = 0.0` — python statement` — markdown list item
+- L4154: `- L69: `        self.dist_coeffs = None` — python statement` — markdown list item
+- L4155: `- L70: `        self._undistort_map = None` — python statement` — markdown list item
+- L4156: `- L71: `        if dist_coeffs is not None:` — conditional branch` — markdown list item
+- L4157: `- L72: `            dist = np.array(dist_coeffs, dtype=np.float64).ravel()` — python statement` — markdown list item
+- L4158: `- L73: `            if dist.size > 0 and not np.allclose(dist, 0.0):` — conditional branch` — markdown list item
+- L4159: `- L74: `                map1, map2 = cv2.initUndistortRectifyMap(` — python statement` — markdown list item
+- L4160: `- L75: `                    self.pose_estimator.K,` — python statement` — markdown list item
+- L4161: `- L76: `                    dist,` — python statement` — markdown list item
+- L4162: `- L77: `                    None,` — python statement` — markdown list item
+- L4163: `- L78: `                    self.pose_estimator.K,` — python statement` — markdown list item
+- L4164: `- L79: `                    (int(self.img_width), int(self.img_height)),` — python statement` — markdown list item
+- L4165: `- L80: `                    cv2.CV_16SC2,` — python statement` — markdown list item
+- L4166: `- L81: `                )` — python statement` — markdown list item
+- L4167: `- L82: `                self.dist_coeffs = dist` — python statement` — markdown list item
+- L4168: `- L83: `                self._undistort_map = (map1, map2)` — python statement` — markdown list item
+- L4169: `- L84: `` — blank line` — markdown list item
+- L4170: `- L85: `    def _undistort(self, frame):` — function definition` — markdown list item
+- L4171: `- L86: `        """Undistort a frame using cached remap when available."""` — module docstring boundary` — markdown list item
+- L4172: `- L87: `        if self._undistort_map is None:` — conditional branch` — markdown list item
+- L4173: `- L88: `            return frame` — return statement` — markdown list item
+- L4174: `- L89: `        if frame.shape[1] != self.img_width or frame.shape[0] != self.img_height:` — conditional branch` — markdown list item
+- L4175: `- L90: `            return cv2.undistort(frame, self.pose_estimator.K, self.dist_coeffs)` — return statement` — markdown list item
+- L4176: `- L91: `        map1, map2 = self._undistort_map` — python statement` — markdown list item
+- L4177: `- L92: `        return cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR)` — return statement` — markdown list item
+- L4178: `- L93: `` — blank line` — markdown list item
+- L4179: `- L94: `    @staticmethod` — python statement` — markdown list item
+- L4180: `- L95: `    def _ensure_bgr(frame):` — function definition` — markdown list item
+- L4181: `- L96: `        """Ensure a 3-channel BGR frame for display."""` — module docstring boundary` — markdown list item
+- L4182: `- L97: `        if frame.ndim == 2:` — conditional branch` — markdown list item
+- L4183: `- L98: `            return cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)` — return statement` — markdown list item
+- L4184: `- L99: `        if frame.ndim == 3 and frame.shape[2] == 1:` — conditional branch` — markdown list item
+- L4185: `- L100: `            return cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)` — return statement` — markdown list item
+- L4186: `- L101: `        return frame` — return statement` — markdown list item
+- L4187: `- L102: `` — blank line` — markdown list item
+- L4188: `- L103: `    def _prepare_gray(self, frame):` — function definition` — markdown list item
+- L4189: `- L104: `        """Convert a frame to grayscale and undistort if needed."""` — module docstring boundary` — markdown list item
+- L4190: `- L105: `        if frame.ndim == 2:` — conditional branch` — markdown list item
+- L4191: `- L106: `            gray = frame` — python statement` — markdown list item
+- L4192: `- L107: `        elif frame.ndim == 3 and frame.shape[2] == 1:` — conditional branch` — markdown list item
+- L4193: `- L108: `            gray = frame[:, :, 0]` — python statement` — markdown list item
+- L4194: `- L109: `        else:` — conditional branch` — markdown list item
+- L4195: `- L110: `            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` — python statement` — markdown list item
+- L4196: `- L111: `        if self.dist_coeffs is not None:` — conditional branch` — markdown list item
+- L4197: `- L112: `            # Remove lens distortion to improve tracking consistency.` — comment` — markdown list item
+- L4198: `- L113: `            gray = self._undistort(gray)` — python statement` — markdown list item
+- L4199: `- L114: `        return gray` — return statement` — markdown list item
+- L4200: `- L115: `` — blank line` — markdown list item
+- L4201: `- L116: `    def _prepare_display(self, frame):` — function definition` — markdown list item
+- L4202: `- L117: `        """Prepare a display frame with undistortion and BGR."""` — module docstring boundary` — markdown list item
+- L4203: `- L118: `        if self.dist_coeffs is not None:` — conditional branch` — markdown list item
+- L4204: `- L119: `            frame = self._undistort(frame)` — python statement` — markdown list item
+- L4205: `- L120: `        return self._ensure_bgr(frame)` — return statement` — markdown list item
+- L4206: `- L121: `` — blank line` — markdown list item
+- L4207: `- L122: `    @staticmethod` — python statement` — markdown list item
+- L4208: `- L123: `    def _wrap_angle(angle_rad):` — function definition` — markdown list item
+- L4209: `- L124: `        """Wrap angle to [-pi, pi)."""` — module docstring boundary` — markdown list item
+- L4210: `- L125: `        return (angle_rad + np.pi) % (2.0 * np.pi) - np.pi` — return statement` — markdown list item
+- L4211: `- L126: `` — blank line` — markdown list item
+- L4212: `- L127: `    def _compensate_yaw(self, points, yaw_delta):` — function definition` — markdown list item
+- L4213: `- L128: `        """Rotate feature points to subtract yaw-induced motion."""` — module docstring boundary` — markdown list item
+- L4214: `- L129: `        if points is None or len(points) == 0:` — conditional branch` — markdown list item
+- L4215: `- L130: `            return points` — return statement` — markdown list item
+- L4216: `- L131: `        # Rotate features around image center to subtract yaw-induced flow.` — comment` — markdown list item
+- L4217: `- L132: `        center = np.array([self.img_width / 2.0, self.img_height / 2.0], dtype=np.float32)` — python statement` — markdown list item
+- L4218: `- L133: `        cos_yaw = float(np.cos(-yaw_delta))` — python statement` — markdown list item
+- L4219: `- L134: `        sin_yaw = float(np.sin(-yaw_delta))` — python statement` — markdown list item
+- L4220: `- L135: `        pts = points.reshape(-1, 2).astype(np.float32) - center` — python statement` — markdown list item
+- L4221: `- L136: `        rot = np.empty_like(pts)` — python statement` — markdown list item
+- L4222: `- L137: `        rot[:, 0] = pts[:, 0] * cos_yaw - pts[:, 1] * sin_yaw` — python statement` — markdown list item
+- L4223: `- L138: `        rot[:, 1] = pts[:, 0] * sin_yaw + pts[:, 1] * cos_yaw` — python statement` — markdown list item
+- L4224: `- L139: `        rot += center` — python statement` — markdown list item
+- L4225: `- L140: `        return rot.reshape(-1, 1, 2)` — return statement` — markdown list item
+- L4226: `- L141: `` — blank line` — markdown list item
+- L4227: `- L142: `    def _direction_from_motion(self, dx_m, dy_m):` — function definition` — markdown list item
+- L4228: `- L143: `        """Convert motion deltas into a coarse direction label."""` — module docstring boundary` — markdown list item
+- L4229: `- L144: `        direction = ""` — python statement` — markdown list item
+- L4230: `- L145: `        if abs(dx_m) > self.metric_threshold or abs(dy_m) > self.metric_threshold:` — conditional branch` — markdown list item
+- L4231: `- L146: `            if abs(dx_m) > abs(dy_m):` — conditional branch` — markdown list item
+- L4232: `- L147: `                direction = "RIGHT" if dx_m > 0 else "LEFT"` — python statement` — markdown list item
+- L4233: `- L148: `            else:` — conditional branch` — markdown list item
+- L4234: `- L149: `                direction = "UP" if dy_m > 0 else "DOWN"` — python statement` — markdown list item
+- L4235: `- L150: `        return direction` — return statement` — markdown list item
+- L4236: `- L151: `` — blank line` — markdown list item
+- L4237: `- L152: `    def _draw_grid(self, frame):` — function definition` — markdown list item
+- L4238: `- L153: `        """Draw the tracking grid overlay."""` — module docstring boundary` — markdown list item
+- L4239: `- L154: `        rows = getattr(self.feature_tracker, "grid_rows", None)` — python statement` — markdown list item
+- L4240: `- L155: `        cols = getattr(self.feature_tracker, "grid_cols", None)` — python statement` — markdown list item
+- L4241: `- L156: `        if rows is None or cols is None or rows <= 1 and cols <= 1:` — conditional branch` — markdown list item
+- L4242: `- L157: `            return` — python statement` — markdown list item
+- L4243: `- L158: `        height, width = frame.shape[:2]` — python statement` — markdown list item
+- L4244: `- L159: `        for row in range(1, rows):` — loop` — markdown list item
+- L4245: `- L160: `            y = int(row * height / rows)` — python statement` — markdown list item
+- L4246: `- L161: `            cv2.line(frame, (0, y), (width, y), (60, 60, 60), 1)` — python statement` — markdown list item
+- L4247: `- L162: `        for col in range(1, cols):` — loop` — markdown list item
+- L4248: `- L163: `            x = int(col * width / cols)` — python statement` — markdown list item
+- L4249: `- L164: `            cv2.line(frame, (x, 0), (x, height), (60, 60, 60), 1)` — python statement` — markdown list item
+- L4250: `- L165: `` — blank line` — markdown list item
+- L4251: `- L166: `    def run(self, window_name="VO + LiDAR", on_update=None):` — function definition` — markdown list item
+- L4252: `- L167: `        """Run the VO loop, optionally emitting updates via callback."""` — module docstring boundary` — markdown list item
+- L4253: `- L168: `        ret, prev_frame = self.camera_driver.read()` — python statement` — markdown list item
+- L4254: `- L169: `        if not ret:` — conditional branch` — markdown list item
+- L4255: `- L170: `            raise RuntimeError("Camera error: failed to read initial frame")` — error raise` — markdown list item
+- L4256: `- L171: `` — blank line` — markdown list item
+- L4257: `- L172: `        prev_gray = self._prepare_gray(prev_frame)` — python statement` — markdown list item
+- L4258: `- L173: `        self.feature_tracker.initialize(prev_gray)` — python statement` — markdown list item
+- L4259: `- L174: `        display_frame = self._prepare_display(prev_frame)` — python statement` — markdown list item
+- L4260: `- L175: `        mask = np.zeros_like(display_frame)` — python statement` — markdown list item
+- L4261: `- L176: `` — blank line` — markdown list item
+- L4262: `- L177: `        while True:` — loop` — markdown list item
+- L4263: `- L178: `            self.height_estimator.update()` — python statement` — markdown list item
+- L4264: `- L179: `` — blank line` — markdown list item
+- L4265: `- L180: `            ret, frame = self.camera_driver.read()` — python statement` — markdown list item
+- L4266: `- L181: `            if not ret:` — conditional branch` — markdown list item
+- L4267: `- L182: `                continue` — python statement` — markdown list item
+- L4268: `- L183: `` — blank line` — markdown list item
+- L4269: `- L184: `            gray = self._prepare_gray(frame)` — python statement` — markdown list item
+- L4270: `- L185: `            display_frame = self._prepare_display(frame)` — python statement` — markdown list item
+- L4271: `- L186: `            yaw_delta = 0.0` — python statement` — markdown list item
+- L4272: `- L187: `            if self.yaw_provider is not None:` — conditional branch` — markdown list item
+- L4273: `- L188: `                yaw_data = self.yaw_provider()` — python statement` — markdown list item
+- L4274: `- L189: `                if yaw_data is not None:` — conditional branch` — markdown list item
+- L4275: `- L190: `                    now_s = yaw_data.get("time_s", time.time())` — python statement` — markdown list item
+- L4276: `- L191: `                    yaw = yaw_data.get("yaw")` — python statement` — markdown list item
+- L4277: `- L192: `                    if yaw is not None:` — conditional branch` — markdown list item
+- L4278: `- L193: `                        if self._last_yaw is not None:` — conditional branch` — markdown list item
+- L4279: `- L194: `                            yaw_delta = self._wrap_angle(yaw - self._last_yaw)` — python statement` — markdown list item
+- L4280: `- L195: `                        self._last_yaw = yaw` — python statement` — markdown list item
+- L4281: `- L196: `                        self._last_yaw_time = now_s` — python statement` — markdown list item
+- L4282: `- L197: `                    else:` — conditional branch` — markdown list item
+- L4283: `- L198: `                        yaw_rate = yaw_data.get("yaw_rate")` — python statement` — markdown list item
+- L4284: `- L199: `                        if yaw_rate is not None and self._last_yaw_time is not None:` — conditional branch` — markdown list item
+- L4285: `- L200: `                            dt = max(0.0, now_s - self._last_yaw_time)` — python statement` — markdown list item
+- L4286: `- L201: `                            yaw_delta = float(yaw_rate) * dt` — python statement` — markdown list item
+- L4287: `- L202: `                            self._last_yaw_time = now_s` — python statement` — markdown list item
+- L4288: `- L203: `` — blank line` — markdown list item
+- L4289: `- L204: `            good_old, good_new, reset_mask = self.feature_tracker.track(gray)` — python statement` — markdown list item
+- L4290: `- L205: `            if reset_mask:` — conditional branch` — markdown list item
+- L4291: `- L206: `                mask = np.zeros_like(display_frame)` — python statement` — markdown list item
+- L4292: `- L207: `` — blank line` — markdown list item
+- L4293: `- L208: `            if good_old is None or good_new is None:` — conditional branch` — markdown list item
+- L4294: `- L209: `                if cv2.waitKey(1) & 0xFF == 27:` — conditional branch` — markdown list item
+- L4295: `- L210: `                    break` — python statement` — markdown list item
+- L4296: `- L211: `                time.sleep(self.frame_delay_s)` — python statement` — markdown list item
+- L4297: `- L212: `                continue` — python statement` — markdown list item
+- L4298: `- L213: `` — blank line` — markdown list item
+- L4299: `- L214: `            height = self.height_estimator.get_height_m()` — python statement` — markdown list item
+- L4300: `- L215: `            if height is None:` — conditional branch` — markdown list item
+- L4301: `- L216: `                height = self.z if self.z > 0.0 else self.min_height_m` — python statement` — markdown list item
+- L4302: `- L217: `            if yaw_delta != 0.0:` — conditional branch` — markdown list item
+- L4303: `- L218: `                good_new = self._compensate_yaw(good_new, yaw_delta)` — python statement` — markdown list item
+- L4304: `- L219: `            (` — python statement` — markdown list item
+- L4305: `- L220: `                dx_m,` — python statement` — markdown list item
+- L4306: `- L221: `                dy_m,` — python statement` — markdown list item
+- L4307: `- L222: `                dz_m,` — python statement` — markdown list item
+- L4308: `- L223: `                dx_pixels,` — python statement` — markdown list item
+- L4309: `- L224: `                dy_pixels,` — python statement` — markdown list item
+- L4310: `- L225: `                inlier_count,` — python statement` — markdown list item
+- L4311: `- L226: `                inlier_ratio,` — python statement` — markdown list item
+- L4312: `- L227: `                flow_mad_px,` — python statement` — markdown list item
+- L4313: `- L228: `            ) = self.pose_estimator.estimate(good_old, good_new, height)` — python statement` — markdown list item
+- L4314: `- L229: `            if self.motion_gate_enabled:` — conditional branch` — markdown list item
+- L4315: `- L230: `                # Gate integration to reduce drift when the camera is static.` — comment` — markdown list item
+- L4316: `- L231: `                flow_mag_px = float(np.hypot(dx_pixels, dy_pixels))` — python statement` — markdown list item
+- L4317: `- L232: `                height_valid = height is not None and height >= self.min_height_m` — python statement` — markdown list item
+- L4318: `- L233: `                mean_intensity = float(np.mean(gray))` — python statement` — markdown list item
+- L4319: `- L234: `                exposure_ok = self.exposure_min_mean <= mean_intensity <= self.exposure_max_mean` — python statement` — markdown list item
+- L4320: `- L235: `                motion_detected = (` — python statement` — markdown list item
+- L4321: `- L236: `                    abs(dx_m) >= self.metric_threshold or abs(dy_m) >= self.metric_threshold` — python statement` — markdown list item
+- L4322: `- L237: `                )` — python statement` — markdown list item
+- L4323: `- L238: `                low_inliers = inlier_count < self.min_inliers` — python statement` — markdown list item
+- L4324: `- L239: `                low_ratio = inlier_ratio < self.min_inlier_ratio` — python statement` — markdown list item
+- L4325: `- L240: `                zero_motion_reject = False` — python statement` — markdown list item
+- L4326: `- L241: `                if (` — conditional branch` — markdown list item
+- L4327: `- L242: `                    (low_inliers and low_ratio)` — python statement` — markdown list item
+- L4328: `- L243: `                    or flow_mad_px > self.max_flow_mad_px` — python statement` — markdown list item
+- L4329: `- L244: `                    or flow_mag_px < self.min_flow_px` — python statement` — markdown list item
+- L4330: `- L245: `                    or not height_valid` — python statement` — markdown list item
+- L4331: `- L246: `                    or not exposure_ok` — python statement` — markdown list item
+- L4332: `- L247: `                ):` — python statement` — markdown list item
+- L4333: `- L248: `                    motion_detected = False` — python statement` — markdown list item
+- L4334: `- L249: `` — blank line` — markdown list item
+- L4335: `- L250: `                step_m = float(np.hypot(dx_m, dy_m))` — python statement` — markdown list item
+- L4336: `- L251: `                if self.zero_motion_window != self._zero_motion_hist.maxlen:` — conditional branch` — markdown list item
+- L4337: `- L252: `                    self._zero_motion_hist = deque(` — python statement` — markdown list item
+- L4338: `- L253: `                        self._zero_motion_hist, maxlen=self.zero_motion_window` — python statement` — markdown list item
+- L4339: `- L254: `                    )` — python statement` — markdown list item
+- L4340: `- L255: `                self._zero_motion_hist.append(step_m)` — python statement` — markdown list item
+- L4341: `- L256: `                if len(self._zero_motion_hist) == self._zero_motion_hist.maxlen:` — conditional branch` — markdown list item
+- L4342: `- L257: `                    mean_step = float(np.mean(self._zero_motion_hist))` — python statement` — markdown list item
+- L4343: `- L258: `                    std_step = float(np.std(self._zero_motion_hist))` — python statement` — markdown list item
+- L4344: `- L259: `                    if mean_step < self.zero_motion_mean_m and std_step < self.zero_motion_std_m:` — conditional branch` — markdown list item
+- L4345: `- L260: `                        motion_detected = False` — python statement` — markdown list item
+- L4346: `- L261: `                        zero_motion_reject = True` — python statement` — markdown list item
+- L4347: `- L262: `` — blank line` — markdown list item
+- L4348: `- L263: `                if self.debug_enabled:` — conditional branch` — markdown list item
+- L4349: `- L264: `                    now_s = time.time()` — python statement` — markdown list item
+- L4350: `- L265: `                    if now_s - self._last_debug_time >= self.debug_interval_s:` — conditional branch` — markdown list item
+- L4351: `- L266: `                        print(` — python statement` — markdown list item
+- L4352: `- L267: `                            "VO GATE: "` — python statement` — markdown list item
+- L4353: `- L268: `                            f"motion={motion_detected} inliers={inlier_count} ratio={inlier_ratio:.2f} "` — python statement` — markdown list item
+- L4354: `- L269: `                            f"flow_px={flow_mag_px:.2f} flow_mad={flow_mad_px:.2f} "` — python statement` — markdown list item
+- L4355: `- L270: `                            f"height={height:.2f} exposure={mean_intensity:.1f} "` — python statement` — markdown list item
+- L4356: `- L271: `                            f"low_inliers={low_inliers} low_ratio={low_ratio} "` — python statement` — markdown list item
+- L4357: `- L272: `                            f"height_ok={height_valid} exposure_ok={exposure_ok} "` — python statement` — markdown list item
+- L4358: `- L273: `                            f"zero_motion={zero_motion_reject}"` — python statement` — markdown list item
+- L4359: `- L274: `                        )` — python statement` — markdown list item
+- L4360: `- L275: `                        self._last_debug_time = now_s` — python statement` — markdown list item
+- L4361: `- L276: `` — blank line` — markdown list item
+- L4362: `- L277: `                if motion_detected:` — conditional branch` — markdown list item
+- L4363: `- L278: `                    self._motion_streak += 1` — python statement` — markdown list item
+- L4364: `- L279: `                else:` — conditional branch` — markdown list item
+- L4365: `- L280: `                    self._motion_streak = 0` — python statement` — markdown list item
+- L4366: `- L281: `                    self._dx_hist.clear()` — python statement` — markdown list item
+- L4367: `- L282: `                    self._dy_hist.clear()` — python statement` — markdown list item
+- L4368: `- L283: `` — blank line` — markdown list item
+- L4369: `- L284: `                if (` — conditional branch` — markdown list item
+- L4370: `- L285: `                    self.motion_window != self._dx_hist.maxlen` — python statement` — markdown list item
+- L4371: `- L286: `                    or self.motion_window != self._dy_hist.maxlen` — python statement` — markdown list item
+- L4372: `- L287: `                ):` — python statement` — markdown list item
+- L4373: `- L288: `                    self._dx_hist = deque(self._dx_hist, maxlen=self.motion_window)` — python statement` — markdown list item
+- L4374: `- L289: `                    self._dy_hist = deque(self._dy_hist, maxlen=self.motion_window)` — python statement` — markdown list item
+- L4375: `- L290: `` — blank line` — markdown list item
+- L4376: `- L291: `                if self._motion_streak >= self.motion_confirm_frames:` — conditional branch` — markdown list item
+- L4377: `- L292: `                    # Smooth motion estimates once we've confirmed real movement.` — comment` — markdown list item
+- L4378: `- L293: `                    self._dx_hist.append(dx_m)` — python statement` — markdown list item
+- L4379: `- L294: `                    self._dy_hist.append(dy_m)` — python statement` — markdown list item
+- L4380: `- L295: `                    dx_m = float(np.mean(self._dx_hist))` — python statement` — markdown list item
+- L4381: `- L296: `                    dy_m = float(np.mean(self._dy_hist))` — python statement` — markdown list item
+- L4382: `- L297: `                else:` — conditional branch` — markdown list item
+- L4383: `- L298: `                    dx_m = 0.0` — python statement` — markdown list item
+- L4384: `- L299: `                    dy_m = 0.0` — python statement` — markdown list item
+- L4385: `- L300: `            else:` — conditional branch` — markdown list item
+- L4386: `- L301: `                if (` — conditional branch` — markdown list item
+- L4387: `- L302: `                    self.motion_window != self._dx_hist.maxlen` — python statement` — markdown list item
+- L4388: `- L303: `                    or self.motion_window != self._dy_hist.maxlen` — python statement` — markdown list item
+- L4389: `- L304: `                ):` — python statement` — markdown list item
+- L4390: `- L305: `                    self._dx_hist = deque(self._dx_hist, maxlen=self.motion_window)` — python statement` — markdown list item
+- L4391: `- L306: `                    self._dy_hist = deque(self._dy_hist, maxlen=self.motion_window)` — python statement` — markdown list item
+- L4392: `- L307: `                self._dx_hist.append(dx_m)` — python statement` — markdown list item
+- L4393: `- L308: `                self._dy_hist.append(dy_m)` — python statement` — markdown list item
+- L4394: `- L309: `                dx_m = float(np.mean(self._dx_hist))` — python statement` — markdown list item
+- L4395: `- L310: `                dy_m = float(np.mean(self._dy_hist))` — python statement` — markdown list item
+- L4396: `- L311: `` — blank line` — markdown list item
+- L4397: `- L312: `            self.z = height` — python statement` — markdown list item
+- L4398: `- L313: `            self.x += dx_m` — python statement` — markdown list item
+- L4399: `- L314: `            self.y += dy_m` — python statement` — markdown list item
+- L4400: `- L315: `            if on_update is not None:` — conditional branch` — markdown list item
+- L4401: `- L316: `                on_update(` — python statement` — markdown list item
+- L4402: `- L317: `                    self.x,` — python statement` — markdown list item
+- L4403: `- L318: `                    self.y,` — python statement` — markdown list item
+- L4404: `- L319: `                    self.z,` — python statement` — markdown list item
+- L4405: `- L320: `                    dx_m,` — python statement` — markdown list item
+- L4406: `- L321: `                    dy_m,` — python statement` — markdown list item
+- L4407: `- L322: `                    dz_m,` — python statement` — markdown list item
+- L4408: `- L323: `                    dx_pixels,` — python statement` — markdown list item
+- L4409: `- L324: `                    dy_pixels,` — python statement` — markdown list item
+- L4410: `- L325: `                    inlier_count,` — python statement` — markdown list item
+- L4411: `- L326: `                )` — python statement` — markdown list item
+- L4412: `- L327: `` — blank line` — markdown list item
+- L4413: `- L328: `            self._draw_grid(display_frame)` — python statement` — markdown list item
+- L4414: `- L329: `            colors = self.feature_tracker.current_colors()` — python statement` — markdown list item
+- L4415: `- L330: `            for idx, (new, old) in enumerate(zip(good_new[:50], good_old[:50])):` — loop` — markdown list item
+- L4416: `- L331: `                a, b = new.ravel()` — python statement` — markdown list item
+- L4417: `- L332: `                c, d = old.ravel()` — python statement` — markdown list item
+- L4418: `- L333: `                line_color = (0, 255, 0)` — python statement` — markdown list item
+- L4419: `- L334: `                dot_color = (0, 0, 255)` — python statement` — markdown list item
+- L4420: `- L335: `                if colors is not None and idx < len(colors):` — conditional branch` — markdown list item
+- L4421: `- L336: `                    bgr = colors[idx]` — python statement` — markdown list item
+- L4422: `- L337: `                    line_color = (int(bgr[0]), int(bgr[1]), int(bgr[2]))` — python statement` — markdown list item
+- L4423: `- L338: `                    dot_color = line_color` — python statement` — markdown list item
+- L4424: `- L339: `                mask = cv2.line(` — python statement` — markdown list item
+- L4425: `- L340: `                    mask,` — python statement` — markdown list item
+- L4426: `- L341: `                    (int(a), int(b)),` — python statement` — markdown list item
+- L4427: `- L342: `                    (int(c), int(d)),` — python statement` — markdown list item
+- L4428: `- L343: `                    line_color,` — python statement` — markdown list item
+- L4429: `- L344: `                    2,` — python statement` — markdown list item
+- L4430: `- L345: `                )` — python statement` — markdown list item
+- L4431: `- L346: `                display_frame = cv2.circle(` — python statement` — markdown list item
+- L4432: `- L347: `                    display_frame, (int(a), int(b)), 3, dot_color, -1` — python statement` — markdown list item
+- L4433: `- L348: `                )` — python statement` — markdown list item
+- L4434: `- L349: `` — blank line` — markdown list item
+- L4435: `- L350: `            direction = self._direction_from_motion(dx_m, dy_m)` — python statement` — markdown list item
+- L4436: `- L351: `            if direction == "":` — conditional branch` — markdown list item
+- L4437: `- L352: `                direction = self._direction_from_motion(dx_pixels, dy_pixels)` — python statement` — markdown list item
+- L4438: `- L353: `            step_m = float(np.hypot(dx_m, dy_m))` — python statement` — markdown list item
+- L4439: `- L354: `            move_label = "HOLD" if direction == "" else f"{direction} {step_m:.2f}m"` — python statement` — markdown list item
+- L4440: `- L355: `            center = (int(self.img_width / 2), int(self.img_height / 2))` — python statement` — markdown list item
+- L4441: `- L356: `            # Invert pixel flow so the arrow reflects camera motion direction.` — comment` — markdown list item
+- L4442: `- L357: `            arrow_end = (int(center[0] - dx_pixels * 8), int(center[1] - dy_pixels * 8))` — python statement` — markdown list item
+- L4443: `- L358: `            cv2.arrowedLine(display_frame, center, arrow_end, (0, 255, 0), 2)` — python statement` — markdown list item
+- L4444: `- L359: `` — blank line` — markdown list item
+- L4445: `- L360: `            cv2.putText(` — python statement` — markdown list item
+- L4446: `- L361: `                display_frame,` — python statement` — markdown list item
+- L4447: `- L362: `                f"MOVE: {move_label}",` — python statement` — markdown list item
+- L4448: `- L363: `                (10, 20),` — python statement` — markdown list item
+- L4449: `- L364: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement` — markdown list item
+- L4450: `- L365: `                0.6,` — python statement` — markdown list item
+- L4451: `- L366: `                (0, 255, 0),` — python statement` — markdown list item
+- L4452: `- L367: `                2,` — python statement` — markdown list item
+- L4453: `- L368: `            )` — python statement` — markdown list item
+- L4454: `- L369: `            cv2.putText(` — python statement` — markdown list item
+- L4455: `- L370: `                display_frame,` — python statement` — markdown list item
+- L4456: `- L371: `                f"dx_pix: {dx_pixels:.2f} dy_pix: {dy_pixels:.2f}",` — python statement` — markdown list item
+- L4457: `- L372: `                (10, 45),` — python statement` — markdown list item
+- L4458: `- L373: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement` — markdown list item
+- L4459: `- L374: `                0.5,` — python statement` — markdown list item
+- L4460: `- L375: `                (0, 255, 255),` — python statement` — markdown list item
+- L4461: `- L376: `                2,` — python statement` — markdown list item
+- L4462: `- L377: `            )` — python statement` — markdown list item
+- L4463: `- L378: `            cv2.putText(` — python statement` — markdown list item
+- L4464: `- L379: `                display_frame,` — python statement` — markdown list item
+- L4465: `- L380: `                f"X: {self.x:.2f} Y: {self.y:.2f} Z: {self.z:.2f}",` — python statement` — markdown list item
+- L4466: `- L381: `                (10, 70),` — python statement` — markdown list item
+- L4467: `- L382: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement` — markdown list item
+- L4468: `- L383: `                0.5,` — python statement` — markdown list item
+- L4469: `- L384: `                (0, 0, 255),` — python statement` — markdown list item
+- L4470: `- L385: `                2,` — python statement` — markdown list item
+- L4471: `- L386: `            )` — python statement` — markdown list item
+- L4472: `- L387: `            cv2.putText(` — python statement` — markdown list item
+- L4473: `- L388: `                display_frame,` — python statement` — markdown list item
+- L4474: `- L389: `                f"dX: {dx_m:.3f} dY: {dy_m:.3f} dZ: {dz_m:.3f}",` — python statement` — markdown list item
+- L4475: `- L390: `                (10, 95),` — python statement` — markdown list item
+- L4476: `- L391: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement` — markdown list item
+- L4477: `- L392: `                0.5,` — python statement` — markdown list item
+- L4478: `- L393: `                (0, 0, 255),` — python statement` — markdown list item
+- L4479: `- L394: `                2,` — python statement` — markdown list item
+- L4480: `- L395: `            )` — python statement` — markdown list item
+- L4481: `- L396: `` — blank line` — markdown list item
+- L4482: `- L397: `            img = cv2.add(display_frame, mask)` — python statement` — markdown list item
+- L4483: `- L398: `            cv2.imshow(window_name, img)` — python statement` — markdown list item
+- L4484: `- L399: `` — blank line` — markdown list item
+- L4485: `- L400: `            if cv2.waitKey(1) & 0xFF == 27:` — conditional branch` — markdown list item
+- L4486: `- L401: `                break` — python statement` — markdown list item
+- L4487: `- L402: `` — blank line` — markdown list item
+- L4488: `- L403: `            time.sleep(self.frame_delay_s)` — python statement` — markdown list item
+- L4489: `- L404: `` — blank line` — markdown list item
+- L4490: `- L405: `        self.camera_driver.release()` — python statement` — markdown list item
+- L4491: `- L406: `        cv2.destroyAllWindows()` — python statement` — markdown list item
+- L4492: `` — blank line
+- L4493: `## `src/navisar/sensors/cameras/__init__.py`` — markdown heading
+- L4494: `- Role: Source code` — markdown list item
+- L4495: `### Line-by-line` — markdown heading
+- L4496: `- L1: `"""Camera model drivers and shared interfaces."""` — module docstring boundary` — markdown list item
+- L4497: `` — blank line
+- L4498: `## `src/navisar/sensors/cameras/base.py`` — markdown heading
+- L4499: `- Role: Source code` — markdown list item
+- L4500: `### Line-by-line` — markdown heading
+- L4501: `- L1: `"""Shared camera interface."""` — module docstring boundary` — markdown list item
+- L4502: `- L2: `` — blank line` — markdown list item
+- L4503: `- L3: `` — blank line` — markdown list item
+- L4504: `- L4: `class BaseCamera:` — class definition` — markdown list item
+- L4505: `- L5: `    """Abstract camera interface used by the pipeline."""` — module docstring boundary` — markdown list item
+- L4506: `- L6: `    def read(self):` — function definition` — markdown list item
+- L4507: `- L7: `        """Return (ret, frame) like cv2.VideoCapture.read()."""` — module docstring boundary` — markdown list item
+- L4508: `- L8: `        raise NotImplementedError` — error raise` — markdown list item
+- L4509: `- L9: `` — blank line` — markdown list item
+- L4510: `- L10: `    def release(self):` — function definition` — markdown list item
+- L4511: `- L11: `        """Release camera resources (optional)."""` — module docstring boundary` — markdown list item
+- L4512: `- L12: `        pass` — python statement` — markdown list item
+- L4513: `` — blank line
+- L4514: `## `src/navisar/sensors/cameras/opencv.py`` — markdown heading
+- L4515: `- Role: Source code` — markdown list item
+- L4516: `### Line-by-line` — markdown heading
+- L4517: `- L1: `"""OpenCV-backed camera capture driver."""` — module docstring boundary` — markdown list item
+- L4518: `- L2: `` — blank line` — markdown list item
+- L4519: `- L3: `import cv2` — import statement` — markdown list item
+- L4520: `- L4: `` — blank line` — markdown list item
+- L4521: `- L5: `from navisar.sensors.cameras.base import BaseCamera` — import statement` — markdown list item
+- L4522: `- L6: `` — blank line` — markdown list item
+- L4523: `- L7: `` — blank line` — markdown list item
+- L4524: `- L8: `class OpenCVCamera(BaseCamera):` — class definition` — markdown list item
+- L4525: `- L9: `    """OpenCV VideoCapture-based camera driver."""` — module docstring boundary` — markdown list item
+- L4526: `- L10: `    def __init__(self, index=0, width=640, height=480):` — function definition` — markdown list item
+- L4527: `- L11: `        """Open the camera device and apply capture size."""` — module docstring boundary` — markdown list item
+- L4528: `- L12: `        self.index = index` — python statement` — markdown list item
+- L4529: `- L13: `        self.width = width` — python statement` — markdown list item
+- L4530: `- L14: `        self.height = height` — python statement` — markdown list item
+- L4531: `- L15: `        # Open the device early so width/height can be applied immediately.` — comment` — markdown list item
+- L4532: `- L16: `        self.cap = cv2.VideoCapture(index)` — python statement` — markdown list item
+- L4533: `- L17: `        if width:` — conditional branch` — markdown list item
+- L4534: `- L18: `            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)` — python statement` — markdown list item
+- L4535: `- L19: `        if height:` — conditional branch` — markdown list item
+- L4536: `- L20: `            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)` — python statement` — markdown list item
+- L4537: `- L21: `` — blank line` — markdown list item
+- L4538: `- L22: `    def read(self):` — function definition` — markdown list item
+- L4539: `- L23: `        """Read a frame from the camera."""` — module docstring boundary` — markdown list item
+- L4540: `- L24: `        return self.cap.read()` — return statement` — markdown list item
+- L4541: `- L25: `` — blank line` — markdown list item
+- L4542: `- L26: `    def release(self):` — function definition` — markdown list item
+- L4543: `- L27: `        """Release the OpenCV capture handle."""` — module docstring boundary` — markdown list item
+- L4544: `- L28: `        self.cap.release()` — python statement` — markdown list item
+- L4545: `` — blank line
+- L4546: `## `src/navisar/sensors/cameras/ov9281.py`` — markdown heading
+- L4547: `- Role: Source code` — markdown list item
+- L4548: `### Line-by-line` — markdown heading
+- L4549: `- L1: `"""OV9281 camera driver using Picamera2."""` — module docstring boundary` — markdown list item
+- L4550: `- L2: `` — blank line` — markdown list item
+- L4551: `- L3: `from navisar.sensors.cameras.base import BaseCamera` — import statement` — markdown list item
+- L4552: `- L4: `` — blank line` — markdown list item
+- L4553: `- L5: `` — blank line` — markdown list item
+- L4554: `- L6: `class OV9281Camera(BaseCamera):` — class definition` — markdown list item
+- L4555: `- L7: `    """Picamera2-backed driver for the OV9281 sensor."""` — module docstring boundary` — markdown list item
+- L4556: `- L8: `    def __init__(self, width=640, height=400, format_name="YUV420"):` — function definition` — markdown list item
+- L4557: `- L9: `        """Configure Picamera2 with the requested format/size."""` — module docstring boundary` — markdown list item
+- L4558: `- L10: `        self.width = width` — python statement` — markdown list item
+- L4559: `- L11: `        self.height = height` — python statement` — markdown list item
+- L4560: `- L12: `        self.format_name = format_name` — python statement` — markdown list item
+- L4561: `- L13: `        try:` — exception handling` — markdown list item
+- L4562: `- L14: `            from picamera2 import Picamera2` — import statement` — markdown list item
+- L4563: `- L15: `        except Exception as exc:  # pragma: no cover - hardware dependency` — exception handling` — markdown list item
+- L4564: `- L16: `            raise ImportError("Picamera2 is required for the OV9281 camera.") from exc` — error raise` — markdown list item
+- L4565: `- L17: `` — blank line` — markdown list item
+- L4566: `- L18: `        self._picam2 = Picamera2()` — python statement` — markdown list item
+- L4567: `- L19: `        config = self._picam2.create_video_configuration(` — python statement` — markdown list item
+- L4568: `- L20: `            main={"format": format_name, "size": (width, height)}` — python statement` — markdown list item
+- L4569: `- L21: `        )` — python statement` — markdown list item
+- L4570: `- L22: `        self._picam2.configure(config)` — python statement` — markdown list item
+- L4571: `- L23: `        self._picam2.start()` — python statement` — markdown list item
+- L4572: `- L24: `` — blank line` — markdown list item
+- L4573: `- L25: `    def read(self):` — function definition` — markdown list item
+- L4574: `- L26: `        """Capture a frame and return a grayscale image."""` — module docstring boundary` — markdown list item
+- L4575: `- L27: `        frame = self._picam2.capture_array()` — python statement` — markdown list item
+- L4576: `- L28: `        if frame is None:` — conditional branch` — markdown list item
+- L4577: `- L29: `            return False, None` — return statement` — markdown list item
+- L4578: `- L30: `` — blank line` — markdown list item
+- L4579: `- L31: `        if frame.ndim == 2:` — conditional branch` — markdown list item
+- L4580: `- L32: `            # YUV420 luma plane is the top portion of the frame.` — comment` — markdown list item
+- L4581: `- L33: `            return True, frame[: self.height, : self.width]` — return statement` — markdown list item
+- L4582: `- L34: `` — blank line` — markdown list item
+- L4583: `- L35: `        if frame.ndim == 3 and frame.shape[2] >= 1:` — conditional branch` — markdown list item
+- L4584: `- L36: `            return True, frame[:, :, 0]` — return statement` — markdown list item
+- L4585: `- L37: `` — blank line` — markdown list item
+- L4586: `- L38: `        return False, None` — return statement` — markdown list item
+- L4587: `- L39: `` — blank line` — markdown list item
+- L4588: `- L40: `    def release(self):` — function definition` — markdown list item
+- L4589: `- L41: `        """Stop the Picamera2 stream."""` — module docstring boundary` — markdown list item
+- L4590: `- L42: `        self._picam2.stop()` — python statement` — markdown list item
+- L4591: `` — blank line
+- L4592: `## `src/navisar/vps/algorithms/__init__.py`` — markdown heading
+- L4593: `- Role: Source code` — markdown list item
+- L4594: `### Line-by-line` — markdown heading
+- L4595: `- L1: `"""Algorithms package. Exports submodules for NAVISAR."""` — module docstring boundary` — markdown list item
+- L4596: `- L2: `` — blank line` — markdown list item
+- L4597: `- L3: `from navisar.vps.algorithms.median_flow import MedianFlowEstimator` — import statement` — markdown list item
+- L4598: `- L4: `from navisar.vps.algorithms.ransac_affine import RansacAffineEstimator` — import statement` — markdown list item
+- L4599: `- L5: `` — blank line` — markdown list item
+- L4600: `- L6: `__all__ = ["MedianFlowEstimator", "RansacAffineEstimator"]` — python statement` — markdown list item
+- L4601: `` — blank line
+- L4602: `## `src/navisar/vps/algorithms/base.py`` — markdown heading
+- L4603: `- Role: Source code` — markdown list item
+- L4604: `### Line-by-line` — markdown heading
+- L4605: `- L1: `"""Base module. Provides base utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L4606: `- L2: `` — blank line` — markdown list item
+- L4607: `- L3: `class MotionEstimator:` — class definition` — markdown list item
+- L4608: `- L4: `    """Interface for motion estimation algorithms."""` — module docstring boundary` — markdown list item
+- L4609: `- L5: `    def estimate(self, good_old, good_new, height_m, fx, fy, ransac_thresh):` — function definition` — markdown list item
+- L4610: `- L6: `        """Estimate motion given tracked feature points."""` — module docstring boundary` — markdown list item
+- L4611: `- L7: `        raise NotImplementedError` — error raise` — markdown list item
+- L4612: `` — blank line
+- L4613: `## `src/navisar/vps/algorithms/median_flow.py`` — markdown heading
+- L4614: `- Role: Source code` — markdown list item
+- L4615: `### Line-by-line` — markdown heading
+- L4616: `- L1: `"""Median Flow module. Provides median flow utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L4617: `- L2: `` — blank line` — markdown list item
+- L4618: `- L3: `import numpy as np` — import statement` — markdown list item
+- L4619: `- L4: `` — blank line` — markdown list item
+- L4620: `- L5: `from navisar.vps.algorithms.base import MotionEstimator` — import statement` — markdown list item
+- L4621: `- L6: `` — blank line` — markdown list item
+- L4622: `- L7: `` — blank line` — markdown list item
+- L4623: `- L8: `class MedianFlowEstimator(MotionEstimator):` — class definition` — markdown list item
+- L4624: `- L9: `    """Estimate motion using median optical flow."""` — module docstring boundary` — markdown list item
+- L4625: `- L10: `    def estimate(self, good_old, good_new, height_m, fx, fy, ransac_thresh):` — function definition` — markdown list item
+- L4626: `- L11: `        """Compute motion from median flow between point sets."""` — module docstring boundary` — markdown list item
+- L4627: `- L12: `        if len(good_old) == 0:` — conditional branch` — markdown list item
+- L4628: `- L13: `            return 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0` — return statement` — markdown list item
+- L4629: `- L14: `` — blank line` — markdown list item
+- L4630: `- L15: `        flow = (good_new - good_old).reshape(-1, 2)` — python statement` — markdown list item
+- L4631: `- L16: `        dx_pixels = float(np.median(flow[:, 0]))` — python statement` — markdown list item
+- L4632: `- L17: `        dy_pixels = float(np.median(flow[:, 1]))` — python statement` — markdown list item
+- L4633: `- L18: `` — blank line` — markdown list item
+- L4634: `- L19: `        flow_mag = np.hypot(flow[:, 0], flow[:, 1])` — python statement` — markdown list item
+- L4635: `- L20: `        if flow_mag.size:` — conditional branch` — markdown list item
+- L4636: `- L21: `            median_mag = float(np.median(flow_mag))` — python statement` — markdown list item
+- L4637: `- L22: `            flow_mad_px = float(np.median(np.abs(flow_mag - median_mag)))` — python statement` — markdown list item
+- L4638: `- L23: `        else:` — conditional branch` — markdown list item
+- L4639: `- L24: `            flow_mad_px = 0.0` — python statement` — markdown list item
+- L4640: `- L25: `` — blank line` — markdown list item
+- L4641: `- L26: `        # Invert pixel flow to represent camera motion instead of image motion.` — comment` — markdown list item
+- L4642: `- L27: `        dx_m = -(dx_pixels / fx) * height_m` — python statement` — markdown list item
+- L4643: `- L28: `        dy_m = -(dy_pixels / fy) * height_m` — python statement` — markdown list item
+- L4644: `- L29: `        dz_m = 0.0` — python statement` — markdown list item
+- L4645: `- L30: `` — blank line` — markdown list item
+- L4646: `- L31: `        inlier_count = len(flow)` — python statement` — markdown list item
+- L4647: `- L32: `        inlier_ratio = 1.0` — python statement` — markdown list item
+- L4648: `- L33: `` — blank line` — markdown list item
+- L4649: `- L34: `        return (` — return statement` — markdown list item
+- L4650: `- L35: `            dx_m,` — python statement` — markdown list item
+- L4651: `- L36: `            dy_m,` — python statement` — markdown list item
+- L4652: `- L37: `            dz_m,` — python statement` — markdown list item
+- L4653: `- L38: `            dx_pixels,` — python statement` — markdown list item
+- L4654: `- L39: `            dy_pixels,` — python statement` — markdown list item
+- L4655: `- L40: `            inlier_count,` — python statement` — markdown list item
+- L4656: `- L41: `            inlier_ratio,` — python statement` — markdown list item
+- L4657: `- L42: `            flow_mad_px,` — python statement` — markdown list item
+- L4658: `- L43: `        )` — python statement` — markdown list item
+- L4659: `` — blank line
+- L4660: `## `src/navisar/vps/algorithms/ransac_affine.py`` — markdown heading
+- L4661: `- Role: Source code` — markdown list item
+- L4662: `### Line-by-line` — markdown heading
+- L4663: `- L1: `"""Ransac Affine module. Provides ransac affine utilities for NAVISAR."""` — module docstring boundary` — markdown list item
+- L4664: `- L2: `` — blank line` — markdown list item
+- L4665: `- L3: `import cv2` — import statement` — markdown list item
+- L4666: `- L4: `import numpy as np` — import statement` — markdown list item
+- L4667: `- L5: `` — blank line` — markdown list item
+- L4668: `- L6: `from navisar.vps.algorithms.base import MotionEstimator` — import statement` — markdown list item
+- L4669: `- L7: `` — blank line` — markdown list item
+- L4670: `- L8: `` — blank line` — markdown list item
+- L4671: `- L9: `class RansacAffineEstimator(MotionEstimator):` — class definition` — markdown list item
+- L4672: `- L10: `    """Estimate translation using RANSAC affine fits."""` — module docstring boundary` — markdown list item
+- L4673: `- L11: `    def __init__(self, confidence=0.999, refine_iters=10):` — function definition` — markdown list item
+- L4674: `- L12: `        """Configure RANSAC confidence and refinement."""` — module docstring boundary` — markdown list item
+- L4675: `- L13: `        self.confidence = confidence` — python statement` — markdown list item
+- L4676: `- L14: `        self.refine_iters = refine_iters` — python statement` — markdown list item
+- L4677: `- L15: `` — blank line` — markdown list item
+- L4678: `- L16: `    def _ransac_translation(self, good_old, good_new, ransac_thresh):` — function definition` — markdown list item
+- L4679: `- L17: `        """Estimate affine translation and return inlier mask."""` — module docstring boundary` — markdown list item
+- L4680: `- L18: `        model, inliers = cv2.estimateAffinePartial2D(` — python statement` — markdown list item
+- L4681: `- L19: `            good_old,` — python statement` — markdown list item
+- L4682: `- L20: `            good_new,` — python statement` — markdown list item
+- L4683: `- L21: `            method=cv2.RANSAC,` — python statement` — markdown list item
+- L4684: `- L22: `            ransacReprojThreshold=ransac_thresh,` — python statement` — markdown list item
+- L4685: `- L23: `            confidence=self.confidence,` — python statement` — markdown list item
+- L4686: `- L24: `            refineIters=self.refine_iters,` — python statement` — markdown list item
+- L4687: `- L25: `        )` — python statement` — markdown list item
+- L4688: `- L26: `        if inliers is None:` — conditional branch` — markdown list item
+- L4689: `- L27: `            return None, None` — return statement` — markdown list item
+- L4690: `- L28: `        inlier_mask = inliers.ravel().astype(bool)` — python statement` — markdown list item
+- L4691: `- L29: `        if model is None or not np.any(inlier_mask):` — conditional branch` — markdown list item
+- L4692: `- L30: `            return None, None` — return statement` — markdown list item
+- L4693: `- L31: `        return model, inlier_mask` — return statement` — markdown list item
+- L4694: `- L32: `` — blank line` — markdown list item
+- L4695: `- L33: `    def estimate(self, good_old, good_new, height_m, fx, fy, ransac_thresh):` — function definition` — markdown list item
+- L4696: `- L34: `        """Estimate motion using a RANSAC translation model."""` — module docstring boundary` — markdown list item
+- L4697: `- L35: `        total = len(good_old)` — python statement` — markdown list item
+- L4698: `- L36: `        model, inlier_mask = self._ransac_translation(good_old, good_new, ransac_thresh)` — python statement` — markdown list item
+- L4699: `- L37: `        if inlier_mask is not None:` — conditional branch` — markdown list item
+- L4700: `- L38: `            good_old_use = good_old[inlier_mask]` — python statement` — markdown list item
+- L4701: `- L39: `            good_new_use = good_new[inlier_mask]` — python statement` — markdown list item
+- L4702: `- L40: `            inlier_count = len(good_old_use)` — python statement` — markdown list item
+- L4703: `- L41: `        else:` — conditional branch` — markdown list item
+- L4704: `- L42: `            good_old_use = good_old` — python statement` — markdown list item
+- L4705: `- L43: `            good_new_use = good_new` — python statement` — markdown list item
+- L4706: `- L44: `            inlier_count = 0` — python statement` — markdown list item
+- L4707: `- L45: `` — blank line` — markdown list item
+- L4708: `- L46: `        if len(good_old_use) == 0:` — conditional branch` — markdown list item
+- L4709: `- L47: `            return 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0` — return statement` — markdown list item
+- L4710: `- L48: `` — blank line` — markdown list item
+- L4711: `- L49: `        flow = (good_new_use - good_old_use).reshape(-1, 2)` — python statement` — markdown list item
+- L4712: `- L50: `        dx_pixels = float(np.median(flow[:, 0]))` — python statement` — markdown list item
+- L4713: `- L51: `        dy_pixels = float(np.median(flow[:, 1]))` — python statement` — markdown list item
+- L4714: `- L52: `` — blank line` — markdown list item
+- L4715: `- L53: `        if model is not None:` — conditional branch` — markdown list item
+- L4716: `- L54: `            dx_pixels = float(model[0, 2])` — python statement` — markdown list item
+- L4717: `- L55: `            dy_pixels = float(model[1, 2])` — python statement` — markdown list item
+- L4718: `- L56: `` — blank line` — markdown list item
+- L4719: `- L57: `        flow_mag = np.hypot(flow[:, 0], flow[:, 1])` — python statement` — markdown list item
+- L4720: `- L58: `        if flow_mag.size:` — conditional branch` — markdown list item
+- L4721: `- L59: `            median_mag = float(np.median(flow_mag))` — python statement` — markdown list item
+- L4722: `- L60: `            flow_mad_px = float(np.median(np.abs(flow_mag - median_mag)))` — python statement` — markdown list item
+- L4723: `- L61: `        else:` — conditional branch` — markdown list item
+- L4724: `- L62: `            flow_mad_px = 0.0` — python statement` — markdown list item
+- L4725: `- L63: `` — blank line` — markdown list item
+- L4726: `- L64: `        inlier_ratio = float(inlier_count) / float(max(1, total))` — python statement` — markdown list item
+- L4727: `- L65: `` — blank line` — markdown list item
+- L4728: `- L66: `        # Invert pixel flow to represent camera motion instead of image motion.` — comment` — markdown list item
+- L4729: `- L67: `        dx_m = -(dx_pixels / fx) * height_m` — python statement` — markdown list item
+- L4730: `- L68: `        dy_m = -(dy_pixels / fy) * height_m` — python statement` — markdown list item
+- L4731: `- L69: `        dz_m = 0.0` — python statement` — markdown list item
+- L4732: `- L70: `` — blank line` — markdown list item
+- L4733: `- L71: `        return (` — return statement` — markdown list item
+- L4734: `- L72: `            dx_m,` — python statement` — markdown list item
+- L4735: `- L73: `            dy_m,` — python statement` — markdown list item
+- L4736: `- L74: `            dz_m,` — python statement` — markdown list item
+- L4737: `- L75: `            dx_pixels,` — python statement` — markdown list item
+- L4738: `- L76: `            dy_pixels,` — python statement` — markdown list item
+- L4739: `- L77: `            inlier_count,` — python statement` — markdown list item
+- L4740: `- L78: `            inlier_ratio,` — python statement` — markdown list item
+- L4741: `- L79: `            flow_mad_px,` — python statement` — markdown list item
+- L4742: `- L80: `        )` — python statement` — markdown list item
+
+## `requirements.txt`
+- Role: Repository file
+### Line-by-line
+- L1: `numpy` — text content
+- L2: `opencv-python` — text content
+- L3: `pymavlink` — text content
+- L4: `pyserial` — text content
+- L5: `PyYAML` — text content
+
+## `.vscode/launch.json`
+- Role: IDE
+### Line-by-line
+- L1: `{` — json content
+- L2: `    "configurations": [` — json content
+- L3: `        {` — json content
+- L4: `            "name": "Python Debugger: Python File",` — json content
+- L5: `            "type": "debugpy",` — json content
+- L6: `            "request": "launch",` — json content
+- L7: `            "program": "${file}"` — json content
+- L8: `        }` — json content
+- L9: `    ]` — json content
+- L10: `}` — json content
+
+## `.vscode/settings.json`
+- Role: IDE
+### Line-by-line
+- L1: `{` — json content
+- L2: `  "python.defaultInterpreterPath": "Visual-Odometry-Drone/venv/bin/python"` — json content
+- L3: `}` — json content
+
+## `config/camera.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# Camera and exposure profiles` — yaml comment
+- L2: `# model can be: opencv, ov9281` — yaml comment
+- L3: `model: ov9281 #opencv` — yaml key/value
+- L4: `index: 0` — yaml key/value
+- L5: `width: 640` — yaml key/value
+- L6: `height: 400 #400 for ov9281 and 480 for opencv` — yaml key/value
+- L7: `format: YUV420` — yaml key/value
+- L8: `intrinsics:` — yaml key/value
+- L9: `  fx: 525.0` — yaml key/value
+- L10: `  fy: 525.0` — yaml key/value
+- L11: `  cx: 320.0` — yaml key/value
+- L12: `  cy: 200.0` — yaml key/value
+- L13: `  # Provide real calibration values to remove lens distortion.` — yaml comment
+- L14: `  # Example format: [k1, k2, p1, p2, k3]` — yaml comment
+- L15: `  # Use: python tools/camera_calibration.py --width 640 --height 400` — yaml comment
+- L16: `  dist_coeffs: null` — yaml key/value
+
+## `config/gnss.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# GNSS thresholds` — yaml comment
+
+## `config/indoor.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# Indoor constraints` — yaml comment
+
+## `config/navisar.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# Global config` — yaml comment
+
+## `config/pixhawk.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# Pixhawk parameters` — yaml comment
+- L2: `use_mavlink: true` — yaml key/value
+- L3: `use_lidar: true` — yaml key/value
+- L4: `device: /dev/ttyACM0` — yaml key/value
+- L5: `baud: 115200` — yaml key/value
+- L6: `attitude_rate_hz: 30.0` — yaml key/value
+- L7: `lidar_distance_divisor: 100.0` — yaml key/value
+- L8: `fallback_altitude_m: 1.0` — yaml key/value
+- L9: `` — blank line
+- L10: `gps_drift_threshold_m: 5.0` — yaml key/value
+- L11: `gps_timeout_s: 2.0` — yaml key/value
+- L12: `gps_min_fix_type: 3` — yaml key/value
+- L13: `gps_input:` — yaml key/value
+- L14: `  enabled: false` — yaml key/value
+- L15: `  port: /dev/ttyUSB0 #auto #/dev/ttyUSB0` — yaml key/value
+- L16: `  baud: 9600` — yaml key/value
+- L17: `  format: auto` — yaml key/value
+- L18: `  init_wait_s: 60` — yaml key/value
+- L19: `  min_fix_type: 3` — yaml key/value
+- L20: `` — blank line
+- L21: `odom_gps_send_interval_s: 0.2` — yaml key/value
+- L22: `odom_gps_fix_type: 3` — yaml key/value
+- L23: `odom_gps_sats: 10` — yaml key/value
+- L24: `odometry_send_interval_s: 0.04` — yaml key/value
+- L25: `output_mode: odometry # odometry, gps_serial, vps_gps, reserved odometry` — yaml key/value
+- L26: `vio_mode: vio_imu # vo, vio_imu` — yaml key/value
+- L27: `` — blank line
+- L28: `vio_imu:` — yaml key/value
+- L29: `  print: true` — yaml key/value
+- L30: `  print_interval_s: 0.5` — yaml key/value
+- L31: `gps_serial:` — yaml key/value
+- L32: `  enabled: false` — yaml key/value
+- L33: `  port: /dev/ttyUSB0` — yaml key/value
+- L34: `  baud: 9600` — yaml key/value
+- L35: `  format: auto` — yaml key/value
+- L36: `` — blank line
+- L37: `gps_output:` — yaml key/value
+- L38: `  enabled: true` — yaml key/value
+- L39: `  format: ubx_nmea #ubx, ubx_nmea` — yaml key/value
+- L40: `  port: /dev/ttyUSB0` — yaml key/value
+- L41: `  baud: 230400` — yaml key/value
+- L42: `  rate_hz: 5` — yaml key/value
+- L43: `  fix_quality: 1` — yaml key/value
+- L44: `  min_sats: 14` — yaml key/value
+- L45: `  max_sats: 20` — yaml key/value
+- L46: `  update_s: 7` — yaml key/value
+- L47: `  print: true` — yaml key/value
+- L48: `  raw_print: true` — yaml key/value
+- L49: `` — blank line
+- L50: `print_gps_values: true` — yaml key/value
+- L51: `print_lidar_values: true` — yaml key/value
+- L52: `print_interval_s: 0.5` — yaml key/value
+- L53: `` — blank line
+- L54: `gps_origin:` — yaml key/value
+- L55: `  lat: 12` — yaml key/value
+- L56: `  lon: 77` — yaml key/value
+- L57: `  alt: 50` — yaml key/value
+
+## `config/slam.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# SLAM parameters` — yaml comment
+
+## `config/vio.yaml`
+- Role: Configuration
+### Line-by-line
+- L1: `# VIO parameters` — yaml comment
+- L2: `algorithm: ransac_affine` — yaml key/value
+- L3: `motion_gate_enabled: false` — yaml key/value
+- L4: `min_features: 40` — yaml key/value
+- L5: `max_features: 300` — yaml key/value
+- L6: `redetect_interval: 10` — yaml key/value
+- L7: `ransac_reproj_thresh: 3.0` — yaml key/value
+- L8: `grid_rows: 6` — yaml key/value
+- L9: `grid_cols: 8` — yaml key/value
+- L10: `per_cell_max_features: 30` — yaml key/value
+- L11: `texture_threshold: 12.0` — yaml key/value
+- L12: `corner_quality_level: 0.2` — yaml key/value
+- L13: `metric_threshold_m: 0.02` — yaml key/value
+- L14: `min_inliers: 50` — yaml key/value
+- L15: `min_inlier_ratio: 0.5` — yaml key/value
+- L16: `max_flow_mad_px: 1.2` — yaml key/value
+- L17: `min_flow_px: 0.4` — yaml key/value
+- L18: `min_height_m: 0.1` — yaml key/value
+- L19: `exposure_min_mean: 10.0` — yaml key/value
+- L20: `exposure_max_mean: 245.0` — yaml key/value
+- L21: `motion_confirm_frames: 3` — yaml key/value
+- L22: `motion_smooth_window: 5` — yaml key/value
+- L23: `zero_motion_window: 8` — yaml key/value
+- L24: `zero_motion_mean_m: 0.004` — yaml key/value
+- L25: `zero_motion_std_m: 0.002` — yaml key/value
+
+## `docker/Dockerfile`
+- Role: Container
+### Line-by-line
+- L1: `# Placeholder Dockerfile` — docker instruction
+
+## `docker/docker-compose.yml`
+- Role: Container
+### Line-by-line
+- L1: `# Placeholder docker-compose` — yaml comment
+
+## `scripts/calibrate_camera.sh`
+- Role: Script
+### Line-by-line
+- L1: `#!/usr/bin/env bash` — shebang
+- L2: `# Placeholder for camera calibration.` — shell comment
+
+## `scripts/flash_pixhawk_params.sh`
+- Role: Script
+### Line-by-line
+- L1: `#!/usr/bin/env bash` — shebang
+- L2: `# Placeholder for Pixhawk parameter flashing.` — shell comment
+
+## `scripts/simulate_indoor_return.py`
+- Role: Script
+### Line-by-line
+- L1: `"""Simulate Indoor Return module. Provides simulate indoor return utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `scripts/start_navisar.sh`
+- Role: Script
+### Line-by-line
+- L1: `#!/usr/bin/env bash` — shebang
+- L2: `ROOT_DIR="$(cd "$(dirname "$0")/.."; pwd)"` — shell command
+- L3: `PYTHONPATH="$ROOT_DIR/src" python -m navisar.main` — shell command
+
+## `tools/camera_calibration.py`
+- Role: Tool
+### Line-by-line
+- L1: `#!/usr/bin/env python3` — comment
+- L2: `"""Interactive chessboard camera calibration helper."""` — module docstring boundary
+- L3: `` — blank line
+- L4: `import argparse` — import statement
+- L5: `import os` — import statement
+- L6: `import sys` — import statement
+- L7: `from pathlib import Path` — import statement
+- L8: `` — blank line
+- L9: `import cv2` — import statement
+- L10: `import numpy as np` — import statement
+- L11: `` — blank line
+- L12: `` — blank line
+- L13: `def _parse_args():` — function definition
+- L14: `    """Parse CLI arguments for camera calibration."""` — module docstring boundary
+- L15: `    parser = argparse.ArgumentParser(` — python statement
+- L16: `        description="Calibrate camera intrinsics using a chessboard pattern."` — python statement
+- L17: `    )` — python statement
+- L18: `    parser.add_argument(` — python statement
+- L19: `        "--backend",` — python statement
+- L20: `        type=str,` — python statement
+- L21: `        default="opencv",` — python statement
+- L22: `        choices=("opencv", "picamera2"),` — python statement
+- L23: `        help="Capture backend: opencv (USB/UVC) or picamera2 (CSI/OV9281).",` — python statement
+- L24: `    )` — python statement
+- L25: `    parser.add_argument("--camera-index", type=int, default=0, help="OpenCV camera index.")` — python statement
+- L26: `    parser.add_argument("--width", type=int, default=640, help="Capture width.")` — python statement
+- L27: `    parser.add_argument("--height", type=int, default=480, help="Capture height.")` — python statement
+- L28: `    parser.add_argument(` — python statement
+- L29: `        "--format",` — python statement
+- L30: `        type=str,` — python statement
+- L31: `        default="YUV420",` — python statement
+- L32: `        help="Picamera2 pixel format (e.g., YUV420, RGB888).",` — python statement
+- L33: `    )` — python statement
+- L34: `    parser.add_argument(` — python statement
+- L35: `        "--board-cols", type=int, default=9, help="Chessboard inner corners (columns)."` — python statement
+- L36: `    )` — python statement
+- L37: `    parser.add_argument(` — python statement
+- L38: `        "--board-rows", type=int, default=6, help="Chessboard inner corners (rows)."` — python statement
+- L39: `    )` — python statement
+- L40: `    parser.add_argument(` — python statement
+- L41: `        "--square-size",` — python statement
+- L42: `        type=float,` — python statement
+- L43: `        default=0.025,` — python statement
+- L44: `        help="Square size in meters (used for scaling).",` — python statement
+- L45: `    )` — python statement
+- L46: `    parser.add_argument("--samples", type=int, default=20, help="Valid samples to collect.")` — python statement
+- L47: `    parser.add_argument(` — python statement
+- L48: `        "--save-dir",` — python statement
+- L49: `        type=str,` — python statement
+- L50: `        default="",` — python statement
+- L51: `        help="Optional directory to save captured images.",` — python statement
+- L52: `    )` — python statement
+- L53: `    return parser.parse_args()` — return statement
+- L54: `` — blank line
+- L55: `` — blank line
+- L56: `def _yaml_snippet(fx, fy, cx, cy, dist_coeffs):` — function definition
+- L57: `    """Render intrinsics as a YAML snippet."""` — module docstring boundary
+- L58: `    coeffs = ", ".join(f"{c:.6f}" for c in dist_coeffs[:5])` — python statement
+- L59: `    return (` — return statement
+- L60: `        "intrinsics:\n"` — python statement
+- L61: `        f"  fx: {fx:.6f}\n"` — python statement
+- L62: `        f"  fy: {fy:.6f}\n"` — python statement
+- L63: `        f"  cx: {cx:.6f}\n"` — python statement
+- L64: `        f"  cy: {cy:.6f}\n"` — python statement
+- L65: `        f"  dist_coeffs: [{coeffs}]\n"` — python statement
+- L66: `    )` — python statement
+- L67: `` — blank line
+- L68: `` — blank line
+- L69: `class _CvCamera:` — class definition
+- L70: `    def __init__(self, index, width, height):` — function definition
+- L71: `        self._cap = cv2.VideoCapture(index)` — python statement
+- L72: `        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)` — python statement
+- L73: `        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)` — python statement
+- L74: `        if not self._cap.isOpened():` — conditional branch
+- L75: `            raise RuntimeError("Failed to open OpenCV camera.")` — error raise
+- L76: `` — blank line
+- L77: `    def read(self):` — function definition
+- L78: `        return self._cap.read()` — return statement
+- L79: `` — blank line
+- L80: `    def release(self):` — function definition
+- L81: `        self._cap.release()` — python statement
+- L82: `` — blank line
+- L83: `` — blank line
+- L84: `class _PiCamera2Wrapper:` — class definition
+- L85: `    def __init__(self, width, height, format_name):` — function definition
+- L86: `        from navisar.sensors.cameras.ov9281 import OV9281Camera` — import statement
+- L87: `` — blank line
+- L88: `        self._cam = OV9281Camera(width=width, height=height, format_name=format_name)` — python statement
+- L89: `` — blank line
+- L90: `    def read(self):` — function definition
+- L91: `        ok, frame = self._cam.read()` — python statement
+- L92: `        return ok, frame` — return statement
+- L93: `` — blank line
+- L94: `    def release(self):` — function definition
+- L95: `        self._cam.release()` — python statement
+- L96: `` — blank line
+- L97: `` — blank line
+- L98: `def _open_camera(args):` — function definition
+- L99: `    if args.backend == "picamera2":` — conditional branch
+- L100: `        return _PiCamera2Wrapper(args.width, args.height, args.format)` — return statement
+- L101: `    return _CvCamera(args.camera_index, args.width, args.height)` — return statement
+- L102: `` — blank line
+- L103: `` — blank line
+- L104: `def _to_gray_and_preview(frame):` — function definition
+- L105: `    if frame.ndim == 2:` — conditional branch
+- L106: `        gray = frame` — python statement
+- L107: `        preview = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)` — python statement
+- L108: `    else:` — conditional branch
+- L109: `        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` — python statement
+- L110: `        preview = frame.copy()` — python statement
+- L111: `    return gray, preview` — return statement
+- L112: `` — blank line
+- L113: `` — blank line
+- L114: `def main():` — function definition
+- L115: `    """Run interactive chessboard calibration."""` — module docstring boundary
+- L116: `    args = _parse_args()` — python statement
+- L117: `    repo_root = Path(__file__).resolve().parents[1]` — python statement
+- L118: `    src_path = repo_root / "src"` — python statement
+- L119: `    if str(src_path) not in sys.path:` — conditional branch
+- L120: `        sys.path.insert(0, str(src_path))` — python statement
+- L121: `    board_size = (args.board_cols, args.board_rows)` — python statement
+- L122: `    objp = np.zeros((board_size[0] * board_size[1], 3), np.float32)` — python statement
+- L123: `    objp[:, :2] = np.mgrid[0 : board_size[0], 0 : board_size[1]].T.reshape(-1, 2)` — python statement
+- L124: `    objp *= float(args.square_size)` — python statement
+- L125: `` — blank line
+- L126: `    save_dir = None` — python statement
+- L127: `    if args.save_dir:` — conditional branch
+- L128: `        save_dir = Path(args.save_dir)` — python statement
+- L129: `        save_dir.mkdir(parents=True, exist_ok=True)` — python statement
+- L130: `` — blank line
+- L131: `    cap = _open_camera(args)` — python statement
+- L132: `` — blank line
+- L133: `    obj_points = []` — python statement
+- L134: `    img_points = []` — python statement
+- L135: `    collected = 0` — python statement
+- L136: `    img_size = None` — python statement
+- L137: `    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)` — python statement
+- L138: `` — blank line
+- L139: `    print("Press SPACE to capture when corners are visible. Press Q to quit.")` — python statement
+- L140: `    while True:` — loop
+- L141: `        ret, frame = cap.read()` — python statement
+- L142: `        if not ret:` — conditional branch
+- L143: `            continue` — python statement
+- L144: `` — blank line
+- L145: `        if img_size is None:` — conditional branch
+- L146: `            img_size = (frame.shape[1], frame.shape[0])` — python statement
+- L147: `` — blank line
+- L148: `        gray, preview = _to_gray_and_preview(frame)` — python statement
+- L149: `        found, corners = cv2.findChessboardCorners(gray, board_size, None)` — python statement
+- L150: `        if found:` — conditional branch
+- L151: `            corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)` — python statement
+- L152: `            cv2.drawChessboardCorners(preview, board_size, corners, found)` — python statement
+- L153: `` — blank line
+- L154: `        cv2.putText(` — python statement
+- L155: `            preview,` — python statement
+- L156: `            f"Samples: {collected}/{args.samples}",` — python statement
+- L157: `            (10, 30),` — python statement
+- L158: `            cv2.FONT_HERSHEY_SIMPLEX,` — python statement
+- L159: `            0.7,` — python statement
+- L160: `            (0, 255, 0),` — python statement
+- L161: `            2,` — python statement
+- L162: `        )` — python statement
+- L163: `        cv2.imshow("Camera Calibration", preview)` — python statement
+- L164: `        key = cv2.waitKey(1) & 0xFF` — python statement
+- L165: `` — blank line
+- L166: `        if key == ord("q"):` — conditional branch
+- L167: `            break` — python statement
+- L168: `        if key == ord(" ") and found:` — conditional branch
+- L169: `            obj_points.append(objp)` — python statement
+- L170: `            img_points.append(corners)` — python statement
+- L171: `            collected += 1` — python statement
+- L172: `            if save_dir is not None:` — conditional branch
+- L173: `                filename = save_dir / f"calib_{collected:03d}.png"` — python statement
+- L174: `                cv2.imwrite(str(filename), frame)` — python statement
+- L175: `            if collected >= args.samples:` — conditional branch
+- L176: `                break` — python statement
+- L177: `` — blank line
+- L178: `    cap.release()` — python statement
+- L179: `    cv2.destroyAllWindows()` — python statement
+- L180: `` — blank line
+- L181: `    if collected < 5:` — conditional branch
+- L182: `        raise RuntimeError("Not enough samples collected to calibrate.")` — error raise
+- L183: `` — blank line
+- L184: `    rms, camera_mtx, dist, _, _ = cv2.calibrateCamera(` — python statement
+- L185: `        obj_points, img_points, img_size, None, None` — python statement
+- L186: `    )` — python statement
+- L187: `` — blank line
+- L188: `    fx = float(camera_mtx[0, 0])` — python statement
+- L189: `    fy = float(camera_mtx[1, 1])` — python statement
+- L190: `    cx = float(camera_mtx[0, 2])` — python statement
+- L191: `    cy = float(camera_mtx[1, 2])` — python statement
+- L192: `    dist_coeffs = dist.ravel().tolist()` — python statement
+- L193: `` — blank line
+- L194: `    print("\nCalibration complete")` — python statement
+- L195: `    print(f"RMS reprojection error: {rms:.6f}")` — python statement
+- L196: `    print(_yaml_snippet(fx, fy, cx, cy, dist_coeffs))` — python statement
+- L197: `` — blank line
+- L198: `` — blank line
+- L199: `if __name__ == "__main__":` — module entry point guard
+- L200: `    main()` — python statement
+
+## `tools/gps_serial_forwarder.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""GPS Serial Forwarder module. Provides gps serial forwarder utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import argparse` — import statement
+- L4: `import time` — import statement
+- L5: `` — blank line
+- L6: `import serial` — import statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `def main():` — function definition
+- L10: `    """Forward raw GPS NMEA data between serial ports."""` — module docstring boundary
+- L11: `    parser = argparse.ArgumentParser(description="Forward GPS serial data to Pixhawk.")` — python statement
+- L12: `    parser.add_argument("--in-port", required=True, help="GPS input port (e.g. /dev/ttyUSB0)")` — python statement
+- L13: `    parser.add_argument("--out-port", required=True, help="Pixhawk output port (e.g. /dev/ttyUSB1)")` — python statement
+- L14: `    parser.add_argument("--baud", type=int, default=9600, help="Serial baud rate")` — python statement
+- L15: `    parser.add_argument("--stats-interval", type=float, default=5.0, help="Seconds between stats")` — python statement
+- L16: `    args = parser.parse_args()` — python statement
+- L17: `` — blank line
+- L18: `    gps_in = serial.Serial(args.in_port, args.baud, timeout=0.5)` — python statement
+- L19: `    gps_out = serial.Serial(args.out_port, args.baud, timeout=0)` — python statement
+- L20: `    print(` — python statement
+- L21: `        f"Forwarding {args.in_port} -> {args.out_port} @ {args.baud} baud"` — python statement
+- L22: `    )` — python statement
+- L23: `` — blank line
+- L24: `    last_stats = time.time()` — python statement
+- L25: `    bytes_in = 0` — python statement
+- L26: `    lines_in = 0` — python statement
+- L27: `    while True:` — loop
+- L28: `        line = gps_in.readline()` — python statement
+- L29: `        if line:` — conditional branch
+- L30: `            gps_out.write(line)` — python statement
+- L31: `            bytes_in += len(line)` — python statement
+- L32: `            lines_in += 1` — python statement
+- L33: `        now = time.time()` — python statement
+- L34: `        if now - last_stats >= args.stats_interval:` — conditional branch
+- L35: `            print(f"Forwarded {lines_in} lines / {bytes_in} bytes")` — python statement
+- L36: `            last_stats = now` — python statement
+- L37: `            bytes_in = 0` — python statement
+- L38: `            lines_in = 0` — python statement
+- L39: `` — blank line
+- L40: `` — blank line
+- L41: `if __name__ == "__main__":` — module entry point guard
+- L42: `    main()` — python statement
+
+## `tools/gps_serial_sniffer.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""GPS Serial Sniffer module. Provides gps serial sniffer utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import argparse` — import statement
+- L4: `import time` — import statement
+- L5: `` — blank line
+- L6: `import serial` — import statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `def _detect_format(sample):` — function definition
+- L10: `    """Guess GPS message format from leading bytes."""` — module docstring boundary
+- L11: `    if not sample:` — conditional branch
+- L12: `        return "unknown"` — return statement
+- L13: `    if sample.startswith(b"$"):` — conditional branch
+- L14: `        return "nmea"` — return statement
+- L15: `    if sample.startswith(b"\xb5\x62"):` — conditional branch
+- L16: `        return "ubx"` — return statement
+- L17: `    return "unknown"` — return statement
+- L18: `` — blank line
+- L19: `` — blank line
+- L20: `def _safe_decode(sample):` — function definition
+- L21: `    """Decode bytes as ASCII, returning empty on failure."""` — module docstring boundary
+- L22: `    try:` — exception handling
+- L23: `        return sample.decode("ascii", errors="ignore").strip()` — return statement
+- L24: `    except Exception:` — exception handling
+- L25: `        return ""` — return statement
+- L26: `` — blank line
+- L27: `` — blank line
+- L28: `def main():` — function definition
+- L29: `    """CLI tool to sniff GPS serial data format."""` — module docstring boundary
+- L30: `    parser = argparse.ArgumentParser(description="Sniff GPS serial data format.")` — python statement
+- L31: `    parser.add_argument("--port", required=True, help="Serial port (e.g. /dev/ttyUSB0)")` — python statement
+- L32: `    parser.add_argument("--baud", type=int, default=9600, help="Serial baud rate")` — python statement
+- L33: `    parser.add_argument("--duration", type=float, default=5.0, help="Seconds to sniff")` — python statement
+- L34: `    parser.add_argument("--max-lines", type=int, default=50, help="Max lines to print")` — python statement
+- L35: `    args = parser.parse_args()` — python statement
+- L36: `` — blank line
+- L37: `    ser = serial.Serial(args.port, args.baud, timeout=0.5)` — python statement
+- L38: `    print(f"Sniffing {args.port} @ {args.baud} for {args.duration}s...")` — python statement
+- L39: `` — blank line
+- L40: `    start = time.time()` — python statement
+- L41: `    lines = 0` — python statement
+- L42: `    last_format = "unknown"` — python statement
+- L43: `    while time.time() - start < args.duration and lines < args.max_lines:` — loop
+- L44: `        raw = ser.readline()` — python statement
+- L45: `        if not raw:` — conditional branch
+- L46: `            continue` — python statement
+- L47: `        fmt = _detect_format(raw)` — python statement
+- L48: `        if fmt != "unknown":` — conditional branch
+- L49: `            last_format = fmt` — python statement
+- L50: `        if fmt == "nmea":` — conditional branch
+- L51: `            print(f"NMEA: {_safe_decode(raw)}")` — python statement
+- L52: `        elif fmt == "ubx":` — conditional branch
+- L53: `            print(f"UBX: {raw[:20].hex()}...")` — python statement
+- L54: `        else:` — conditional branch
+- L55: `            text = _safe_decode(raw)` — python statement
+- L56: `            if text:` — conditional branch
+- L57: `                print(f"RAW: {text}")` — python statement
+- L58: `            else:` — conditional branch
+- L59: `                print(f"RAW: {raw[:20].hex()}...")` — python statement
+- L60: `        lines += 1` — python statement
+- L61: `` — blank line
+- L62: `    print(f"Detected format: {last_format}")` — python statement
+- L63: `` — blank line
+- L64: `` — blank line
+- L65: `if __name__ == "__main__":` — module entry point guard
+- L66: `    main()` — python statement
+
+## `tools/gps_vs_vps_error.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""GPS Vs VPS Error module. Provides gps vs vps error utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `tools/imu_monitor.py`
+- Role: Tool
+### Line-by-line
+- L1: `#!/usr/bin/env python3` — comment
+- L2: `"""Print Pixhawk IMU data to the terminal."""` — module docstring boundary
+- L3: `` — blank line
+- L4: `import argparse` — import statement
+- L5: `import sys` — import statement
+- L6: `import time` — import statement
+- L7: `from pathlib import Path` — import statement
+- L8: `` — blank line
+- L9: `from pymavlink import mavutil` — import statement
+- L10: `` — blank line
+- L11: `` — blank line
+- L12: `def _parse_args():` — function definition
+- L13: `    parser = argparse.ArgumentParser(description="Monitor Pixhawk IMU data.")` — python statement
+- L14: `    parser.add_argument(` — python statement
+- L15: `        "--device",` — python statement
+- L16: `        type=str,` — python statement
+- L17: `        default="/dev/ttyACM0",` — python statement
+- L18: `        help="MAVLink serial device.",` — python statement
+- L19: `    )` — python statement
+- L20: `    parser.add_argument(` — python statement
+- L21: `        "--baud",` — python statement
+- L22: `        type=int,` — python statement
+- L23: `        default=115200,` — python statement
+- L24: `        help="MAVLink baud rate.",` — python statement
+- L25: `    )` — python statement
+- L26: `    parser.add_argument(` — python statement
+- L27: `        "--rate-hz",` — python statement
+- L28: `        type=float,` — python statement
+- L29: `        default=20.0,` — python statement
+- L30: `        help="Requested HIGHRES_IMU message rate.",` — python statement
+- L31: `    )` — python statement
+- L32: `    parser.add_argument(` — python statement
+- L33: `        "--print-hz",` — python statement
+- L34: `        type=float,` — python statement
+- L35: `        default=10.0,` — python statement
+- L36: `        help="Terminal print rate.",` — python statement
+- L37: `    )` — python statement
+- L38: `    return parser.parse_args()` — return statement
+- L39: `` — blank line
+- L40: `` — blank line
+- L41: `def _ensure_import_path():` — function definition
+- L42: `    repo_root = Path(__file__).resolve().parents[1]` — python statement
+- L43: `    src_path = repo_root / "src"` — python statement
+- L44: `    if str(src_path) not in sys.path:` — conditional branch
+- L45: `        sys.path.insert(0, str(src_path))` — python statement
+- L46: `` — blank line
+- L47: `` — blank line
+- L48: `def main():` — function definition
+- L49: `    args = _parse_args()` — python statement
+- L50: `    _ensure_import_path()` — python statement
+- L51: `` — blank line
+- L52: `    from navisar.pixhawk.mavlink_client import MavlinkInterface` — import statement
+- L53: `` — blank line
+- L54: `    mav = MavlinkInterface(args.device, baud=args.baud)` — python statement
+- L55: `    mav.request_message_interval(` — python statement
+- L56: `        mavutil.mavlink.MAVLINK_MSG_ID_HIGHRES_IMU,` — python statement
+- L57: `        rate_hz=args.rate_hz,` — python statement
+- L58: `    )` — python statement
+- L59: `    mav.request_message_interval(` — python statement
+- L60: `        mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU,` — python statement
+- L61: `        rate_hz=args.rate_hz,` — python statement
+- L62: `    )` — python statement
+- L63: `    mav.request_message_interval(` — python statement
+- L64: `        mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU,` — python statement
+- L65: `        rate_hz=args.rate_hz,` — python statement
+- L66: `    )` — python statement
+- L67: `` — blank line
+- L68: `    last_print = 0.0` — python statement
+- L69: `    last_status = 0.0` — python statement
+- L70: `    print_interval = 1.0 / max(args.print_hz, 1e-3)` — python statement
+- L71: `    while True:` — loop
+- L72: `        imu = mav.recv_imu()` — python statement
+- L73: `        now = time.time()` — python statement
+- L74: `        if imu and (now - last_print) >= print_interval:` — conditional branch
+- L75: `            last_print = now` — python statement
+- L76: `            print(` — python statement
+- L77: `                "accel[m/s^2]=({ax:.3f},{ay:.3f},{az:.3f}) "` — python statement
+- L78: `                "gyro[rad/s]=({gx:.3f},{gy:.3f},{gz:.3f}) "` — python statement
+- L79: `                "t={time_s:.3f}".format(**imu)` — python statement
+- L80: `            )` — python statement
+- L81: `        if imu is None:` — conditional branch
+- L82: `            msg = mav.master.recv_match(type="RAW_IMU", blocking=False)` — python statement
+- L83: `            if msg and (now - last_print) >= print_interval:` — conditional branch
+- L84: `                last_print = now` — python statement
+- L85: `                print(` — python statement
+- L86: `                    "RAW_IMU accel[mg]=({},{},{}) gyro[mrad/s]=({},{},{}) t={}".format(` — python statement
+- L87: `                        msg.xacc,` — python statement
+- L88: `                        msg.yacc,` — python statement
+- L89: `                        msg.zacc,` — python statement
+- L90: `                        msg.xgyro,` — python statement
+- L91: `                        msg.ygyro,` — python statement
+- L92: `                        msg.zgyro,` — python statement
+- L93: `                        msg.time_usec,` — python statement
+- L94: `                    )` — python statement
+- L95: `                )` — python statement
+- L96: `        if imu is None:` — conditional branch
+- L97: `            msg = mav.master.recv_match(type="SCALED_IMU", blocking=False)` — python statement
+- L98: `            if msg and (now - last_print) >= print_interval:` — conditional branch
+- L99: `                last_print = now` — python statement
+- L100: `                print(` — python statement
+- L101: `                    "SCALED_IMU accel[mg]=({},{},{}) gyro[mrad/s]=({},{},{}) t={}".format(` — python statement
+- L102: `                        msg.xacc,` — python statement
+- L103: `                        msg.yacc,` — python statement
+- L104: `                        msg.zacc,` — python statement
+- L105: `                        msg.xgyro,` — python statement
+- L106: `                        msg.ygyro,` — python statement
+- L107: `                        msg.zgyro,` — python statement
+- L108: `                        msg.time_boot_ms,` — python statement
+- L109: `                    )` — python statement
+- L110: `                )` — python statement
+- L111: `        if (now - last_status) >= 2.0 and imu is None:` — conditional branch
+- L112: `            last_status = now` — python statement
+- L113: `            print("Waiting for IMU data...")` — python statement
+- L114: `        time.sleep(0.01)` — python statement
+- L115: `` — blank line
+- L116: `` — blank line
+- L117: `if __name__ == "__main__":` — module entry point guard
+- L118: `    main()` — python statement
+
+## `tools/log_replay.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""Log Replay module. Provides log replay utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `tools/map_viewer.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""Map Viewer module. Provides map viewer utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `tools/mavlink_sniffer.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""MAVLink Sniffer module. Provides mavlink sniffer utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import os` — import statement
+- L4: `import time` — import statement
+- L5: `` — blank line
+- L6: `from pymavlink import mavutil` — import statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `DEVICE = os.getenv("MAVLINK_DEVICE", "/dev/ttyACM0")` — python statement
+- L10: `BAUD = int(os.getenv("MAVLINK_BAUD", "115200"))` — python statement
+- L11: `HEARTBEAT_TIMEOUT_S = float(os.getenv("MAVLINK_HEARTBEAT_TIMEOUT_S", "5.0"))` — python statement
+- L12: `PRINT_INTERVAL_S = float(os.getenv("MAVLINK_PRINT_INTERVAL_S", "0.0"))` — python statement
+- L13: `GPS_RAW_RATE_HZ = float(os.getenv("MAVLINK_GPS_RAW_RATE_HZ", "2.0"))` — python statement
+- L14: `GLOBAL_POS_RATE_HZ = float(os.getenv("MAVLINK_GLOBAL_POS_RATE_HZ", "2.0"))` — python statement
+- L15: `LIDAR_RATE_HZ = float(os.getenv("MAVLINK_LIDAR_RATE_HZ", "5.0"))` — python statement
+- L16: `` — blank line
+- L17: `` — blank line
+- L18: `def _request_message_interval(master, msg_id, rate_hz):` — function definition
+- L19: `    """Request a MAVLink message at a given rate."""` — module docstring boundary
+- L20: `    if rate_hz <= 0:` — conditional branch
+- L21: `        return` — python statement
+- L22: `    interval_us = int(1_000_000 / rate_hz)` — python statement
+- L23: `    master.mav.command_long_send(` — python statement
+- L24: `        master.target_system,` — python statement
+- L25: `        master.target_component,` — python statement
+- L26: `        mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,` — python statement
+- L27: `        0,` — python statement
+- L28: `        msg_id,` — python statement
+- L29: `        interval_us,` — python statement
+- L30: `        0,` — python statement
+- L31: `        0,` — python statement
+- L32: `        0,` — python statement
+- L33: `        0,` — python statement
+- L34: `        0,` — python statement
+- L35: `    )` — python statement
+- L36: `` — blank line
+- L37: `` — blank line
+- L38: `def main():` — function definition
+- L39: `    """Stream GPS/LiDAR MAVLink messages to stdout."""` — module docstring boundary
+- L40: `    print(f"Connecting to Pixhawk on {DEVICE} @ {BAUD}...")` — python statement
+- L41: `    master = mavutil.mavlink_connection(DEVICE, baud=BAUD)` — python statement
+- L42: `    try:` — exception handling
+- L43: `        master.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT_S)` — python statement
+- L44: `    except Exception as exc:` — exception handling
+- L45: `        raise RuntimeError("Failed to receive MAVLink heartbeat") from exc` — error raise
+- L46: `` — blank line
+- L47: `    print("Heartbeat received. Streaming GPS + LiDAR MAVLink messages...")` — python statement
+- L48: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_GPS_RAW_INT, GPS_RAW_RATE_HZ)` — python statement
+- L49: `    _request_message_interval(` — python statement
+- L50: `        master, mavutil.mavlink.MAVLINK_MSG_ID_GLOBAL_POSITION_INT, GLOBAL_POS_RATE_HZ` — python statement
+- L51: `    )` — python statement
+- L52: `    _request_message_interval(` — python statement
+- L53: `        master, mavutil.mavlink.MAVLINK_MSG_ID_DISTANCE_SENSOR, LIDAR_RATE_HZ` — python statement
+- L54: `    )` — python statement
+- L55: `    last_print = 0.0` — python statement
+- L56: `    while True:` — loop
+- L57: `        msg = master.recv_match(blocking=True, timeout=1.0)` — python statement
+- L58: `        if msg is None:` — conditional branch
+- L59: `            continue` — python statement
+- L60: `        msg_type = msg.get_type()` — python statement
+- L61: `        if msg_type not in ("GPS_RAW_INT", "GLOBAL_POSITION_INT", "DISTANCE_SENSOR"):` — conditional branch
+- L62: `            continue` — python statement
+- L63: `        now = time.time()` — python statement
+- L64: `        if PRINT_INTERVAL_S <= 0.0 or (now - last_print) >= PRINT_INTERVAL_S:` — conditional branch
+- L65: `            if msg_type == "GPS_RAW_INT":` — conditional branch
+- L66: `                lat = msg.lat / 1e7` — python statement
+- L67: `                lon = msg.lon / 1e7` — python statement
+- L68: `                alt_m = msg.alt / 1000.0` — python statement
+- L69: `                print(f"GPS: lat={lat:.7f} lon={lon:.7f} alt_m={alt_m:.2f}")` — python statement
+- L70: `            elif msg_type == "GLOBAL_POSITION_INT":` — conditional branch
+- L71: `                lat = msg.lat / 1e7` — python statement
+- L72: `                lon = msg.lon / 1e7` — python statement
+- L73: `                alt_m = msg.alt / 1000.0` — python statement
+- L74: `                rel_alt_m = msg.relative_alt / 1000.0` — python statement
+- L75: `                print(` — python statement
+- L76: `                    f"GPS(global): lat={lat:.7f} lon={lon:.7f} alt_m={alt_m:.2f} rel_alt_m={rel_alt_m:.2f}"` — python statement
+- L77: `                )` — python statement
+- L78: `            elif msg_type == "DISTANCE_SENSOR":` — conditional branch
+- L79: `                dist_m = msg.current_distance / 100.0` — python statement
+- L80: `                print(f"LiDAR: distance_m={dist_m:.2f}")` — python statement
+- L81: `            last_print = now` — python statement
+- L82: `` — blank line
+- L83: `` — blank line
+- L84: `if __name__ == "__main__":` — module entry point guard
+- L85: `    main()` — python statement
+
+## `tools/xy_drift.py`
+- Role: Tool
+### Line-by-line
+- L1: `"""Xy Drift module. Provides xy drift utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import time` — import statement
+- L4: `` — blank line
+- L5: `from navisar.main import build_vo_pipeline` — import statement
+- L6: `` — blank line
+- L7: `` — blank line
+- L8: `def main():` — function definition
+- L9: `    """Run VO and print XY drift telemetry."""` — module docstring boundary
+- L10: `    vo, _mavlink_interface = build_vo_pipeline()` — python statement
+- L11: `    last_print = 0.0` — python statement
+- L12: `    print_interval_s = 0.2` — python statement
+- L13: `` — blank line
+- L14: `    def on_update(x, y, z, dx_m, dy_m, dz_m, dx_pixels, dy_pixels, inliers):` — function definition
+- L15: `        nonlocal last_print` — python statement
+- L16: `        now = time.time()` — python statement
+- L17: `        if now - last_print < print_interval_s:` — conditional branch
+- L18: `            return` — python statement
+- L19: `        last_print = now` — python statement
+- L20: `        print(` — python statement
+- L21: `            f"X={x:.3f} Y={y:.3f} Z={z:.3f} "` — python statement
+- L22: `            f"dX={dx_m:.3f} dY={dy_m:.3f} dZ={dz_m:.3f} "` — python statement
+- L23: `            f"dx_pix={dx_pixels:.2f} dy_pix={dy_pixels:.2f} inliers={inliers}"` — python statement
+- L24: `        )` — python statement
+- L25: `` — blank line
+- L26: `    vo.run(window_name="Camera Drift XY", on_update=on_update)` — python statement
+- L27: `` — blank line
+- L28: `` — blank line
+- L29: `if __name__ == "__main__":` — module entry point guard
+- L30: `    main()` — python statement
+
+## `.github/workflows/ci.yml`
+- Role: CI
+### Line-by-line
+- L1: `# Placeholder CI workflow` — yaml comment
+
+## `.github/workflows/lint.yml`
+- Role: CI
+### Line-by-line
+- L1: `# Placeholder lint workflow` — yaml comment
+
+## `data/calibration/camera.yaml`
+- Role: Data
+### Line-by-line
+- L1: `# Camera calibration` — yaml comment
+
+## `data/calibration/imu.yaml`
+- Role: Data
+### Line-by-line
+- L1: `# IMU calibration` — yaml comment
+
+## `data/home_locations/site_A.yaml`
+- Role: Data
+### Line-by-line
+- L1: `# Site A home location` — yaml comment
+- L2: `lat: 0.0` — yaml key/value
+- L3: `lon: 0.0` — yaml key/value
+- L4: `alt: 0.0` — yaml key/value
+
+## `data/maps/warehouse_map.db`
+- Role: Data
+### Line-by-line
+- L1: `` — blank line
+
+## `docs/gnss/contested_zone_logic.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Contested zone logic` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/gnss/error_analysis.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# GNSS error analysis` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/gnss/spoof_detection.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# GNSS spoof detection` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/hardware/sensor_stack.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Sensor stack` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/hardware/supported_platforms.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Supported platforms` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/hardware/wiring_diagrams.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Wiring diagrams` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/navigation/indoor_return_logic.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Indoor return logic` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/navigation/slam_vs_vio.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# SLAM vs VIO` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/navigation/vps_design.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# VPS design` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/operator/alerts_and_ui.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Alerts and UI` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/operator/flight_modes.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Flight modes` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/operator/operator_manual.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Operator manual` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/overview/modes_and_behavior.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# Modes and behavior` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/overview/state_machine.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# State machine` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `docs/overview/system_architecture.md`
+- Role: Documentation
+### Line-by-line
+- L1: `# System architecture` — markdown heading
+- L2: `` — blank line
+- L3: `TBD.` — markdown text
+
+## `src/navisar/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Navisar package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/main.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Entry point for the VO + LiDAR pipeline and MAVLink/GPS outputs."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import os` — import statement
+- L4: `import time` — import statement
+- L5: `import math` — import statement
+- L6: `import struct` — import statement
+- L7: `import threading` — import statement
+- L8: `from datetime import datetime` — import statement
+- L9: `from pathlib import Path` — import statement
+- L10: `` — blank line
+- L11: `import numpy as np` — import statement
+- L12: `from pymavlink import mavutil` — import statement
+- L13: `import serial` — import statement
+- L14: `import yaml` — import statement
+- L15: `` — blank line
+- L16: `` — blank line
+- L17: `from navisar.sensors.camera import create_camera_driver` — import statement
+- L18: `from navisar.sensors.gps_serial import GpsSerialReader` — import statement
+- L19: `from navisar.sensors.lidar import LidarHeightEstimator` — import statement
+- L20: `from navisar.pixhawk.fake_gps_nmea import (` — import statement
+- L21: `    enu_to_gps,` — python statement
+- L22: `    gga_sentence,` — python statement
+- L23: `    rmc_sentence,` — python statement
+- L24: `    speed_course_from_enu,` — python statement
+- L25: `)` — python statement
+- L26: `from navisar.pixhawk.gps_injector import FakeSatellites, hdop_from_sats` — import statement
+- L27: `from navisar.pixhawk.mavlink_client import MavlinkInterface` — import statement
+- L28: `from navisar.navigation.state_estimator import PositionSourceSelector` — import statement
+- L29: `from navisar.vps.feature_tracking import FeatureTracker` — import statement
+- L30: `from navisar.vps.height_estimator import HeightEstimator` — import statement
+- L31: `from navisar.vps.pose_estimator import PoseEstimator` — import statement
+- L32: `from navisar.vps.algorithms.median_flow import MedianFlowEstimator` — import statement
+- L33: `from navisar.vps.algorithms.ransac_affine import RansacAffineEstimator` — import statement
+- L34: `from navisar.vps.visual_odometry import VisualOdometry` — import statement
+- L35: `from navisar.vps import vio_imu` — import statement
+- L36: `` — blank line
+- L37: `# ================= CONFIG =================` — comment
+- L38: `CAMERA_INDEX = 0` — python statement
+- L39: `MIN_FEATURES = 40` — python statement
+- L40: `MAX_FEATURES = 300` — python statement
+- L41: `REDETECT_INTERVAL = 10  # frames` — python statement
+- L42: `RANSAC_REPROJ_THRESH = 3.0` — python statement
+- L43: `METRIC_THRESHOLD = 0.02  # meters` — python statement
+- L44: `MIN_INLIERS = 50` — python statement
+- L45: `GRID_ROWS = 6` — python statement
+- L46: `GRID_COLS = 8` — python statement
+- L47: `CELL_MAX_FEATURES = 30` — python statement
+- L48: `CELL_TEXTURE_THRESHOLD = 12.0` — python statement
+- L49: `CORNER_QUALITY_LEVEL = 0.2` — python statement
+- L50: `MIN_FLOW_PX = 0.4` — python statement
+- L51: `MIN_HEIGHT_M = 0.1` — python statement
+- L52: `MIN_INLIER_RATIO = 0.5` — python statement
+- L53: `MAX_FLOW_MAD_PX = 1.2` — python statement
+- L54: `EXPOSURE_MIN_MEAN = 10.0` — python statement
+- L55: `EXPOSURE_MAX_MEAN = 245.0` — python statement
+- L56: `MOTION_CONFIRM_FRAMES = 3` — python statement
+- L57: `MOTION_SMOOTH_WINDOW = 5` — python statement
+- L58: `ZERO_MOTION_WINDOW = 8` — python statement
+- L59: `ZERO_MOTION_MEAN_M = 0.004` — python statement
+- L60: `ZERO_MOTION_STD_M = 0.002` — python statement
+- L61: `` — blank line
+- L62: `# --- CAMERA INTRINSICS ---` — comment
+- L63: `IMG_WIDTH = 640` — python statement
+- L64: `IMG_HEIGHT = 480` — python statement
+- L65: `FX = 525.0` — python statement
+- L66: `FY = 525.0` — python statement
+- L67: `CX = IMG_WIDTH / 2.0` — python statement
+- L68: `CY = IMG_HEIGHT / 2.0` — python statement
+- L69: `K = np.array([[FX, 0.0, CX], [0.0, FY, CY], [0.0, 0.0, 1.0]], dtype=np.float64)` — python statement
+- L70: `DIST_COEFFS = None` — python statement
+- L71: `` — blank line
+- L72: `# --- SCALE (MONOCULAR) ---` — comment
+- L73: `USE_LIDAR = True` — python statement
+- L74: `ALTITUDE_M = 1.0` — python statement
+- L75: `LIDAR_DISTANCE_DIVISOR = float(os.getenv("LIDAR_DISTANCE_DIVISOR", "100.0"))` — python statement
+- L76: `` — blank line
+- L77: `# --- MAVLINK ---` — comment
+- L78: `USE_MAVLINK = True` — python statement
+- L79: `MAVLINK_DEVICE = os.getenv("MAVLINK_DEVICE", "/dev/ttyACM0")` — python statement
+- L80: `MAVLINK_BAUD = int(os.getenv("MAVLINK_BAUD", "115200"))` — python statement
+- L81: `` — blank line
+- L82: `# --- GPS/ODOMETRY SELECTION ---` — comment
+- L83: `GPS_DRIFT_THRESHOLD_M = 5.0` — python statement
+- L84: `GPS_TIMEOUT_S = 2.0` — python statement
+- L85: `GPS_MIN_FIX_TYPE = 3` — python statement
+- L86: `ODOM_GPS_SEND_INTERVAL_S = 0.2` — python statement
+- L87: `ODOM_GPS_FIX_TYPE = 3` — python statement
+- L88: `ODOM_GPS_SATS = 10` — python statement
+- L89: `ODOMETRY_SEND_INTERVAL_S = 0.04` — python statement
+- L90: `ATTITUDE_RATE_HZ = 30.0` — python statement
+- L91: `OUTPUT_MODE = "vps_gps" # odometry, gps_serial, vps_gps, reserved` — python statement
+- L92: `VIO_MODE = "vo"  # vo, vio_imu` — python statement
+- L93: `FAKE_GPS_SMOOTH_ALPHA = 0.2` — python statement
+- L94: `FAKE_GPS_MAX_STEP_M = 1.5` — python statement
+- L95: `GPS_SERIAL_FORMAT = "auto"` — python statement
+- L96: `GPS_OUTPUT_PORT = "/dev/ttyUSB1"` — python statement
+- L97: `GPS_OUTPUT_BAUD = 9600` — python statement
+- L98: `GPS_OUTPUT_RATE_HZ = 5.0` — python statement
+- L99: `GPS_OUTPUT_FIX_QUALITY = 1` — python statement
+- L100: `GPS_OUTPUT_MIN_SATS = 14` — python statement
+- L101: `GPS_OUTPUT_MAX_SATS = 20` — python statement
+- L102: `GPS_OUTPUT_UPDATE_S = 7.0` — python statement
+- L103: `` — blank line
+- L104: `# --- MANUAL GPS ORIGIN (optional) ---` — comment
+- L105: `GPS_ORIGIN_LAT = os.getenv("GPS_ORIGIN_LAT")` — python statement
+- L106: `GPS_ORIGIN_LON = os.getenv("GPS_ORIGIN_LON")` — python statement
+- L107: `GPS_ORIGIN_ALT = os.getenv("GPS_ORIGIN_ALT")` — python statement
+- L108: `` — blank line
+- L109: `# --- SERIAL OUTPUT ---` — comment
+- L110: `PRINT_LIDAR_VALUES = True` — python statement
+- L111: `PRINT_INTERVAL_S = 0.5` — python statement
+- L112: `` — blank line
+- L113: `` — blank line
+- L114: `def _repo_root():` — function definition
+- L115: `    """Return the repository root path."""` — module docstring boundary
+- L116: `    return Path(__file__).resolve().parents[2]` — return statement
+- L117: `` — blank line
+- L118: `` — blank line
+- L119: `def _load_yaml(path):` — function definition
+- L120: `    """Load a YAML file into a dict, defaulting to empty."""` — module docstring boundary
+- L121: `    if not path.exists():` — conditional branch
+- L122: `        return {}` — return statement
+- L123: `    with path.open("r", encoding="utf-8") as handle:` — context manager
+- L124: `        data = yaml.safe_load(handle) or {}` — python statement
+- L125: `    return data` — return statement
+- L126: `` — blank line
+- L127: `` — blank line
+- L128: `def _load_configs():` — function definition
+- L129: `    """Load camera/VIO/pixhawk config files with fallback defaults."""` — module docstring boundary
+- L130: `    root = _repo_root()` — python statement
+- L131: `    config_dir = root / "config"` — python statement
+- L132: `    # Config files override the constants above; missing files fall back to defaults.` — comment
+- L133: `    return {` — return statement
+- L134: `        "camera": _load_yaml(config_dir / "camera.yaml"),` — python statement
+- L135: `        "vio": _load_yaml(config_dir / "vio.yaml"),` — python statement
+- L136: `        "pixhawk": _load_yaml(config_dir / "pixhawk.yaml"),` — python statement
+- L137: `    }` — python statement
+- L138: `` — blank line
+- L139: `` — blank line
+- L140: `def _bytes_hex(payload):` — function definition
+- L141: `    """Format bytes as a readable hex string."""` — module docstring boundary
+- L142: `    return " ".join(f"{b:02X}" for b in payload)` — return statement
+- L143: `` — blank line
+- L144: `` — blank line
+- L145: `def build_vo_pipeline():` — function definition
+- L146: `    """Create and configure the visual-odometry pipeline."""` — module docstring boundary
+- L147: `    configs = _load_configs()` — python statement
+- L148: `    camera_cfg = configs["camera"]` — python statement
+- L149: `    vio_cfg = configs["vio"]` — python statement
+- L150: `    pixhawk_cfg = configs["pixhawk"]` — python statement
+- L151: `` — blank line
+- L152: `    img_width = camera_cfg.get("width", IMG_WIDTH)` — python statement
+- L153: `    img_height = camera_cfg.get("height", IMG_HEIGHT)` — python statement
+- L154: `    intrinsics = camera_cfg.get("intrinsics", {})` — python statement
+- L155: `    fx = intrinsics.get("fx", FX)` — python statement
+- L156: `    fy = intrinsics.get("fy", FY)` — python statement
+- L157: `    cx = intrinsics.get("cx", img_width / 2.0)` — python statement
+- L158: `    cy = intrinsics.get("cy", img_height / 2.0)` — python statement
+- L159: `    k = np.array([[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]], dtype=np.float64)` — python statement
+- L160: `    dist_coeffs = intrinsics.get("dist_coeffs", DIST_COEFFS)` — python statement
+- L161: `` — blank line
+- L162: `    use_lidar = pixhawk_cfg.get("use_lidar", USE_LIDAR)` — python statement
+- L163: `    altitude_m = pixhawk_cfg.get("fallback_altitude_m", ALTITUDE_M)` — python statement
+- L164: `    lidar_distance_divisor = float(` — python statement
+- L165: `        pixhawk_cfg.get("lidar_distance_divisor", LIDAR_DISTANCE_DIVISOR)` — python statement
+- L166: `    )` — python statement
+- L167: `` — blank line
+- L168: `    use_mavlink = pixhawk_cfg.get("use_mavlink", USE_MAVLINK)` — python statement
+- L169: `    mavlink_device = pixhawk_cfg.get("device", MAVLINK_DEVICE)` — python statement
+- L170: `    mavlink_baud = int(pixhawk_cfg.get("baud", MAVLINK_BAUD))` — python statement
+- L171: `    attitude_rate_hz = float(pixhawk_cfg.get("attitude_rate_hz", ATTITUDE_RATE_HZ))` — python statement
+- L172: `` — blank line
+- L173: `    camera = create_camera_driver(camera_cfg)` — python statement
+- L174: `    mavlink_interface = None` — python statement
+- L175: `    if use_mavlink or use_lidar:` — conditional branch
+- L176: `        try:` — exception handling
+- L177: `            mavlink_interface = MavlinkInterface(mavlink_device, baud=mavlink_baud)` — python statement
+- L178: `            print("Pixhawk connected")` — python statement
+- L179: `            mavlink_interface.request_message_interval(` — python statement
+- L180: `                msg_id=mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,` — python statement
+- L181: `                rate_hz=attitude_rate_hz,` — python statement
+- L182: `            )` — python statement
+- L183: `        except Exception as exc:` — exception handling
+- L184: `            print(f"Warning: MAVLink not available ({exc}); using fallback height.")` — python statement
+- L185: `` — blank line
+- L186: `    lidar = LidarHeightEstimator(` — python statement
+- L187: `        mavlink_interface,` — python statement
+- L188: `        fallback_m=altitude_m,` — python statement
+- L189: `        distance_divisor=lidar_distance_divisor,` — python statement
+- L190: `    )` — python statement
+- L191: `    height_estimator = HeightEstimator(` — python statement
+- L192: `        use_lidar=use_lidar,` — python statement
+- L193: `        fallback_m=altitude_m,` — python statement
+- L194: `        lidar_driver=lidar,` — python statement
+- L195: `    )` — python statement
+- L196: `    feature_tracker = FeatureTracker(` — python statement
+- L197: `        min_features=vio_cfg.get("min_features", MIN_FEATURES),` — python statement
+- L198: `        max_features=vio_cfg.get("max_features", MAX_FEATURES),` — python statement
+- L199: `        redetect_interval=vio_cfg.get("redetect_interval", REDETECT_INTERVAL),` — python statement
+- L200: `        ransac_reproj_thresh=vio_cfg.get("ransac_reproj_thresh", RANSAC_REPROJ_THRESH),` — python statement
+- L201: `        grid_rows=vio_cfg.get("grid_rows", GRID_ROWS),` — python statement
+- L202: `        grid_cols=vio_cfg.get("grid_cols", GRID_COLS),` — python statement
+- L203: `        per_cell_max_features=vio_cfg.get("per_cell_max_features", CELL_MAX_FEATURES),` — python statement
+- L204: `        texture_threshold=vio_cfg.get("texture_threshold", CELL_TEXTURE_THRESHOLD),` — python statement
+- L205: `        quality_level=vio_cfg.get("corner_quality_level", CORNER_QUALITY_LEVEL),` — python statement
+- L206: `    )` — python statement
+- L207: `    algorithm_name = str(vio_cfg.get("algorithm", "ransac_affine")).lower()` — python statement
+- L208: `    if algorithm_name in ("median_flow", "lk_median", "median"):` — conditional branch
+- L209: `        algorithm = MedianFlowEstimator()` — python statement
+- L210: `    else:` — conditional branch
+- L211: `        algorithm = RansacAffineEstimator()` — python statement
+- L212: `    pose_estimator = PoseEstimator(fx, fy, k, ransac_thresh=1.0, algorithm=algorithm)` — python statement
+- L213: `    yaw_provider = None` — python statement
+- L214: `    if mavlink_interface is not None:` — conditional branch
+- L215: `        yaw_provider = mavlink_interface.recv_attitude` — python statement
+- L216: `    vo = VisualOdometry(` — python statement
+- L217: `        camera_driver=camera,` — python statement
+- L218: `        feature_tracker=feature_tracker,` — python statement
+- L219: `        pose_estimator=pose_estimator,` — python statement
+- L220: `        height_estimator=height_estimator,` — python statement
+- L221: `        dist_coeffs=dist_coeffs,` — python statement
+- L222: `        metric_threshold=vio_cfg.get("metric_threshold_m", METRIC_THRESHOLD),` — python statement
+- L223: `        img_width=img_width,` — python statement
+- L224: `        img_height=img_height,` — python statement
+- L225: `        yaw_provider=yaw_provider,` — python statement
+- L226: `        min_flow_px=vio_cfg.get("min_flow_px", MIN_FLOW_PX),` — python statement
+- L227: `        min_height_m=vio_cfg.get("min_height_m", MIN_HEIGHT_M),` — python statement
+- L228: `        exposure_min_mean=vio_cfg.get("exposure_min_mean", EXPOSURE_MIN_MEAN),` — python statement
+- L229: `        exposure_max_mean=vio_cfg.get("exposure_max_mean", EXPOSURE_MAX_MEAN),` — python statement
+- L230: `        motion_gate_enabled=vio_cfg.get("motion_gate_enabled", True),` — python statement
+- L231: `        min_inlier_ratio=vio_cfg.get("min_inlier_ratio", MIN_INLIER_RATIO),` — python statement
+- L232: `        max_flow_mad_px=vio_cfg.get("max_flow_mad_px", MAX_FLOW_MAD_PX),` — python statement
+- L233: `    )` — python statement
+- L234: `    vo.min_inliers = vio_cfg.get("min_inliers", MIN_INLIERS)` — python statement
+- L235: `    vo.motion_confirm_frames = vio_cfg.get("motion_confirm_frames", MOTION_CONFIRM_FRAMES)` — python statement
+- L236: `    vo.motion_window = vio_cfg.get("motion_smooth_window", MOTION_SMOOTH_WINDOW)` — python statement
+- L237: `    vo.zero_motion_window = vio_cfg.get("zero_motion_window", ZERO_MOTION_WINDOW)` — python statement
+- L238: `    vo.zero_motion_mean_m = vio_cfg.get("zero_motion_mean_m", ZERO_MOTION_MEAN_M)` — python statement
+- L239: `    vo.zero_motion_std_m = vio_cfg.get("zero_motion_std_m", ZERO_MOTION_STD_M)` — python statement
+- L240: `    return vo, mavlink_interface` — return statement
+- L241: `` — blank line
+- L242: `` — blank line
+- L243: `def _quat_from_rpy(roll, pitch, yaw):` — function definition
+- L244: `    """Convert roll/pitch/yaw (rad) to a quaternion."""` — module docstring boundary
+- L245: `    cy = np.cos(yaw * 0.5)` — python statement
+- L246: `    sy = np.sin(yaw * 0.5)` — python statement
+- L247: `    cp = np.cos(pitch * 0.5)` — python statement
+- L248: `    sp = np.sin(pitch * 0.5)` — python statement
+- L249: `    cr = np.cos(roll * 0.5)` — python statement
+- L250: `    sr = np.sin(roll * 0.5)` — python statement
+- L251: `    qw = cr * cp * cy + sr * sp * sy` — python statement
+- L252: `    qx = sr * cp * cy - cr * sp * sy` — python statement
+- L253: `    qy = cr * sp * cy + sr * cp * sy` — python statement
+- L254: `    qz = cr * cp * sy - sr * sp * cy` — python statement
+- L255: `    return [float(qw), float(qx), float(qy), float(qz)]` — return statement
+- L256: `` — blank line
+- L257: `` — blank line
+- L258: `class FakeGpsEmitter:` — class definition
+- L259: `    """Smooth and rate-limit VPS-derived GPS output."""` — module docstring boundary
+- L260: `    def __init__(self, send_interval_s, smooth_alpha, max_step_m):` — function definition
+- L261: `        """Initialize emitter settings and smoothing state."""` — module docstring boundary
+- L262: `        # Enforce 5-10 Hz update rate by clamping interval to 0.1-0.2s.` — comment
+- L263: `        self.send_interval_s = min(max(send_interval_s, 0.1), 0.2)` — python statement
+- L264: `        self.smooth_alpha = max(0.0, min(1.0, float(smooth_alpha)))` — python statement
+- L265: `        self.max_step_m = max(0.0, float(max_step_m))` — python statement
+- L266: `        self._last_send = 0.0` — python statement
+- L267: `        self._smoothed = None` — python statement
+- L268: `` — blank line
+- L269: `    def _smooth_position(self, x_m, y_m, z_m):` — function definition
+- L270: `        """Apply exponential smoothing and step limiting."""` — module docstring boundary
+- L271: `        if self._smoothed is None:` — conditional branch
+- L272: `            self._smoothed = (x_m, y_m, z_m)` — python statement
+- L273: `            return self._smoothed` — return statement
+- L274: `        px, py, pz = self._smoothed` — python statement
+- L275: `        nx = px + self.smooth_alpha * (x_m - px)` — python statement
+- L276: `        ny = py + self.smooth_alpha * (y_m - py)` — python statement
+- L277: `        nz = pz + self.smooth_alpha * (z_m - pz)` — python statement
+- L278: `        dx = nx - px` — python statement
+- L279: `        dy = ny - py` — python statement
+- L280: `        dz = nz - pz` — python statement
+- L281: `        step = float(np.hypot(np.hypot(dx, dy), dz))` — python statement
+- L282: `        if self.max_step_m > 0.0 and step > self.max_step_m:` — conditional branch
+- L283: `            scale = self.max_step_m / step` — python statement
+- L284: `            nx = px + dx * scale` — python statement
+- L285: `            ny = py + dy * scale` — python statement
+- L286: `            nz = pz + dz * scale` — python statement
+- L287: `        self._smoothed = (nx, ny, nz)` — python statement
+- L288: `        return self._smoothed` — return statement
+- L289: `` — blank line
+- L290: `    def ready(self, now):` — function definition
+- L291: `        """Check if the next packet should be sent."""` — module docstring boundary
+- L292: `        return now - self._last_send >= self.send_interval_s` — return statement
+- L293: `` — blank line
+- L294: `    def mark_sent(self, now):` — function definition
+- L295: `        """Record the send timestamp."""` — module docstring boundary
+- L296: `        self._last_send = now` — python statement
+- L297: `` — blank line
+- L298: `` — blank line
+- L299: `class NmeaSerialEmitter:` — class definition
+- L300: `    """Emit NMEA GGA/RMC sentences over serial."""` — module docstring boundary
+- L301: `    def __init__(` — function definition
+- L302: `        self,` — python statement
+- L303: `        port,` — python statement
+- L304: `        baud,` — python statement
+- L305: `        rate_hz,` — python statement
+- L306: `        fix_quality,` — python statement
+- L307: `        min_sats,` — python statement
+- L308: `        max_sats,` — python statement
+- L309: `        update_s,` — python statement
+- L310: `        max_heading_delta_deg=20.0,` — python statement
+- L311: `        raw_print=False,` — python statement
+- L312: `    ):` — python statement
+- L313: `        """Configure serial output and heading smoothing."""` — module docstring boundary
+- L314: `        self.port = port` — python statement
+- L315: `        self.baud = baud` — python statement
+- L316: `        self.rate_hz = min(max(rate_hz, 5.0), 10.0)` — python statement
+- L317: `        self.fix_quality = fix_quality` — python statement
+- L318: `        self.max_heading_delta_deg = max_heading_delta_deg` — python statement
+- L319: `        self.raw_print = raw_print` — python statement
+- L320: `        self._ser = serial.Serial(port, baud, timeout=0)` — python statement
+- L321: `        self._last_send = 0.0` — python statement
+- L322: `        self._last_course = 0.0` — python statement
+- L323: `        self._fake_sats = FakeSatellites(` — python statement
+- L324: `            min_sats=min_sats,` — python statement
+- L325: `            max_sats=max_sats,` — python statement
+- L326: `            update_s=update_s,` — python statement
+- L327: `        )` — python statement
+- L328: `` — blank line
+- L329: `    def ready(self, now):` — function definition
+- L330: `        """Check if the next NMEA update is due."""` — module docstring boundary
+- L331: `        return now - self._last_send >= (1.0 / self.rate_hz)` — return statement
+- L332: `` — blank line
+- L333: `    def send(self, lat, lon, alt_m, vx_e, vy_n, ekf_ok=True):` — function definition
+- L334: `        """Generate and send NMEA messages for the current state."""` — module docstring boundary
+- L335: `        speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)` — python statement
+- L336: `        if speed_mps < 0.05:` — conditional branch
+- L337: `            course_deg = self._last_course` — python statement
+- L338: `        else:` — conditional branch
+- L339: `            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0` — python statement
+- L340: `            if abs(delta) > self.max_heading_delta_deg:` — conditional branch
+- L341: `                course_deg = (` — python statement
+- L342: `                    self._last_course` — python statement
+- L343: `                    + self.max_heading_delta_deg * (1 if delta > 0 else -1)` — python statement
+- L344: `                ) % 360.0` — python statement
+- L345: `        self._last_course = course_deg` — python statement
+- L346: `        sats = self._fake_sats.update(ekf_ok=ekf_ok)` — python statement
+- L347: `        hdop = hdop_from_sats(sats)` — python statement
+- L348: `        gga = gga_sentence(` — python statement
+- L349: `            lat,` — python statement
+- L350: `            lon,` — python statement
+- L351: `            alt_m,` — python statement
+- L352: `            fix_quality=self.fix_quality,` — python statement
+- L353: `            satellites=sats,` — python statement
+- L354: `            hdop=hdop,` — python statement
+- L355: `        )` — python statement
+- L356: `        rmc = rmc_sentence(` — python statement
+- L357: `            lat,` — python statement
+- L358: `            lon,` — python statement
+- L359: `            speed_mps,` — python statement
+- L360: `            course_deg,` — python statement
+- L361: `            status="A" if self.fix_quality > 0 else "V",` — python statement
+- L362: `        )` — python statement
+- L363: `        gga_bytes = gga.encode("ascii")` — python statement
+- L364: `        rmc_bytes = rmc.encode("ascii")` — python statement
+- L365: `        self._ser.write(gga_bytes)` — python statement
+- L366: `        self._ser.write(rmc_bytes)` — python statement
+- L367: `        if self.raw_print:` — conditional branch
+- L368: `            print(f"NMEA RAW GGA: {_bytes_hex(gga_bytes)}")` — python statement
+- L369: `            print(f"NMEA RAW RMC: {_bytes_hex(rmc_bytes)}")` — python statement
+- L370: `        self._last_send = time.time()` — python statement
+- L371: `        return {` — return statement
+- L372: `            "gga": gga_bytes,` — python statement
+- L373: `            "rmc": rmc_bytes,` — python statement
+- L374: `            "sats": sats,` — python statement
+- L375: `            "speed_mps": speed_mps,` — python statement
+- L376: `            "course_deg": course_deg,` — python statement
+- L377: `        }` — python statement
+- L378: `` — blank line
+- L379: `` — blank line
+- L380: `class UbxSerialEmitter:` — class definition
+- L381: `    """Emit UBX navigation messages over serial."""` — module docstring boundary
+- L382: `    def __init__(` — function definition
+- L383: `        self,` — python statement
+- L384: `        port,` — python statement
+- L385: `        baud,` — python statement
+- L386: `        rate_hz,` — python statement
+- L387: `        fix_type,` — python statement
+- L388: `        min_sats,` — python statement
+- L389: `        max_sats,` — python statement
+- L390: `        update_s,` — python statement
+- L391: `        max_heading_delta_deg=20.0,` — python statement
+- L392: `        raw_print=False,` — python statement
+- L393: `    ):` — python statement
+- L394: `        """Configure UBX serial output and rate limiting."""` — module docstring boundary
+- L395: `        self.port = port` — python statement
+- L396: `        self.baud = baud` — python statement
+- L397: `        self.rate_hz = min(max(rate_hz, 5.0), 10.0)` — python statement
+- L398: `        self.fix_type = int(fix_type)` — python statement
+- L399: `        self.max_heading_delta_deg = max_heading_delta_deg` — python statement
+- L400: `        self.raw_print = raw_print` — python statement
+- L401: `        self._ser = serial.Serial(port, baud, timeout=0)` — python statement
+- L402: `        self._last_send = 0.0` — python statement
+- L403: `        self._last_course = 0.0` — python statement
+- L404: `        self._fake_sats = FakeSatellites(` — python statement
+- L405: `            min_sats=min_sats,` — python statement
+- L406: `            max_sats=max_sats,` — python statement
+- L407: `            update_s=update_s,` — python statement
+- L408: `        )` — python statement
+- L409: `` — blank line
+- L410: `    def ready(self, now):` — function definition
+- L411: `        """Check if the next UBX update is due."""` — module docstring boundary
+- L412: `        return now - self._last_send >= (1.0 / self.rate_hz)` — return statement
+- L413: `` — blank line
+- L414: `    @staticmethod` — python statement
+- L415: `    def _ubx_checksum(msg_class, msg_id, payload):` — function definition
+- L416: `        """Compute UBX checksum for class/id/payload."""` — module docstring boundary
+- L417: `        ck_a = 0` — python statement
+- L418: `        ck_b = 0` — python statement
+- L419: `` — blank line
+- L420: `        def _update(val):` — function definition
+- L421: `            nonlocal ck_a, ck_b` — python statement
+- L422: `            ck_a = (ck_a + val) & 0xFF` — python statement
+- L423: `            ck_b = (ck_b + ck_a) & 0xFF` — python statement
+- L424: `` — blank line
+- L425: `        _update(msg_class)` — python statement
+- L426: `        _update(msg_id)` — python statement
+- L427: `        length = len(payload)` — python statement
+- L428: `        _update(length & 0xFF)` — python statement
+- L429: `        _update((length >> 8) & 0xFF)` — python statement
+- L430: `        for byte in payload:` — loop
+- L431: `            _update(byte)` — python statement
+- L432: `        return ck_a, ck_b` — return statement
+- L433: `` — blank line
+- L434: `    @classmethod` — python statement
+- L435: `    def _create_ubx_message(cls, msg_class, msg_id, payload):` — function definition
+- L436: `        """Wrap a UBX payload with header and checksum."""` — module docstring boundary
+- L437: `        length = len(payload)` — python statement
+- L438: `        header = struct.pack("<BBBB", 0xB5, 0x62, msg_class, msg_id)` — python statement
+- L439: `        length_bytes = struct.pack("<H", length)` — python statement
+- L440: `        ck_a, ck_b = cls._ubx_checksum(msg_class, msg_id, payload)` — python statement
+- L441: `        checksum = struct.pack("BB", ck_a, ck_b)` — python statement
+- L442: `        return header + length_bytes + payload + checksum` — return statement
+- L443: `` — blank line
+- L444: `    @classmethod` — python statement
+- L445: `    def _create_nav_posllh(cls, lat_deg, lon_deg, alt_m, time_of_week_ms):` — function definition
+- L446: `        """Create a UBX NAV-POSLLH message payload."""` — module docstring boundary
+- L447: `        lat_1e7 = int(lat_deg * 1e7)` — python statement
+- L448: `        lon_1e7 = int(lon_deg * 1e7)` — python statement
+- L449: `        alt_mm = int(alt_m * 1000)` — python statement
+- L450: `        h_msl_mm = alt_mm` — python statement
+- L451: `        h_acc_mm = 2000` — python statement
+- L452: `        v_acc_mm = 3000` — python statement
+- L453: `        payload = struct.pack(` — python statement
+- L454: `            "<IiiiiII",` — python statement
+- L455: `            time_of_week_ms,` — python statement
+- L456: `            lon_1e7,` — python statement
+- L457: `            lat_1e7,` — python statement
+- L458: `            alt_mm,` — python statement
+- L459: `            h_msl_mm,` — python statement
+- L460: `            h_acc_mm,` — python statement
+- L461: `            v_acc_mm,` — python statement
+- L462: `        )` — python statement
+- L463: `        return cls._create_ubx_message(0x01, 0x02, payload)` — return statement
+- L464: `` — blank line
+- L465: `    @classmethod` — python statement
+- L466: `    def _create_nav_velned(cls, speed_mps, heading_deg, time_of_week_ms):` — function definition
+- L467: `        """Create a UBX NAV-VELNED message payload."""` — module docstring boundary
+- L468: `        heading_rad = math.radians(heading_deg)` — python statement
+- L469: `        vel_n_cm = int(speed_mps * 100 * math.cos(heading_rad))` — python statement
+- L470: `        vel_e_cm = int(speed_mps * 100 * math.sin(heading_rad))` — python statement
+- L471: `        vel_d_cm = 0` — python statement
+- L472: `        speed_cm = int(speed_mps * 100)` — python statement
+- L473: `        ground_speed_cm = speed_cm` — python statement
+- L474: `        heading_1e5 = int(heading_deg * 1e5)` — python statement
+- L475: `        s_acc_cm = 50` — python statement
+- L476: `        c_acc_1e5 = 5000` — python statement
+- L477: `        payload = struct.pack(` — python statement
+- L478: `            "<IiiiIIiII",` — python statement
+- L479: `            time_of_week_ms,` — python statement
+- L480: `            vel_n_cm,` — python statement
+- L481: `            vel_e_cm,` — python statement
+- L482: `            vel_d_cm,` — python statement
+- L483: `            speed_cm,` — python statement
+- L484: `            ground_speed_cm,` — python statement
+- L485: `            heading_1e5,` — python statement
+- L486: `            s_acc_cm,` — python statement
+- L487: `            c_acc_1e5,` — python statement
+- L488: `        )` — python statement
+- L489: `        return cls._create_ubx_message(0x01, 0x12, payload)` — return statement
+- L490: `` — blank line
+- L491: `    @classmethod` — python statement
+- L492: `    def _create_nav_sol(cls, num_sats, time_of_week_ms, fix_type):` — function definition
+- L493: `        """Create a UBX NAV-SOL message payload."""` — module docstring boundary
+- L494: `        gps_fix = int(fix_type)` — python statement
+- L495: `        flags = 0x07` — python statement
+- L496: `        p_acc_cm = 250` — python statement
+- L497: `        payload = struct.pack(` — python statement
+- L498: `            "<IihBBIiiiIIHBBII",` — python statement
+- L499: `            time_of_week_ms,  # iTOW` — python statement
+- L500: `            0,  # fTOW` — python statement
+- L501: `            0,  # week` — python statement
+- L502: `            gps_fix,` — python statement
+- L503: `            flags,` — python statement
+- L504: `            0,  # ecefX` — python statement
+- L505: `            0,  # ecefY` — python statement
+- L506: `            0,  # ecefZ` — python statement
+- L507: `            p_acc_cm,  # pAcc` — python statement
+- L508: `            0,  # ecefVX` — python statement
+- L509: `            0,  # ecefVY` — python statement
+- L510: `            50,  # sAcc` — python statement
+- L511: `            0,  # pDOP` — python statement
+- L512: `            0,  # reserved1` — python statement
+- L513: `            num_sats,` — python statement
+- L514: `            0,  # reserved2` — python statement
+- L515: `        )` — python statement
+- L516: `        return cls._create_ubx_message(0x01, 0x06, payload)` — return statement
+- L517: `` — blank line
+- L518: `    @classmethod` — python statement
+- L519: `    def _create_nav_pvt(` — function definition
+- L520: `        cls, lat_deg, lon_deg, alt_m, speed_mps, heading_deg, num_sats, now, fix_type` — python statement
+- L521: `    ):` — python statement
+- L522: `        """Create a UBX NAV-PVT message payload."""` — module docstring boundary
+- L523: `        gps_fix = int(fix_type)` — python statement
+- L524: `        flags = 0x01` — python statement
+- L525: `        flags2 = 0x00` — python statement
+- L526: `` — blank line
+- L527: `        heading_rad = math.radians(heading_deg)` — python statement
+- L528: `        vel_n_mm = int(speed_mps * 1000 * math.cos(heading_rad))` — python statement
+- L529: `        vel_e_mm = int(speed_mps * 1000 * math.sin(heading_rad))` — python statement
+- L530: `        vel_d_mm = 0` — python statement
+- L531: `` — blank line
+- L532: `        lat_1e7 = int(lat_deg * 1e7)` — python statement
+- L533: `        lon_1e7 = int(lon_deg * 1e7)` — python statement
+- L534: `        alt_mm = int(alt_m * 1000)` — python statement
+- L535: `        h_msl_mm = alt_mm` — python statement
+- L536: `` — blank line
+- L537: `        time_of_week_ms = (` — python statement
+- L538: `            (now.hour * 3600 + now.minute * 60 + now.second) * 1000` — python statement
+- L539: `            + now.microsecond // 1000` — python statement
+- L540: `        )` — python statement
+- L541: `        payload = struct.pack(` — python statement
+- L542: `            "<IHBBBBBBIiBBBBiiiiIIiiiiiIIHBBBBBBi",` — python statement
+- L543: `            time_of_week_ms,` — python statement
+- L544: `            now.year,` — python statement
+- L545: `            now.month,` — python statement
+- L546: `            now.day,` — python statement
+- L547: `            now.hour,` — python statement
+- L548: `            now.minute,` — python statement
+- L549: `            now.second,` — python statement
+- L550: `            flags,` — python statement
+- L551: `            0,  # tAcc` — python statement
+- L552: `            0,  # nano` — python statement
+- L553: `            gps_fix,` — python statement
+- L554: `            flags,` — python statement
+- L555: `            flags2,` — python statement
+- L556: `            num_sats,` — python statement
+- L557: `            lon_1e7,` — python statement
+- L558: `            lat_1e7,` — python statement
+- L559: `            alt_mm,` — python statement
+- L560: `            h_msl_mm,` — python statement
+- L561: `            500,  # hAcc` — python statement
+- L562: `            1000,  # vAcc` — python statement
+- L563: `            vel_n_mm,` — python statement
+- L564: `            vel_e_mm,` — python statement
+- L565: `            vel_d_mm,` — python statement
+- L566: `            int(speed_mps * 1000),  # gSpeed` — python statement
+- L567: `            int(heading_deg * 1e5),  # headMot` — python statement
+- L568: `            1000,  # sAcc` — python statement
+- L569: `            10000,  # headAcc` — python statement
+- L570: `            0,  # pDOP` — python statement
+- L571: `            0,` — python statement
+- L572: `            0,` — python statement
+- L573: `            0,` — python statement
+- L574: `            0,` — python statement
+- L575: `            0,` — python statement
+- L576: `            0,  # reserved and flags3` — python statement
+- L577: `            0,  # headVeh` — python statement
+- L578: `        )` — python statement
+- L579: `        return cls._create_ubx_message(0x01, 0x07, payload)` — return statement
+- L580: `` — blank line
+- L581: `    def send(self, lat, lon, alt_m, vx_e, vy_n, ekf_ok=True):` — function definition
+- L582: `        """Send a UBX navigation burst for the current state."""` — module docstring boundary
+- L583: `        speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)` — python statement
+- L584: `        if speed_mps < 0.05:` — conditional branch
+- L585: `            course_deg = self._last_course` — python statement
+- L586: `        else:` — conditional branch
+- L587: `            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0` — python statement
+- L588: `            if abs(delta) > self.max_heading_delta_deg:` — conditional branch
+- L589: `                course_deg = (` — python statement
+- L590: `                    self._last_course` — python statement
+- L591: `                    + self.max_heading_delta_deg * (1 if delta > 0 else -1)` — python statement
+- L592: `                ) % 360.0` — python statement
+- L593: `        self._last_course = course_deg` — python statement
+- L594: `        sats = self._fake_sats.update(ekf_ok=ekf_ok)` — python statement
+- L595: `        now = datetime.utcnow()` — python statement
+- L596: `        time_of_week_ms = (` — python statement
+- L597: `            (now.hour * 3600 + now.minute * 60 + now.second) * 1000` — python statement
+- L598: `            + now.microsecond // 1000` — python statement
+- L599: `        )` — python statement
+- L600: `        pvt = self._create_nav_pvt(` — python statement
+- L601: `            lat, lon, alt_m, speed_mps, course_deg, sats, now, self.fix_type` — python statement
+- L602: `        )` — python statement
+- L603: `        posllh = self._create_nav_posllh(lat, lon, alt_m, time_of_week_ms)` — python statement
+- L604: `        velned = self._create_nav_velned(speed_mps, course_deg, time_of_week_ms)` — python statement
+- L605: `        sol = self._create_nav_sol(sats, time_of_week_ms, self.fix_type)` — python statement
+- L606: `        self._ser.write(pvt)` — python statement
+- L607: `        self._ser.write(posllh)` — python statement
+- L608: `        self._ser.write(velned)` — python statement
+- L609: `        self._ser.write(sol)` — python statement
+- L610: `        if self.raw_print:` — conditional branch
+- L611: `            print(f"UBX RAW NAV-PVT: {_bytes_hex(pvt)}")` — python statement
+- L612: `            print(f"UBX RAW NAV-POSLLH: {_bytes_hex(posllh)}")` — python statement
+- L613: `            print(f"UBX RAW NAV-VELNED: {_bytes_hex(velned)}")` — python statement
+- L614: `            print(f"UBX RAW NAV-SOL: {_bytes_hex(sol)}")` — python statement
+- L615: `        self._last_send = time.time()` — python statement
+- L616: `        return {` — return statement
+- L617: `            "pvt": pvt,` — python statement
+- L618: `            "posllh": posllh,` — python statement
+- L619: `            "velned": velned,` — python statement
+- L620: `            "sol": sol,` — python statement
+- L621: `            "sats": sats,` — python statement
+- L622: `            "speed_mps": speed_mps,` — python statement
+- L623: `            "course_deg": course_deg,` — python statement
+- L624: `        }` — python statement
+- L625: `` — blank line
+- L626: `` — blank line
+- L627: `def main():` — function definition
+- L628: `    """Entry point for VO processing and GPS/MAVLink output."""` — module docstring boundary
+- L629: `    configs = _load_configs()` — python statement
+- L630: `    pixhawk_cfg = configs["pixhawk"]` — python statement
+- L631: `    # Output mode controls how odometry and GPS data are consumed/emitted.` — comment
+- L632: `    output_mode = str(pixhawk_cfg.get("output_mode", OUTPUT_MODE)).strip().lower()` — python statement
+- L633: `    if output_mode not in {"odometry", "vps_gps"}:` — conditional branch
+- L634: `        print(f"Unknown output_mode '{output_mode}', defaulting to '{OUTPUT_MODE}'.")` — python statement
+- L635: `        output_mode = OUTPUT_MODE` — python statement
+- L636: `    vio_mode = str(pixhawk_cfg.get("vio_mode", VIO_MODE)).strip().lower()` — python statement
+- L637: `    if vio_mode not in {"vo", "vio_imu"}:` — conditional branch
+- L638: `        print(f"Unknown vio_mode '{vio_mode}', defaulting to '{VIO_MODE}'.")` — python statement
+- L639: `        vio_mode = VIO_MODE` — python statement
+- L640: `    gps_input_cfg = pixhawk_cfg.get("gps_input", {})` — python statement
+- L641: `    gps_input_enabled = bool(gps_input_cfg.get("enabled", True))` — python statement
+- L642: `    gps_input_port = gps_input_cfg.get("port")` — python statement
+- L643: `    gps_input_baud_raw = gps_input_cfg.get("baud")` — python statement
+- L644: `    if isinstance(gps_input_baud_raw, str) and gps_input_baud_raw.lower() == "auto":` — conditional branch
+- L645: `        gps_input_baud = "auto"` — python statement
+- L646: `    else:` — conditional branch
+- L647: `        gps_input_baud = int(gps_input_baud_raw) if gps_input_baud_raw is not None else None` — python statement
+- L648: `    gps_input_fmt = gps_input_cfg.get("format", GPS_SERIAL_FORMAT)` — python statement
+- L649: `    gps_input_wait_s = float(gps_input_cfg.get("init_wait_s", 60.0))` — python statement
+- L650: `    gps_input_min_fix = int(gps_input_cfg.get("min_fix_type", GPS_MIN_FIX_TYPE))` — python statement
+- L651: `    gps_input_reader = None` — python statement
+- L652: `    vo, mavlink_interface = build_vo_pipeline()` — python statement
+- L653: `    vio_imu_cfg = pixhawk_cfg.get("vio_imu", {})` — python statement
+- L654: `    vio_imu_print = bool(vio_imu_cfg.get("print", True))` — python statement
+- L655: `    vio_imu_print_interval_s = float(vio_imu_cfg.get("print_interval_s", 0.5))` — python statement
+- L656: `    imu_estimator = None` — python statement
+- L657: `    imu_last_print = {"time": 0.0}` — python statement
+- L658: `    if vio_mode == "vio_imu":` — conditional branch
+- L659: `        if mavlink_interface is None:` — conditional branch
+- L660: `            raise RuntimeError("vio_imu mode requires a MAVLink connection.")` — error raise
+- L661: `        imu_rate_hz = float(pixhawk_cfg.get("imu_rate_hz", vio_imu.IMU_RATE_HZ))` — python statement
+- L662: `        print("VIO mode: VO + IMU velocity integration.")` — python statement
+- L663: `        mavlink_interface.request_message_interval(` — python statement
+- L664: `            msg_id=mavutil.mavlink.MAVLINK_MSG_ID_HIGHRES_IMU,` — python statement
+- L665: `            rate_hz=imu_rate_hz,` — python statement
+- L666: `        )` — python statement
+- L667: `        mavlink_interface.request_message_interval(` — python statement
+- L668: `            msg_id=mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU,` — python statement
+- L669: `            rate_hz=imu_rate_hz,` — python statement
+- L670: `        )` — python statement
+- L671: `        imu_estimator = vio_imu.ImuVelocityEstimator()` — python statement
+- L672: `    selector = PositionSourceSelector(` — python statement
+- L673: `        drift_threshold_m=pixhawk_cfg.get("gps_drift_threshold_m", GPS_DRIFT_THRESHOLD_M),` — python statement
+- L674: `        gps_timeout_s=pixhawk_cfg.get("gps_timeout_s", GPS_TIMEOUT_S),` — python statement
+- L675: `        min_fix_type=pixhawk_cfg.get("gps_min_fix_type", GPS_MIN_FIX_TYPE),` — python statement
+- L676: `    )` — python statement
+- L677: `    gps_output_cfg = pixhawk_cfg.get("gps_output", {})` — python statement
+- L678: `    gps_output_enabled = bool(gps_output_cfg.get("enabled", False))` — python statement
+- L679: `    gps_output_format = str(gps_output_cfg.get("format", "nmea")).lower()` — python statement
+- L680: `    gps_output_port = gps_output_cfg.get("port", GPS_OUTPUT_PORT)` — python statement
+- L681: `    gps_output_baud = int(gps_output_cfg.get("baud", GPS_OUTPUT_BAUD))` — python statement
+- L682: `    gps_output_rate_hz = float(gps_output_cfg.get("rate_hz", GPS_OUTPUT_RATE_HZ))` — python statement
+- L683: `    gps_output_fix_quality = int(` — python statement
+- L684: `        gps_output_cfg.get("fix_quality", GPS_OUTPUT_FIX_QUALITY)` — python statement
+- L685: `    )` — python statement
+- L686: `    gps_output_min_sats = int(gps_output_cfg.get("min_sats", GPS_OUTPUT_MIN_SATS))` — python statement
+- L687: `    gps_output_max_sats = int(gps_output_cfg.get("max_sats", GPS_OUTPUT_MAX_SATS))` — python statement
+- L688: `    gps_output_update_s = float(` — python statement
+- L689: `        gps_output_cfg.get("update_s", GPS_OUTPUT_UPDATE_S)` — python statement
+- L690: `    )` — python statement
+- L691: `    gps_output_print = bool(gps_output_cfg.get("print", True))` — python statement
+- L692: `    gps_output_raw_print = bool(gps_output_cfg.get("raw_print", False))` — python statement
+- L693: `    nmea_emitter = None` — python statement
+- L694: `    ubx_emitter = None` — python statement
+- L695: `    vps_gps_cfg = pixhawk_cfg.get("vps_gps", {})` — python statement
+- L696: `    fake_gps_emitter = FakeGpsEmitter(` — python statement
+- L697: `        send_interval_s=float(` — python statement
+- L698: `            vps_gps_cfg.get("send_interval_s", ODOM_GPS_SEND_INTERVAL_S)` — python statement
+- L699: `        ),` — python statement
+- L700: `        smooth_alpha=float(vps_gps_cfg.get("smooth_alpha", FAKE_GPS_SMOOTH_ALPHA)),` — python statement
+- L701: `        max_step_m=float(vps_gps_cfg.get("max_step_m", FAKE_GPS_MAX_STEP_M)),` — python statement
+- L702: `    )` — python statement
+- L703: `    vps_gps_fix_type = int(vps_gps_cfg.get("fix_type", ODOM_GPS_FIX_TYPE))` — python statement
+- L704: `    vps_gps_sats = int(vps_gps_cfg.get("satellites", ODOM_GPS_SATS))` — python statement
+- L705: `    vps_gps_print = bool(vps_gps_cfg.get("print", True))` — python statement
+- L706: `    if gps_output_enabled and gps_output_format in {"nmea", "ubx_nmea", "ubx+nmea"}:` — conditional branch
+- L707: `        nmea_emitter = NmeaSerialEmitter(` — python statement
+- L708: `            port=gps_output_port,` — python statement
+- L709: `            baud=gps_output_baud,` — python statement
+- L710: `            rate_hz=gps_output_rate_hz,` — python statement
+- L711: `            fix_quality=gps_output_fix_quality,` — python statement
+- L712: `            min_sats=gps_output_min_sats,` — python statement
+- L713: `            max_sats=gps_output_max_sats,` — python statement
+- L714: `            update_s=gps_output_update_s,` — python statement
+- L715: `            raw_print=gps_output_raw_print,` — python statement
+- L716: `        )` — python statement
+- L717: `    if gps_output_enabled and gps_output_format in {"ubx", "ubx_nmea", "ubx+nmea"}:` — conditional branch
+- L718: `        ubx_emitter = UbxSerialEmitter(` — python statement
+- L719: `            port=gps_output_port,` — python statement
+- L720: `            baud=gps_output_baud,` — python statement
+- L721: `            rate_hz=gps_output_rate_hz,` — python statement
+- L722: `            fix_type=vps_gps_fix_type,` — python statement
+- L723: `            min_sats=gps_output_min_sats,` — python statement
+- L724: `            max_sats=gps_output_max_sats,` — python statement
+- L725: `            update_s=gps_output_update_s,` — python statement
+- L726: `            raw_print=gps_output_raw_print,` — python statement
+- L727: `        )` — python statement
+- L728: `    gps_origin = pixhawk_cfg.get("gps_origin", {})` — python statement
+- L729: `    cfg_lat = gps_origin.get("lat")` — python statement
+- L730: `    cfg_lon = gps_origin.get("lon")` — python statement
+- L731: `    cfg_alt = gps_origin.get("alt")` — python statement
+- L732: `    if GPS_ORIGIN_LAT is not None and GPS_ORIGIN_LON is not None:` — conditional branch
+- L733: `        try:` — exception handling
+- L734: `            origin_lat = float(GPS_ORIGIN_LAT)` — python statement
+- L735: `            origin_lon = float(GPS_ORIGIN_LON)` — python statement
+- L736: `            origin_alt = float(GPS_ORIGIN_ALT) if GPS_ORIGIN_ALT is not None else None` — python statement
+- L737: `            selector.set_gps_origin(origin_lat, origin_lon, origin_alt)` — python statement
+- L738: `            print(` — python statement
+- L739: `                "Using manual GPS origin: "` — python statement
+- L740: `                f"lat={origin_lat:.7f} lon={origin_lon:.7f} alt_m={origin_alt or 0.0:.2f}"` — python statement
+- L741: `            )` — python statement
+- L742: `        except ValueError:` — exception handling
+- L743: `            print("Invalid GPS_ORIGIN_* values; expected numeric strings.")` — python statement
+- L744: `    elif gps_input_enabled:` — conditional branch
+- L745: `        if gps_input_port is None:` — conditional branch
+- L746: `            raise ValueError("gps_input.port must be set in config/pixhawk.yaml")` — error raise
+- L747: `        if gps_input_baud is None:` — conditional branch
+- L748: `            raise ValueError("gps_input.baud must be set in config/pixhawk.yaml")` — error raise
+- L749: `        try:` — exception handling
+- L750: `            gps_input_reader = GpsSerialReader(` — python statement
+- L751: `                gps_input_port, baud=gps_input_baud, fmt=gps_input_fmt` — python statement
+- L752: `            )` — python statement
+- L753: `            print(` — python statement
+- L754: `                f"Waiting for GPS fix on {gps_input_port} @ {gps_input_baud} "` — python statement
+- L755: `                f"(timeout {gps_input_wait_s:.0f}s)"` — python statement
+- L756: `            )` — python statement
+- L757: `            deadline = time.time() + gps_input_wait_s` — python statement
+- L758: `            while time.time() < deadline:` — loop
+- L759: `                fix, fix_time = gps_input_reader.read_messages()` — python statement
+- L760: `                if fix is not None and fix.get("fix_type", 0) >= gps_input_min_fix:` — conditional branch
+- L761: `                    selector.set_gps_origin(` — python statement
+- L762: `                        fix["lat"], fix["lon"], fix.get("alt_m")` — python statement
+- L763: `                    )` — python statement
+- L764: `                    print(` — python statement
+- L765: `                        "Using GPS origin from serial: "` — python statement
+- L766: `                        f"lat={fix['lat']:.7f} lon={fix['lon']:.7f} "` — python statement
+- L767: `                        f"alt_m={(fix.get('alt_m') or 0.0):.2f}"` — python statement
+- L768: `                    )` — python statement
+- L769: `                    break` — python statement
+- L770: `                time.sleep(0.1)` — python statement
+- L771: `            if selector.gps_origin() is None:` — conditional branch
+- L772: `                if cfg_lat is not None and cfg_lon is not None:` — conditional branch
+- L773: `                    selector.set_gps_origin(` — python statement
+- L774: `                        float(cfg_lat),` — python statement
+- L775: `                        float(cfg_lon),` — python statement
+- L776: `                        float(cfg_alt) if cfg_alt else None,` — python statement
+- L777: `                    )` — python statement
+- L778: `                    print(` — python statement
+- L779: `                        "GPS origin fallback: "` — python statement
+- L780: `                        f"lat={float(cfg_lat):.7f} lon={float(cfg_lon):.7f} "` — python statement
+- L781: `                        f"alt_m={float(cfg_alt) if cfg_alt else 0.0:.2f}"` — python statement
+- L782: `                    )` — python statement
+- L783: `                else:` — conditional branch
+- L784: `                    print("GPS origin not set; set gps_origin in config or env.")` — python statement
+- L785: `        except Exception as exc:` — exception handling
+- L786: `            print(f"Warning: GPS input not available ({exc})")` — python statement
+- L787: `    elif cfg_lat is not None and cfg_lon is not None:` — conditional branch
+- L788: `        selector.set_gps_origin(float(cfg_lat), float(cfg_lon), float(cfg_alt) if cfg_alt else None)` — python statement
+- L789: `    last_source = {"value": None}` — python statement
+- L790: `    last_report = {"time": 0.0}` — python statement
+- L791: `    last_report_times = {"gps": 0.0, "lidar": 0.0}` — python statement
+- L792: `    last_odom_gps_send = {"time": 0.0}` — python statement
+- L793: `    last_fake_gps = {"time": None, "x": None, "y": None, "z": None}` — python statement
+- L794: `    last_odom_send = {"time": 0.0}` — python statement
+- L795: `    last_odom_print = {"time": 0.0}` — python statement
+- L796: `    last_att_warn = {"time": 0.0}` — python statement
+- L797: `    last_vel = {"time": None, "x": None, "y": None, "z": None}` — python statement
+- L798: `    last_vio_imu = {"time": None, "x": None, "y": None, "z": None}` — python statement
+- L799: `    ` — blank line
+- L800: `` — blank line
+- L801: `    def _odom_to_gps(x_m, y_m, z_m):` — function definition
+- L802: `        origin = selector.gps_origin()` — python statement
+- L803: `        if origin is None:` — conditional branch
+- L804: `            return None` — return statement
+- L805: `        # Convert local ENU offsets to lat/lon using the configured origin.` — comment
+- L806: `        lat, lon = selector.local_to_ll(x_m, y_m, origin)` — python statement
+- L807: `        alt_base = 0.0 if origin[2] is None else origin[2]` — python statement
+- L808: `        alt_m = alt_base + (0.0 if z_m is None else z_m)` — python statement
+- L809: `        return lat, lon, alt_m` — return statement
+- L810: `` — blank line
+- L811: `    def on_update(x_m, y_m, z_m, dx_m, dy_m, dz_m, *_rest):` — function definition
+- L812: `        now = time.time()` — python statement
+- L813: `        if mavlink_interface is not None:` — conditional branch
+- L814: `            mavlink_interface.recv_attitude()` — python statement
+- L815: `        if vio_mode == "vio_imu" and imu_estimator is not None:` — conditional branch
+- L816: `            att = mavlink_interface.get_last_attitude()` — python statement
+- L817: `            if att is not None:` — conditional branch
+- L818: `                imu_estimator.update_attitude(att["roll"], att["pitch"], att["yaw"])` — python statement
+- L819: `            while True:` — loop
+- L820: `                imu_msg = mavlink_interface.master.recv_match(` — python statement
+- L821: `                    type=["HIGHRES_IMU", "RAW_IMU"],` — python statement
+- L822: `                    blocking=False,` — python statement
+- L823: `                )` — python statement
+- L824: `                if imu_msg is None:` — conditional branch
+- L825: `                    break` — python statement
+- L826: `                result = imu_estimator.process_message(imu_msg)` — python statement
+- L827: `                if result is None:` — conditional branch
+- L828: `                    continue` — python statement
+- L829: `                vx, vy, vz, frame = result` — python statement
+- L830: `                now = time.time()` — python statement
+- L831: `                if (` — conditional branch
+- L832: `                    vio_imu_print` — python statement
+- L833: `                    and now - imu_last_print["time"] >= vio_imu_print_interval_s` — python statement
+- L834: `                ):` — python statement
+- L835: `                    print(` — python statement
+- L836: `                        f"IMU({frame}) Vx: {vx:.3f} | Vy: {vy:.3f} | Vz: {vz:.3f} m/s"` — python statement
+- L837: `                    )` — python statement
+- L838: `                    imu_last_print["time"] = now` — python statement
+- L839: `        if vio_mode == "vio_imu":` — conditional branch
+- L840: `            print_interval_s = pixhawk_cfg.get("print_interval_s", PRINT_INTERVAL_S)` — python statement
+- L841: `            last_time = last_vio_imu["time"]` — python statement
+- L842: `            if last_time is None or now - last_time >= print_interval_s:` — conditional branch
+- L843: `                if (` — conditional branch
+- L844: `                    last_time is not None` — python statement
+- L845: `                    and now > last_time` — python statement
+- L846: `                    and last_vio_imu["x"] is not None` — python statement
+- L847: `                    and last_vio_imu["y"] is not None` — python statement
+- L848: `                    and last_vio_imu["z"] is not None` — python statement
+- L849: `                ):` — python statement
+- L850: `                    dt = now - last_time` — python statement
+- L851: `                    vx_enu = (x_m - last_vio_imu["x"]) / dt` — python statement
+- L852: `                    vy_enu = (y_m - last_vio_imu["y"]) / dt` — python statement
+- L853: `                    vz_enu = (z_m - last_vio_imu["z"]) / dt` — python statement
+- L854: `                else:` — conditional branch
+- L855: `                    vx_enu = 0.0` — python statement
+- L856: `                    vy_enu = 0.0` — python statement
+- L857: `                    vz_enu = 0.0` — python statement
+- L858: `                print(` — python statement
+- L859: `                    "VO XYZ: "` — python statement
+- L860: `                    f"X={x_m:.2f} Y={y_m:.2f} Z={z_m:.2f} | "` — python statement
+- L861: `                    f"Vx={vx_enu:.2f} Vy={vy_enu:.2f} Vz={vz_enu:.2f} m/s"` — python statement
+- L862: `                )` — python statement
+- L863: `                last_vio_imu["time"] = now` — python statement
+- L864: `                last_vio_imu["x"] = x_m` — python statement
+- L865: `                last_vio_imu["y"] = y_m` — python statement
+- L866: `                last_vio_imu["z"] = z_m` — python statement
+- L867: `` — blank line
+- L868: `        if gps_input_reader is not None:` — conditional branch
+- L869: `            fix, fix_time = gps_input_reader.read_messages()` — python statement
+- L870: `            if fix is not None and fix.get("fix_type", 0) >= gps_input_min_fix:` — conditional branch
+- L871: `                selector.update_gps(` — python statement
+- L872: `                    fix["lat"],` — python statement
+- L873: `                    fix["lon"],` — python statement
+- L874: `                    fix.get("alt_m"),` — python statement
+- L875: `                    fix.get("fix_type"),` — python statement
+- L876: `                    timestamp=fix_time or now,` — python statement
+- L877: `                )` — python statement
+- L878: `` — blank line
+- L879: `        lidar_driver = vo.height_estimator.lidar_driver` — python statement
+- L880: `        print_lidar = pixhawk_cfg.get("print_lidar_values", PRINT_LIDAR_VALUES)` — python statement
+- L881: `        print_interval_s = pixhawk_cfg.get("print_interval_s", PRINT_INTERVAL_S)` — python statement
+- L882: `        if print_lidar and lidar_driver is not None:` — conditional branch
+- L883: `            distance_m = lidar_driver.current_m` — python statement
+- L884: `            if distance_m is not None:` — conditional branch
+- L885: `                if now - last_report_times["lidar"] >= print_interval_s:` — conditional branch
+- L886: `                    last_report_times["lidar"] = now` — python statement
+- L887: `` — blank line
+- L888: `        selector.update_odometry(x_m, y_m, z_m, timestamp=now)` — python statement
+- L889: `        source = selector.current_source(now)` — python statement
+- L890: `        if source != last_source["value"]:` — conditional branch
+- L891: `            drift = selector.drift_m()` — python statement
+- L892: `            drift_text = "n/a" if drift is None else f"{drift:.2f}m"` — python statement
+- L893: `            reason = ""` — python statement
+- L894: `            if source == "odometry":` — conditional branch
+- L895: `                if not selector.gps_available(now):` — conditional branch
+- L896: `                    reason = "gps missing/invalid"` — python statement
+- L897: `                elif drift is not None and drift > GPS_DRIFT_THRESHOLD_M:` — conditional branch
+- L898: `                    reason = "gps drift high (possible spoofing)"` — python statement
+- L899: `            if reason:` — conditional branch
+- L900: `                print(f"Position source -> {source} (drift: {drift_text}, reason: {reason})")` — python statement
+- L901: `            else:` — conditional branch
+- L902: `                print(f"Position source -> {source} (drift: {drift_text})")` — python statement
+- L903: `            last_source["value"] = source` — python statement
+- L904: `` — blank line
+- L905: `        if output_mode == "vps_gps":` — conditional branch
+- L906: `            if mavlink_interface is None:` — conditional branch
+- L907: `                if now - last_odom_gps_send["time"] >= 2.0:` — conditional branch
+- L908: `                    print("VPS->GPS: MAVLink unavailable; cannot send fake GPS.")` — python statement
+- L909: `                    last_odom_gps_send["time"] = now` — python statement
+- L910: `            elif fake_gps_emitter.ready(now):` — conditional branch
+- L911: `                x_s, y_s, z_s = fake_gps_emitter._smooth_position(x_m, y_m, z_m)` — python statement
+- L912: `                odom_gps = _odom_to_gps(x_s, y_s, z_s)` — python statement
+- L913: `                if odom_gps is not None:` — conditional branch
+- L914: `                    lat, lon, alt_m = odom_gps` — python statement
+- L915: `                    if (` — conditional branch
+- L916: `                        last_fake_gps["time"] is not None` — python statement
+- L917: `                        and now > last_fake_gps["time"]` — python statement
+- L918: `                        and last_fake_gps["x"] is not None` — python statement
+- L919: `                        and last_fake_gps["y"] is not None` — python statement
+- L920: `                        and last_fake_gps["z"] is not None` — python statement
+- L921: `                    ):` — python statement
+- L922: `                        dt = now - last_fake_gps["time"]` — python statement
+- L923: `                        vx_enu = (x_s - last_fake_gps["x"]) / dt` — python statement
+- L924: `                        vy_enu = (y_s - last_fake_gps["y"]) / dt` — python statement
+- L925: `                        vz_enu = (z_s - last_fake_gps["z"]) / dt` — python statement
+- L926: `                    else:` — conditional branch
+- L927: `                        vx_enu = 0.0` — python statement
+- L928: `                        vy_enu = 0.0` — python statement
+- L929: `                        vz_enu = 0.0` — python statement
+- L930: `                    speed_mps, heading_deg = speed_course_from_enu(vx_enu, vy_enu)` — python statement
+- L931: `                    vn = vy_enu` — python statement
+- L932: `                    ve = vx_enu` — python statement
+- L933: `                    vd = -vz_enu` — python statement
+- L934: `                    if nmea_emitter is not None or ubx_emitter is not None:` — conditional branch
+- L935: `                        nmea_payload = None` — python statement
+- L936: `                        ubx_payload = None` — python statement
+- L937: `                        if nmea_emitter is not None and nmea_emitter.ready(now):` — conditional branch
+- L938: `                            nmea_payload = nmea_emitter.send(` — python statement
+- L939: `                                lat, lon, alt_m, vx_enu, vy_enu` — python statement
+- L940: `                            )` — python statement
+- L941: `                        if ubx_emitter is not None and ubx_emitter.ready(now):` — conditional branch
+- L942: `                            ubx_payload = ubx_emitter.send(` — python statement
+- L943: `                                lat, lon, alt_m, vx_enu, vy_enu` — python statement
+- L944: `                            )` — python statement
+- L945: `                        if gps_output_print and (nmea_payload or ubx_payload):` — conditional branch
+- L946: `                            sats_display = vps_gps_sats` — python statement
+- L947: `                            if nmea_payload and "sats" in nmea_payload:` — conditional branch
+- L948: `                                sats_display = nmea_payload["sats"]` — python statement
+- L949: `                            elif ubx_payload and "sats" in ubx_payload:` — conditional branch
+- L950: `                                sats_display = ubx_payload["sats"]` — python statement
+- L951: `                            if nmea_payload and ubx_payload:` — conditional branch
+- L952: `                                sent_label = "UBX-NAV-PVT, POSLLH, VELNED, SOL + NMEA GGA, RMC"` — python statement
+- L953: `                                prefix = "VPS->GPS"` — python statement
+- L954: `                            elif ubx_payload:` — conditional branch
+- L955: `                                sent_label = "UBX-NAV-PVT, POSLLH, VELNED, SOL"` — python statement
+- L956: `                                prefix = "VPS->UBX"` — python statement
+- L957: `                            else:` — conditional branch
+- L958: `                                sent_label = "NMEA GGA, RMC"` — python statement
+- L959: `                                prefix = "VPS->NMEA"` — python statement
+- L960: `                            print(` — python statement
+- L961: `                                f"{prefix}:\n"` — python statement
+- L962: `                                f"LAT : {abs(lat):.6f}° {'N' if lat >= 0 else 'S'}\n"` — python statement
+- L963: `                                f"LON : {abs(lon):.6f}° {'E' if lon >= 0 else 'W'}\n"` — python statement
+- L964: `                                f"ALT : {alt_m:.1f} m\n"` — python statement
+- L965: `                                f"SPD : {speed_mps:.2f} m/s\n"` — python statement
+- L966: `                                f"HDG : {heading_deg:.1f}°\n"` — python statement
+- L967: `                                f"SATS: {sats_display}\n"` — python statement
+- L968: `                                f"Sent: {sent_label}"` — python statement
+- L969: `                            )` — python statement
+- L970: `                            print("-" * 50)` — python statement
+- L971: `                    else:` — conditional branch
+- L972: `                        mavlink_interface.send_gps_input(` — python statement
+- L973: `                            lat,` — python statement
+- L974: `                            lon,` — python statement
+- L975: `                            alt_m,` — python statement
+- L976: `                            fix_type=vps_gps_fix_type,` — python statement
+- L977: `                            satellites_visible=vps_gps_sats,` — python statement
+- L978: `                            vn=vn,` — python statement
+- L979: `                            ve=ve,` — python statement
+- L980: `                            vd=vd,` — python statement
+- L981: `                        )` — python statement
+- L982: `                        if vps_gps_print:` — conditional branch
+- L983: `                            print(` — python statement
+- L984: `                                "VPS->GPS:\n"` — python statement
+- L985: `                                f"LAT : {abs(lat):.6f}° {'N' if lat >= 0 else 'S'}\n"` — python statement
+- L986: `                                f"LON : {abs(lon):.6f}° {'E' if lon >= 0 else 'W'}\n"` — python statement
+- L987: `                                f"ALT : {alt_m:.1f} m\n"` — python statement
+- L988: `                                f"SPD : {speed_mps:.2f} m/s\n"` — python statement
+- L989: `                                f"HDG : {heading_deg:.1f}°\n"` — python statement
+- L990: `                                f"SATS: {vps_gps_sats}\n"` — python statement
+- L991: `                                "Sent: UBX-NAV-PVT, POSLLH, VELNED, SOL + NMEA GGA, RMC"` — python statement
+- L992: `                            )` — python statement
+- L993: `                            print("-" * 50)` — python statement
+- L994: `                    last_fake_gps["time"] = now` — python statement
+- L995: `                    last_fake_gps["x"] = x_s` — python statement
+- L996: `                    last_fake_gps["y"] = y_s` — python statement
+- L997: `                    last_fake_gps["z"] = z_s` — python statement
+- L998: `                else:` — conditional branch
+- L999: `                    if now - last_odom_gps_send["time"] >= 2.0:` — conditional branch
+- L1000: `                        print("VPS->GPS: missing GPS origin; set gps_origin in config.")` — python statement
+- L1001: `                fake_gps_emitter.mark_sent(now)` — python statement
+- L1002: `                last_odom_gps_send["time"] = now` — python statement
+- L1003: `` — blank line
+- L1004: `        if mavlink_interface is not None and output_mode == "odometry":` — conditional branch
+- L1005: `            odom_send_interval_s = pixhawk_cfg.get(` — python statement
+- L1006: `                "odometry_send_interval_s", ODOMETRY_SEND_INTERVAL_S` — python statement
+- L1007: `            )` — python statement
+- L1008: `            if now - last_odom_send["time"] >= odom_send_interval_s:` — conditional branch
+- L1009: `                att = mavlink_interface.get_last_attitude()` — python statement
+- L1010: `                if att is not None:` — conditional branch
+- L1011: `                    roll = att["roll"]` — python statement
+- L1012: `                    pitch = att["pitch"]` — python statement
+- L1013: `                    yaw = att["yaw"]` — python statement
+- L1014: `                    q = _quat_from_rpy(roll, pitch, yaw)` — python statement
+- L1015: `                    # Convert ENU (VO) into NED for MAVLink odometry.` — comment
+- L1016: `                    x_ned = y_m` — python statement
+- L1017: `                    y_ned = x_m` — python statement
+- L1018: `                    z_ned = -z_m` — python statement
+- L1019: `                    if (` — conditional branch
+- L1020: `                        last_vel["time"] is not None` — python statement
+- L1021: `                        and now > last_vel["time"]` — python statement
+- L1022: `                        and last_vel["x"] is not None` — python statement
+- L1023: `                        and last_vel["y"] is not None` — python statement
+- L1024: `                        and last_vel["z"] is not None` — python statement
+- L1025: `                    ):` — python statement
+- L1026: `                        # Estimate velocity via finite differencing between updates.` — comment
+- L1027: `                        dt = now - last_vel["time"]` — python statement
+- L1028: `                        dx_enu = x_m - last_vel["x"]` — python statement
+- L1029: `                        dy_enu = y_m - last_vel["y"]` — python statement
+- L1030: `                        dz_enu = z_m - last_vel["z"]` — python statement
+- L1031: `                        vx_enu = dx_enu / dt` — python statement
+- L1032: `                        vy_enu = dy_enu / dt` — python statement
+- L1033: `                        vz_enu = dz_enu / dt` — python statement
+- L1034: `                        vx = vy_enu` — python statement
+- L1035: `                        vy = vx_enu` — python statement
+- L1036: `                        vz = -vz_enu` — python statement
+- L1037: `                    else:` — conditional branch
+- L1038: `                        vx = 0.0` — python statement
+- L1039: `                        vy = 0.0` — python statement
+- L1040: `                        vz = 0.0` — python statement
+- L1041: `                    mavlink_interface.send_odometry(` — python statement
+- L1042: `                        x_ned,` — python statement
+- L1043: `                        y_ned,` — python statement
+- L1044: `                        z_ned,` — python statement
+- L1045: `                        q,` — python statement
+- L1046: `                        vx,` — python statement
+- L1047: `                        vy,` — python statement
+- L1048: `                        vz,` — python statement
+- L1049: `                        roll_rate=0.0,` — python statement
+- L1050: `                        pitch_rate=0.0,` — python statement
+- L1051: `                        yaw_rate=0.0,` — python statement
+- L1052: `                    )` — python statement
+- L1053: `                    print_interval_s = pixhawk_cfg.get("print_interval_s", PRINT_INTERVAL_S)` — python statement
+- L1054: `                    if now - last_odom_print["time"] >= print_interval_s:` — conditional branch
+- L1055: `                        print(` — python statement
+- L1056: `                            "ODOM(NED) SEND: "` — python statement
+- L1057: `                            f"X={x_ned:.2f} Y={y_ned:.2f} Z={z_ned:.2f} | "` — python statement
+- L1058: `                            f"Vx={vx:.2f} Vy={vy:.2f} Vz={vz:.2f} | "` — python statement
+- L1059: `                            f"R={roll:.2f} P={pitch:.2f} Y={yaw:.2f} | "` — python statement
+- L1060: `                            f"Q=[{q[0]:.3f},{q[1]:.3f},{q[2]:.3f},{q[3]:.3f}]"` — python statement
+- L1061: `                        )` — python statement
+- L1062: `                        last_odom_print["time"] = now` — python statement
+- L1063: `                    last_odom_send["time"] = now` — python statement
+- L1064: `                    last_vel["time"] = now` — python statement
+- L1065: `                    last_vel["x"] = x_m` — python statement
+- L1066: `                    last_vel["y"] = y_m` — python statement
+- L1067: `                    last_vel["z"] = z_m` — python statement
+- L1068: `                elif now - last_att_warn["time"] >= 2.0:` — conditional branch
+- L1069: `                    print("ODOM(NED) SEND: waiting for ATTITUDE data from Pixhawk...")` — python statement
+- L1070: `                    last_att_warn["time"] = now` — python statement
+- L1071: `` — blank line
+- L1072: `        if now - last_report["time"] >= 1.0:` — conditional branch
+- L1073: `            position = selector.get_position(now)` — python statement
+- L1074: `            if position is not None:` — conditional branch
+- L1075: `                px, py, pz = position` — python statement
+- L1076: `            last_report["time"] = now` — python statement
+- L1077: `` — blank line
+- L1078: `    print("VO + LiDAR started")` — python statement
+- L1079: `    vo.run(on_update=on_update)` — python statement
+- L1080: `` — blank line
+- L1081: `` — blank line
+- L1082: `if __name__ == "__main__":` — module entry point guard
+- L1083: `    main()` — python statement
+
+## `tests/integration/test_indoor_return.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test Indoor Return module. Provides test indoor return utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `tests/integration/test_pixhawk_loopback.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test Pixhawk Loopback module. Provides test pixhawk loopback utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `tests/integration/test_vps_pipeline.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test VPS Pipeline module. Provides test vps pipeline utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `tests/unit/test_geo.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test Geo module. Provides test geo utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `tests/unit/test_nmea.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test Nmea module. Provides test nmea utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `tests/unit/test_spoof_detection.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test Spoof Detection module. Provides test spoof detection utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `tests/unit/test_state_machine.py`
+- Role: Test
+### Line-by-line
+- L1: `"""Test State Machine module. Provides test state machine utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+- L4: `` — blank line
+
+## `src/navisar/core/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Core package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/core/mode_manager.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Mode Manager module. Provides mode manager utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/core/safety_manager.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Safety Manager module. Provides safety manager utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/core/state_machine.py`
+- Role: Source code
+### Line-by-line
+- L1: `"` — python statement
+- L2: `` — blank line
+- L3: `""State machine placeholder for future navigation logic."""` — python statement
+
+## `src/navisar/gnss_monitor/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Gnss Monitor package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/gnss_monitor/consistency_check.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Consistency Check module. Provides consistency check utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for GNSS consistency checks.` — comment
+
+## `src/navisar/gnss_monitor/contested_zone.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Contested Zone module. Provides contested zone utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for contested zone logic.` — comment
+
+## `src/navisar/gnss_monitor/spoof_detector.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Spoof Detector module. Provides spoof detector utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for GNSS spoof detection.` — comment
+
+## `src/navisar/navigation/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Navigation package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/navigation/backtracking.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Backtracking module. Provides backtracking utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/navigation/indoor_return.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Indoor Return module. Provides indoor return utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `src/navisar/navigation/planner.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Planner module. Provides planner utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/navigation/state_estimator.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""GPS vs odometry selector with drift-based gating."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import math` — import statement
+- L4: `import time` — import statement
+- L5: `` — blank line
+- L6: `` — blank line
+- L7: `class PositionSourceSelector:` — class definition
+- L8: `    """Track GPS/odometry sources and select the best position."""` — module docstring boundary
+- L9: `    def __init__(` — function definition
+- L10: `        self,` — python statement
+- L11: `        drift_threshold_m=5.0,` — python statement
+- L12: `        gps_timeout_s=2.0,` — python statement
+- L13: `        min_fix_type=3,` — python statement
+- L14: `    ):` — python statement
+- L15: `        """Configure drift thresholds and GPS availability rules."""` — module docstring boundary
+- L16: `        self.drift_threshold_m = drift_threshold_m` — python statement
+- L17: `        self.gps_timeout_s = gps_timeout_s` — python statement
+- L18: `        self.min_fix_type = min_fix_type` — python statement
+- L19: `        self._gps_origin = None` — python statement
+- L20: `        self._gps_local = None` — python statement
+- L21: `        self._gps_fix_type = None` — python statement
+- L22: `        self._gps_time = None` — python statement
+- L23: `        self._odom = None` — python statement
+- L24: `        self._odom_time = None` — python statement
+- L25: `` — blank line
+- L26: `    def update_gps(self, lat, lon, alt_m, fix_type, timestamp=None):` — function definition
+- L27: `        """Update GPS position in local ENU coordinates."""` — module docstring boundary
+- L28: `        if lat is None or lon is None:` — conditional branch
+- L29: `            return` — python statement
+- L30: `        if timestamp is None:` — conditional branch
+- L31: `            timestamp = time.time()` — python statement
+- L32: `` — blank line
+- L33: `        if self._gps_origin is None:` — conditional branch
+- L34: `            # First valid fix anchors the local ENU frame.` — comment
+- L35: `            self._gps_origin = (lat, lon, alt_m)` — python statement
+- L36: `` — blank line
+- L37: `        x_m, y_m = self._ll_to_local(lat, lon, self._gps_origin)` — python statement
+- L38: `        z_m = 0.0 if alt_m is None else alt_m` — python statement
+- L39: `        self._gps_local = (x_m, y_m, z_m)` — python statement
+- L40: `        self._gps_fix_type = fix_type` — python statement
+- L41: `        self._gps_time = timestamp` — python statement
+- L42: `` — blank line
+- L43: `    def update_odometry(self, x_m, y_m, z_m, timestamp=None):` — function definition
+- L44: `        """Update odometry position in local coordinates."""` — module docstring boundary
+- L45: `        if timestamp is None:` — conditional branch
+- L46: `            timestamp = time.time()` — python statement
+- L47: `        self._odom = (x_m, y_m, z_m)` — python statement
+- L48: `        self._odom_time = timestamp` — python statement
+- L49: `` — blank line
+- L50: `    def gps_available(self, now=None):` — function definition
+- L51: `        """Return True when a recent, valid GPS fix exists."""` — module docstring boundary
+- L52: `        if now is None:` — conditional branch
+- L53: `            now = time.time()` — python statement
+- L54: `        if self._gps_time is None:` — conditional branch
+- L55: `            return False` — return statement
+- L56: `        if now - self._gps_time > self.gps_timeout_s:` — conditional branch
+- L57: `            return False` — return statement
+- L58: `        if self._gps_fix_type is not None and self._gps_fix_type < self.min_fix_type:` — conditional branch
+- L59: `            return False` — return statement
+- L60: `        return True` — return statement
+- L61: `` — blank line
+- L62: `    def drift_m(self):` — function definition
+- L63: `        """Compute drift between GPS and odometry, if available."""` — module docstring boundary
+- L64: `        if self._gps_local is None or self._odom is None:` — conditional branch
+- L65: `            return None` — return statement
+- L66: `        dx = self._gps_local[0] - self._odom[0]` — python statement
+- L67: `        dy = self._gps_local[1] - self._odom[1]` — python statement
+- L68: `        dz = self._gps_local[2] - self._odom[2]` — python statement
+- L69: `        return math.sqrt(dx * dx + dy * dy + dz * dz)` — return statement
+- L70: `` — blank line
+- L71: `    def current_source(self, now=None):` — function definition
+- L72: `        """Pick the position source based on drift and freshness."""` — module docstring boundary
+- L73: `        if not self.gps_available(now):` — conditional branch
+- L74: `            return "odometry"` — return statement
+- L75: `        drift = self.drift_m()` — python statement
+- L76: `        # Prefer odometry when GPS drift exceeds the configured threshold.` — comment
+- L77: `        if drift is not None and drift > self.drift_threshold_m:` — conditional branch
+- L78: `            return "odometry"` — return statement
+- L79: `        return "gps"` — return statement
+- L80: `` — blank line
+- L81: `    def get_position(self, now=None):` — function definition
+- L82: `        """Return the current best position estimate."""` — module docstring boundary
+- L83: `        source = self.current_source(now)` — python statement
+- L84: `        if source == "gps" and self._gps_local is not None:` — conditional branch
+- L85: `            return self._gps_local` — return statement
+- L86: `        return self._odom` — return statement
+- L87: `` — blank line
+- L88: `    def gps_origin(self):` — function definition
+- L89: `        """Return the current GPS origin, if set."""` — module docstring boundary
+- L90: `        return self._gps_origin` — return statement
+- L91: `` — blank line
+- L92: `    def set_gps_origin(self, lat, lon, alt_m=None):` — function definition
+- L93: `        """Set the origin for local ENU conversion."""` — module docstring boundary
+- L94: `        if lat is None or lon is None:` — conditional branch
+- L95: `            return` — python statement
+- L96: `        self._gps_origin = (lat, lon, alt_m)` — python statement
+- L97: `` — blank line
+- L98: `    @staticmethod` — python statement
+- L99: `    def local_to_ll(x_m, y_m, origin):` — function definition
+- L100: `        """Convert local ENU meters to latitude/longitude."""` — module docstring boundary
+- L101: `        lat0, lon0, _alt0 = origin` — python statement
+- L102: `        radius_m = 6378137.0` — python statement
+- L103: `        lat0_rad = math.radians(lat0)` — python statement
+- L104: `        dlat = y_m / radius_m` — python statement
+- L105: `        dlon = x_m / (radius_m * math.cos(lat0_rad))` — python statement
+- L106: `        lat = lat0 + math.degrees(dlat)` — python statement
+- L107: `        lon = lon0 + math.degrees(dlon)` — python statement
+- L108: `        return lat, lon` — return statement
+- L109: `` — blank line
+- L110: `    @staticmethod` — python statement
+- L111: `    def _ll_to_local(lat, lon, origin):` — function definition
+- L112: `        """Convert latitude/longitude to local ENU meters."""` — module docstring boundary
+- L113: `        lat0, lon0, _alt0 = origin` — python statement
+- L114: `        radius_m = 6378137.0` — python statement
+- L115: `        lat_rad = math.radians(lat)` — python statement
+- L116: `        lat0_rad = math.radians(lat0)` — python statement
+- L117: `        dlat = math.radians(lat - lat0)` — python statement
+- L118: `        dlon = math.radians(lon - lon0)` — python statement
+- L119: `        x_m = dlon * radius_m * math.cos(lat0_rad)` — python statement
+- L120: `        y_m = dlat * radius_m` — python statement
+- L121: `        return x_m, y_m` — return statement
+
+## `src/navisar/navigation/trajectory.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Trajectory module. Provides trajectory utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `src/navisar/pixhawk/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Pixhawk package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/pixhawk/command_sender.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Command Sender module. Provides command sender utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `src/navisar/pixhawk/fake_gps_nmea.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Fake GPS Nmea module. Provides fake gps nmea utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import datetime as _dt` — import statement
+- L4: `import math` — import statement
+- L5: `` — blank line
+- L6: `EARTH_RADIUS_M = 6378137.0` — python statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `def enu_to_gps(x_e, y_n, z_u, lat0, lon0, alt0):` — function definition
+- L10: `    """Convert ENU offsets to latitude/longitude/altitude."""` — module docstring boundary
+- L11: `    dlat = y_n / EARTH_RADIUS_M` — python statement
+- L12: `    dlon = x_e / (EARTH_RADIUS_M * math.cos(math.radians(lat0)))` — python statement
+- L13: `    lat = lat0 + math.degrees(dlat)` — python statement
+- L14: `    lon = lon0 + math.degrees(dlon)` — python statement
+- L15: `    alt = alt0 + z_u` — python statement
+- L16: `    return lat, lon, alt` — return statement
+- L17: `` — blank line
+- L18: `` — blank line
+- L19: `def _nmea_checksum(sentence_body):` — function definition
+- L20: `    """Compute NMEA checksum for a sentence body."""` — module docstring boundary
+- L21: `    checksum = 0` — python statement
+- L22: `    for ch in sentence_body:` — loop
+- L23: `        checksum ^= ord(ch)` — python statement
+- L24: `    return f"{checksum:02X}"` — return statement
+- L25: `` — blank line
+- L26: `` — blank line
+- L27: `def _wrap_nmea(sentence_body):` — function definition
+- L28: `    """Wrap a sentence body with NMEA framing and checksum."""` — module docstring boundary
+- L29: `    return f"${sentence_body}*{_nmea_checksum(sentence_body)}\r\n"` — return statement
+- L30: `` — blank line
+- L31: `` — blank line
+- L32: `def _format_lat(lat):` — function definition
+- L33: `    """Format latitude in NMEA degrees/minutes."""` — module docstring boundary
+- L34: `    lat_abs = abs(lat)` — python statement
+- L35: `    lat_deg = int(lat_abs)` — python statement
+- L36: `    lat_min = (lat_abs - lat_deg) * 60.0` — python statement
+- L37: `    lat_dir = "N" if lat >= 0 else "S"` — python statement
+- L38: `    return f"{lat_deg:02d}{lat_min:07.4f}", lat_dir` — return statement
+- L39: `` — blank line
+- L40: `` — blank line
+- L41: `def _format_lon(lon):` — function definition
+- L42: `    """Format longitude in NMEA degrees/minutes."""` — module docstring boundary
+- L43: `    lon_abs = abs(lon)` — python statement
+- L44: `    lon_deg = int(lon_abs)` — python statement
+- L45: `    lon_min = (lon_abs - lon_deg) * 60.0` — python statement
+- L46: `    lon_dir = "E" if lon >= 0 else "W"` — python statement
+- L47: `    return f"{lon_deg:03d}{lon_min:07.4f}", lon_dir` — return statement
+- L48: `` — blank line
+- L49: `` — blank line
+- L50: `def _utc_time_fields(now=None):` — function definition
+- L51: `    """Return NMEA time/date fields in UTC."""` — module docstring boundary
+- L52: `    if now is None:` — conditional branch
+- L53: `        now = _dt.datetime.utcnow()` — python statement
+- L54: `    time_str = now.strftime("%H%M%S")` — python statement
+- L55: `    frac = f"{now.microsecond / 1_000_000:.2f}"[1:]` — python statement
+- L56: `    date_str = now.strftime("%d%m%y")` — python statement
+- L57: `    return f"{time_str}{frac}", date_str` — return statement
+- L58: `` — blank line
+- L59: `` — blank line
+- L60: `def gga_sentence(` — function definition
+- L61: `    lat,` — python statement
+- L62: `    lon,` — python statement
+- L63: `    alt_m,` — python statement
+- L64: `    fix_quality=1,` — python statement
+- L65: `    satellites=10,` — python statement
+- L66: `    hdop=0.9,` — python statement
+- L67: `    geoid_sep_m=0.0,` — python statement
+- L68: `    now=None,` — python statement
+- L69: `):` — python statement
+- L70: `    """Build a GGA fix sentence."""` — module docstring boundary
+- L71: `    time_str, _date_str = _utc_time_fields(now)` — python statement
+- L72: `    lat_str, lat_dir = _format_lat(lat)` — python statement
+- L73: `    lon_str, lon_dir = _format_lon(lon)` — python statement
+- L74: `    body = (` — python statement
+- L75: `        f"GPGGA,{time_str},{lat_str},{lat_dir},"` — python statement
+- L76: `        f"{lon_str},{lon_dir},{fix_quality},{satellites:02d},"` — python statement
+- L77: `        f"{hdop:.1f},{alt_m:.1f},M,{geoid_sep_m:.1f},M,,"` — python statement
+- L78: `    )` — python statement
+- L79: `    return _wrap_nmea(body)` — return statement
+- L80: `` — blank line
+- L81: `` — blank line
+- L82: `def rmc_sentence(` — function definition
+- L83: `    lat,` — python statement
+- L84: `    lon,` — python statement
+- L85: `    speed_mps,` — python statement
+- L86: `    course_deg,` — python statement
+- L87: `    status="A",` — python statement
+- L88: `    now=None,` — python statement
+- L89: `):` — python statement
+- L90: `    """Build an RMC navigation sentence."""` — module docstring boundary
+- L91: `    time_str, date_str = _utc_time_fields(now)` — python statement
+- L92: `    lat_str, lat_dir = _format_lat(lat)` — python statement
+- L93: `    lon_str, lon_dir = _format_lon(lon)` — python statement
+- L94: `    speed_knots = speed_mps * 1.94384` — python statement
+- L95: `    body = (` — python statement
+- L96: `        f"GPRMC,{time_str},{status},{lat_str},{lat_dir},"` — python statement
+- L97: `        f"{lon_str},{lon_dir},{speed_knots:.1f},{course_deg:.1f},{date_str},,,A"` — python statement
+- L98: `    )` — python statement
+- L99: `    return _wrap_nmea(body)` — return statement
+- L100: `` — blank line
+- L101: `` — blank line
+- L102: `def speed_course_from_enu(vx_e, vy_n):` — function definition
+- L103: `    """Compute ground speed and course from ENU velocities."""` — module docstring boundary
+- L104: `    speed = math.hypot(vx_e, vy_n)` — python statement
+- L105: `    if speed < 1e-3:` — conditional branch
+- L106: `        return 0.0, 0.0` — return statement
+- L107: `    course_rad = math.atan2(vx_e, vy_n)` — python statement
+- L108: `    course_deg = (math.degrees(course_rad) + 360.0) % 360.0` — python statement
+- L109: `    return speed, course_deg` — return statement
+
+## `src/navisar/pixhawk/gps_injector.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""GPS Injector module. Provides gps injector utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import argparse` — import statement
+- L4: `import time` — import statement
+- L5: `import random` — import statement
+- L6: `from dataclasses import dataclass` — import statement
+- L7: `from pathlib import Path` — import statement
+- L8: `` — blank line
+- L9: `import serial` — import statement
+- L10: `try:` — exception handling
+- L11: `    import yaml` — import statement
+- L12: `except ModuleNotFoundError as exc:` — exception handling
+- L13: `    raise ModuleNotFoundError(` — error raise
+- L14: `        "Missing dependency 'PyYAML' (module 'yaml'). "` — python statement
+- L15: `        "Install with `pip install pyyaml` or `pip install -r requirements.txt`."` — python statement
+- L16: `    ) from exc` — python statement
+- L17: `` — blank line
+- L18: `from navisar.pixhawk.fake_gps_nmea import enu_to_gps, gga_sentence, rmc_sentence, speed_course_from_enu` — import statement
+- L19: `` — blank line
+- L20: `` — blank line
+- L21: `@dataclass` — python statement
+- L22: `class HomeLocation:` — class definition
+- L23: `    """Home reference used for ENU-to-GPS conversion."""` — module docstring boundary
+- L24: `    lat: float` — python statement
+- L25: `    lon: float` — python statement
+- L26: `    alt: float` — python statement
+- L27: `` — blank line
+- L28: `` — blank line
+- L29: `def load_home(path):` — function definition
+- L30: `    """Load home location from a YAML file."""` — module docstring boundary
+- L31: `    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}` — python statement
+- L32: `    lat = data.get("lat")` — python statement
+- L33: `    lon = data.get("lon")` — python statement
+- L34: `    alt = data.get("alt")` — python statement
+- L35: `    if lat is None or lon is None or alt is None:` — conditional branch
+- L36: `        raise ValueError("Home file must define lat, lon, alt")` — error raise
+- L37: `    return HomeLocation(float(lat), float(lon), float(alt))` — return statement
+- L38: `` — blank line
+- L39: `` — blank line
+- L40: `def hdop_from_sats(sats):` — function definition
+- L41: `    """Estimate HDOP from a satellite count heuristic."""` — module docstring boundary
+- L42: `    if sats < 15:` — conditional branch
+- L43: `        return 1.3` — return statement
+- L44: `    if sats < 18:` — conditional branch
+- L45: `        return 1.0` — return statement
+- L46: `    return 0.7` — return statement
+- L47: `` — blank line
+- L48: `` — blank line
+- L49: `class FakeSatellites:` — class definition
+- L50: `    """Simple satellite-count simulator for NMEA output."""` — module docstring boundary
+- L51: `    def __init__(self, min_sats=14, max_sats=20, update_s=7.0):` — function definition
+- L52: `        """Initialize bounds and update cadence."""` — module docstring boundary
+- L53: `        self.min_sats = min_sats` — python statement
+- L54: `        self.max_sats = max_sats` — python statement
+- L55: `        self.update_s = update_s` — python statement
+- L56: `        self.sats = min_sats` — python statement
+- L57: `        self.last_update = time.time()` — python statement
+- L58: `` — blank line
+- L59: `    def update(self, ekf_ok=True):` — function definition
+- L60: `        """Update and return the simulated satellite count."""` — module docstring boundary
+- L61: `        now = time.time()` — python statement
+- L62: `        if now - self.last_update < self.update_s:` — conditional branch
+- L63: `            return self.sats` — return statement
+- L64: `        self.last_update = now` — python statement
+- L65: `` — blank line
+- L66: `        if not ekf_ok:` — conditional branch
+- L67: `            self.sats = max(12, self.sats - 1)` — python statement
+- L68: `            return self.sats` — return statement
+- L69: `` — blank line
+- L70: `        if self.sats < 18:` — conditional branch
+- L71: `            self.sats += 1` — python statement
+- L72: `        else:` — conditional branch
+- L73: `            self.sats += random.choice([-1, 0, 1])` — python statement
+- L74: `            self.sats = max(18, min(self.max_sats, self.sats))` — python statement
+- L75: `` — blank line
+- L76: `        if now % 60.0 < 5.0:` — conditional branch
+- L77: `            self.sats = max(18, self.sats - 1)` — python statement
+- L78: `` — blank line
+- L79: `        self.sats = max(self.min_sats, min(self.max_sats, self.sats))` — python statement
+- L80: `        return self.sats` — return statement
+- L81: `` — blank line
+- L82: `` — blank line
+- L83: `class NmeaGpsInjector:` — class definition
+- L84: `    """Convert VPS odometry into NMEA serial output."""` — module docstring boundary
+- L85: `    def __init__(` — function definition
+- L86: `        self,` — python statement
+- L87: `        port,` — python statement
+- L88: `        baud,` — python statement
+- L89: `        home,` — python statement
+- L90: `        rate_hz=5.0,` — python statement
+- L91: `        frame="enu",` — python statement
+- L92: `        fix_quality=1,` — python statement
+- L93: `        satellites=10,` — python statement
+- L94: `        hdop=0.9,` — python statement
+- L95: `    ):` — python statement
+- L96: `        """Configure the injector and smoothing parameters."""` — module docstring boundary
+- L97: `        self.port = port` — python statement
+- L98: `        self.baud = baud` — python statement
+- L99: `        self.home = home` — python statement
+- L100: `        # Enforce 5-10 Hz update rate to keep GPS smooth and stable.` — comment
+- L101: `        self.rate_hz = min(max(rate_hz, 5.0), 10.0)` — python statement
+- L102: `        self.frame = frame` — python statement
+- L103: `        self.fix_quality = fix_quality` — python statement
+- L104: `        self.satellites = satellites` — python statement
+- L105: `        self.hdop = hdop` — python statement
+- L106: `        self._ser = None` — python statement
+- L107: `        self._last_send = 0.0` — python statement
+- L108: `        self._last_pos = None` — python statement
+- L109: `        self._last_time = None` — python statement
+- L110: `        self._smooth_alpha = 0.2` — python statement
+- L111: `        self._max_step_m = 1.5` — python statement
+- L112: `        self._max_speed_delta_mps = 2.0` — python statement
+- L113: `        self._max_heading_delta_deg = 20.0` — python statement
+- L114: `        self._smoothed = None` — python statement
+- L115: `        self._last_speed = 0.0` — python statement
+- L116: `        self._last_course = 0.0` — python statement
+- L117: `        self._fake_sats = FakeSatellites()` — python statement
+- L118: `` — blank line
+- L119: `    def _open(self):` — function definition
+- L120: `        """Open the serial connection."""` — module docstring boundary
+- L121: `        self._ser = serial.Serial(self.port, self.baud, timeout=0)` — python statement
+- L122: `` — blank line
+- L123: `    def _transform_to_enu(self, x, y, z, vx, vy, vz):` — function definition
+- L124: `        """Convert input frame to ENU if needed."""` — module docstring boundary
+- L125: `        if self.frame == "ned":` — conditional branch
+- L126: `            x_e = y` — python statement
+- L127: `            y_n = x` — python statement
+- L128: `            z_u = -z` — python statement
+- L129: `            vx_e = vy` — python statement
+- L130: `            vy_n = vx` — python statement
+- L131: `            vz_u = -vz` — python statement
+- L132: `            return x_e, y_n, z_u, vx_e, vy_n, vz_u` — return statement
+- L133: `            return x, y, z, vx, vy, vz` — return statement
+- L134: `` — blank line
+- L135: `    def _smooth_state(self, x, y, z, vx, vy):` — function definition
+- L136: `        """Apply smoothing and clamp sudden jumps in state."""` — module docstring boundary
+- L137: `        if self._smoothed is None:` — conditional branch
+- L138: `            self._smoothed = (x, y, z)` — python statement
+- L139: `            return x, y, z, float(vx), float(vy)` — return statement
+- L140: `        px, py, pz = self._smoothed` — python statement
+- L141: `        nx = px + self._smooth_alpha * (x - px)` — python statement
+- L142: `        ny = py + self._smooth_alpha * (y - py)` — python statement
+- L143: `        nz = pz + self._smooth_alpha * (z - pz)` — python statement
+- L144: `        dx = nx - px` — python statement
+- L145: `        dy = ny - py` — python statement
+- L146: `        dz = nz - pz` — python statement
+- L147: `        step = float((dx * dx + dy * dy + dz * dz) ** 0.5)` — python statement
+- L148: `        if self._max_step_m > 0.0 and step > self._max_step_m:` — conditional branch
+- L149: `            scale = self._max_step_m / step` — python statement
+- L150: `            nx = px + dx * scale` — python statement
+- L151: `            ny = py + dy * scale` — python statement
+- L152: `            nz = pz + dz * scale` — python statement
+- L153: `        self._smoothed = (nx, ny, nz)` — python statement
+- L154: `        vx_s = vx` — python statement
+- L155: `        vy_s = vy` — python statement
+- L156: `        speed = float((vx_s * vx_s + vy_s * vy_s) ** 0.5)` — python statement
+- L157: `        if abs(speed - self._last_speed) > self._max_speed_delta_mps:` — conditional branch
+- L158: `            if speed > 1e-3:` — conditional branch
+- L159: `                scale = (self._last_speed + self._max_speed_delta_mps) / speed` — python statement
+- L160: `                vx_s *= scale` — python statement
+- L161: `                vy_s *= scale` — python statement
+- L162: `                speed = float((vx_s * vx_s + vy_s * vy_s) ** 0.5)` — python statement
+- L163: `        self._last_speed = speed` — python statement
+- L164: `        return nx, ny, nz, vx_s, vy_s` — return statement
+- L165: `` — blank line
+- L166: `    def _maybe_send(self, x, y, z, vx, vy, vz):` — function definition
+- L167: `        """Send NMEA updates when the rate limit allows."""` — module docstring boundary
+- L168: `        now = time.time()` — python statement
+- L169: `        if now - self._last_send < (1.0 / self.rate_hz):` — conditional branch
+- L170: `            return` — python statement
+- L171: `        x_e, y_n, z_u, vx_e, vy_n, _vz_u = self._transform_to_enu(x, y, z, vx, vy, vz)` — python statement
+- L172: `        x_e, y_n, z_u, vx_e, vy_n = self._smooth_state(x_e, y_n, z_u, vx_e, vy_n)` — python statement
+- L173: `        lat, lon, alt = enu_to_gps(x_e, y_n, z_u, self.home.lat, self.home.lon, self.home.alt)` — python statement
+- L174: `        speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)` — python statement
+- L175: `        if speed_mps < 0.05:` — conditional branch
+- L176: `            course_deg = self._last_course` — python statement
+- L177: `        else:` — conditional branch
+- L178: `            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0` — python statement
+- L179: `            if abs(delta) > self._max_heading_delta_deg:` — conditional branch
+- L180: `                course_deg = (self._last_course + self._max_heading_delta_deg * (1 if delta > 0 else -1)) % 360.0` — python statement
+- L181: `        self._last_course = course_deg` — python statement
+- L182: `        sats = self._fake_sats.update(ekf_ok=True)` — python statement
+- L183: `        hdop = hdop_from_sats(sats)` — python statement
+- L184: `        gga = gga_sentence(` — python statement
+- L185: `            lat,` — python statement
+- L186: `            lon,` — python statement
+- L187: `            alt,` — python statement
+- L188: `            fix_quality=self.fix_quality,` — python statement
+- L189: `            satellites=sats,` — python statement
+- L190: `            hdop=hdop,` — python statement
+- L191: `        )` — python statement
+- L192: `        rmc = rmc_sentence(` — python statement
+- L193: `            lat,` — python statement
+- L194: `            lon,` — python statement
+- L195: `            speed_mps,` — python statement
+- L196: `            course_deg,` — python statement
+- L197: `            status="A" if self.fix_quality > 0 else "V",` — python statement
+- L198: `        )` — python statement
+- L199: `        self._ser.write(gga.encode("ascii"))` — python statement
+- L200: `        self._ser.write(rmc.encode("ascii"))` — python statement
+- L201: `        self._last_send = now` — python statement
+- L202: `` — blank line
+- L203: `    def run_from_vo(self):` — function definition
+- L204: `        """Run the VO pipeline and forward updates as NMEA."""` — module docstring boundary
+- L205: `        from navisar.main import build_vo_pipeline` — import statement
+- L206: `` — blank line
+- L207: `        vo, _mavlink_interface = build_vo_pipeline()` — python statement
+- L208: `` — blank line
+- L209: `        def on_update(x, y, z, dx_m, dy_m, dz_m, *_rest):` — function definition
+- L210: `            now = time.time()` — python statement
+- L211: `            if self._last_pos is None:` — conditional branch
+- L212: `                self._last_pos = (x, y, z)` — python statement
+- L213: `                self._last_time = now` — python statement
+- L214: `                return` — python statement
+- L215: `            dt = max(1e-3, now - self._last_time)` — python statement
+- L216: `            vx = (x - self._last_pos[0]) / dt` — python statement
+- L217: `            vy = (y - self._last_pos[1]) / dt` — python statement
+- L218: `            vz = (z - self._last_pos[2]) / dt` — python statement
+- L219: `            self._last_pos = (x, y, z)` — python statement
+- L220: `            self._last_time = now` — python statement
+- L221: `            self._maybe_send(x, y, z, vx, vy, vz)` — python statement
+- L222: `` — blank line
+- L223: `        self._open()` — python statement
+- L224: `        print(f"Sending NMEA on {self.port} @ {self.baud} ({self.rate_hz} Hz)")` — python statement
+- L225: `        vo.run(on_update=on_update)` — python statement
+- L226: `` — blank line
+- L227: `` — blank line
+- L228: `def _build_arg_parser():` — function definition
+- L229: `    """Build the CLI argument parser."""` — module docstring boundary
+- L230: `    parser = argparse.ArgumentParser(description="Inject VPS as fake GPS over NMEA.")` — python statement
+- L231: `    parser.add_argument("--port", required=True, help="Serial port (e.g. /dev/ttyAMA0)")` — python statement
+- L232: `    parser.add_argument("--baud", type=int, default=115200, help="Serial baud rate")` — python statement
+- L233: `    parser.add_argument("--rate", type=float, default=5.0, help="NMEA send rate (Hz)")` — python statement
+- L234: `    parser.add_argument("--home", default="data/home_locations/site_A.yaml", help="Home YAML file")` — python statement
+- L235: `    parser.add_argument("--frame", choices=["enu", "ned"], default="enu", help="VPS frame")` — python statement
+- L236: `    parser.add_argument("--fix-quality", type=int, default=1, help="NMEA fix quality")` — python statement
+- L237: `    parser.add_argument("--satellites", type=int, default=10, help="NMEA satellites count")` — python statement
+- L238: `    parser.add_argument("--hdop", type=float, default=0.9, help="NMEA HDOP")` — python statement
+- L239: `    return parser` — return statement
+- L240: `` — blank line
+- L241: `` — blank line
+- L242: `def main():` — function definition
+- L243: `    """CLI entry point for the GPS injector."""` — module docstring boundary
+- L244: `    args = _build_arg_parser().parse_args()` — python statement
+- L245: `    home = load_home(args.home)` — python statement
+- L246: `    injector = NmeaGpsInjector(` — python statement
+- L247: `        port=args.port,` — python statement
+- L248: `        baud=args.baud,` — python statement
+- L249: `        home=home,` — python statement
+- L250: `        rate_hz=args.rate,` — python statement
+- L251: `        frame=args.frame,` — python statement
+- L252: `        fix_quality=args.fix_quality,` — python statement
+- L253: `        satellites=args.satellites,` — python statement
+- L254: `        hdop=args.hdop,` — python statement
+- L255: `    )` — python statement
+- L256: `    injector.run_from_vo()` — python statement
+- L257: `` — blank line
+- L258: `` — blank line
+- L259: `if __name__ == "__main__":` — module entry point guard
+- L260: `    main()` — python statement
+
+## `src/navisar/pixhawk/mavlink_client.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""MAVLink wrapper for Pixhawk IO (GPS, attitude, odometry)."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import time` — import statement
+- L4: `` — blank line
+- L5: `import serial` — import statement
+- L6: `` — blank line
+- L7: `from pymavlink import mavutil` — import statement
+- L8: `` — blank line
+- L9: `` — blank line
+- L10: `class MavlinkInterface:` — class definition
+- L11: `    """Thin wrapper around pymavlink for Pixhawk IO."""` — module docstring boundary
+- L12: `    def __init__(self, device, baud=115200, heartbeat_timeout=5.0):` — function definition
+- L13: `        """Connect to the MAVLink device and wait for heartbeat."""` — module docstring boundary
+- L14: `        self.device = device` — python statement
+- L15: `        self.baud = baud` — python statement
+- L16: `        self.master = mavutil.mavlink_connection(device, baud=baud)` — python statement
+- L17: `        self._last_attitude = None` — python statement
+- L18: `        self._last_error_time = 0.0` — python statement
+- L19: `        self._wait_heartbeat(heartbeat_timeout)` — python statement
+- L20: `` — blank line
+- L21: `    def _wait_heartbeat(self, timeout):` — function definition
+- L22: `        """Block until a heartbeat is received or timeout occurs."""` — module docstring boundary
+- L23: `        try:` — exception handling
+- L24: `            self.master.wait_heartbeat(timeout=timeout)` — python statement
+- L25: `        except Exception as exc:` — exception handling
+- L26: `            raise RuntimeError("Failed to receive MAVLink heartbeat") from exc` — error raise
+- L27: `` — blank line
+- L28: `    def recv_distance_sensor(self):` — function definition
+- L29: `        """Receive a non-blocking DISTANCE_SENSOR message."""` — module docstring boundary
+- L30: `        return self.master.recv_match(type="DISTANCE_SENSOR", blocking=False)` — return statement
+- L31: `` — blank line
+- L32: `    def request_message_interval(self, msg_id, rate_hz):` — function definition
+- L33: `        """Request periodic MAVLink messages by ID."""` — module docstring boundary
+- L34: `        if rate_hz <= 0:` — conditional branch
+- L35: `            return` — python statement
+- L36: `        # MAV_CMD_SET_MESSAGE_INTERVAL expects microseconds between messages.` — comment
+- L37: `        interval_us = int(1_000_000 / rate_hz)` — python statement
+- L38: `        self.master.mav.command_long_send(` — python statement
+- L39: `            self.master.target_system,` — python statement
+- L40: `            self.master.target_component,` — python statement
+- L41: `            mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,` — python statement
+- L42: `            0,` — python statement
+- L43: `            msg_id,` — python statement
+- L44: `            interval_us,` — python statement
+- L45: `            0,` — python statement
+- L46: `            0,` — python statement
+- L47: `            0,` — python statement
+- L48: `            0,` — python statement
+- L49: `            0,` — python statement
+- L50: `        )` — python statement
+- L51: `` — blank line
+- L52: `    def recv_gps(self):` — function definition
+- L53: `        """Receive and parse the latest GPS message."""` — module docstring boundary
+- L54: `        msg = self.recv_gps_raw()` — python statement
+- L55: `        return self._parse_gps_msg(msg)` — return statement
+- L56: `` — blank line
+- L57: `    def recv_gps_raw(self):` — function definition
+- L58: `        """Receive the raw GPS message without parsing."""` — module docstring boundary
+- L59: `        return self.master.recv_match(` — return statement
+- L60: `            type=["GPS_RAW_INT", "GLOBAL_POSITION_INT"],` — python statement
+- L61: `            blocking=False,` — python statement
+- L62: `        )` — python statement
+- L63: `` — blank line
+- L64: `    def recv_attitude(self):` — function definition
+- L65: `        """Receive an ATTITUDE message and cache it."""` — module docstring boundary
+- L66: `        try:` — exception handling
+- L67: `            msg = self.master.recv_match(type="ATTITUDE", blocking=False)` — python statement
+- L68: `        except serial.SerialException as exc:` — exception handling
+- L69: `            now = time.time()` — python statement
+- L70: `            if now - self._last_error_time > 2.0:` — conditional branch
+- L71: `                self._last_error_time = now` — python statement
+- L72: `                print(f"Warning: MAVLink serial error ({exc})")` — python statement
+- L73: `            return None` — return statement
+- L74: `        if msg is None:` — conditional branch
+- L75: `            return None` — return statement
+- L76: `        att = {` — python statement
+- L77: `            "roll": float(msg.roll),` — python statement
+- L78: `            "pitch": float(msg.pitch),` — python statement
+- L79: `            "yaw": float(msg.yaw),` — python statement
+- L80: `            "roll_rate": float(msg.rollspeed),` — python statement
+- L81: `            "pitch_rate": float(msg.pitchspeed),` — python statement
+- L82: `            "yaw_rate": float(msg.yawspeed),` — python statement
+- L83: `            "time_s": time.time(),` — python statement
+- L84: `        }` — python statement
+- L85: `        self._last_attitude = att` — python statement
+- L86: `        return att` — return statement
+- L87: `` — blank line
+- L88: `    def recv_imu(self):` — function definition
+- L89: `        """Receive a HIGHRES_IMU message and return parsed accel/gyro data."""` — module docstring boundary
+- L90: `        try:` — exception handling
+- L91: `            msg = self.master.recv_match(type="HIGHRES_IMU", blocking=False)` — python statement
+- L92: `        except serial.SerialException as exc:` — exception handling
+- L93: `            now = time.time()` — python statement
+- L94: `            if now - self._last_error_time > 2.0:` — conditional branch
+- L95: `                self._last_error_time = now` — python statement
+- L96: `                print(f"Warning: MAVLink serial error ({exc})")` — python statement
+- L97: `            return None` — return statement
+- L98: `        if msg is None:` — conditional branch
+- L99: `            return None` — return statement
+- L100: `        time_usec = getattr(msg, "time_usec", None)` — python statement
+- L101: `        time_s = time_usec * 1e-6 if time_usec else time.time()` — python statement
+- L102: `        return {` — return statement
+- L103: `            "ax": float(msg.xacc),` — python statement
+- L104: `            "ay": float(msg.yacc),` — python statement
+- L105: `            "az": float(msg.zacc),` — python statement
+- L106: `            "gx": float(msg.xgyro),` — python statement
+- L107: `            "gy": float(msg.ygyro),` — python statement
+- L108: `            "gz": float(msg.zgyro),` — python statement
+- L109: `            "time_s": float(time_s),` — python statement
+- L110: `        }` — python statement
+- L111: `` — blank line
+- L112: `    def get_last_attitude(self):` — function definition
+- L113: `        """Return the last cached attitude, if any."""` — module docstring boundary
+- L114: `        return self._last_attitude` — return statement
+- L115: `` — blank line
+- L116: `    def recv_gps_with_raw(self):` — function definition
+- L117: `        """Return parsed GPS data plus the raw message."""` — module docstring boundary
+- L118: `        msg = self.recv_gps_raw()` — python statement
+- L119: `        return self._parse_gps_msg(msg), msg` — return statement
+- L120: `` — blank line
+- L121: `    def send_gps_input(` — function definition
+- L122: `        self,` — python statement
+- L123: `        lat,` — python statement
+- L124: `        lon,` — python statement
+- L125: `        alt_m,` — python statement
+- L126: `        fix_type=3,` — python statement
+- L127: `        satellites_visible=10,` — python statement
+- L128: `        vn=0.0,` — python statement
+- L129: `        ve=0.0,` — python statement
+- L130: `        vd=0.0,` — python statement
+- L131: `        speed_accuracy=0.5,` — python statement
+- L132: `        horiz_accuracy=1.0,` — python statement
+- L133: `        vert_accuracy=1.0,` — python statement
+- L134: `        time_usec=None,` — python statement
+- L135: `    ):` — python statement
+- L136: `        """Send GPS_INPUT data to Pixhawk."""` — module docstring boundary
+- L137: `        if time_usec is None:` — conditional branch
+- L138: `            time_usec = int(time.time() * 1_000_000)` — python statement
+- L139: `        # MAVLink expects lat/lon in 1e7 degrees and altitude in meters.` — comment
+- L140: `        self.master.mav.gps_input_send(` — python statement
+- L141: `            time_usec,` — python statement
+- L142: `            0,` — python statement
+- L143: `            0,` — python statement
+- L144: `            0,` — python statement
+- L145: `            0,` — python statement
+- L146: `            fix_type,` — python statement
+- L147: `            int(lat * 1e7),` — python statement
+- L148: `            int(lon * 1e7),` — python statement
+- L149: `            float(alt_m),` — python statement
+- L150: `            float(horiz_accuracy),` — python statement
+- L151: `            float(vert_accuracy),` — python statement
+- L152: `            float(vn),` — python statement
+- L153: `            float(ve),` — python statement
+- L154: `            float(vd),` — python statement
+- L155: `            float(speed_accuracy),` — python statement
+- L156: `            float(horiz_accuracy),` — python statement
+- L157: `            float(vert_accuracy),` — python statement
+- L158: `            satellites_visible,` — python statement
+- L159: `        )` — python statement
+- L160: `` — blank line
+- L161: `    def send_odometry(` — function definition
+- L162: `        self,` — python statement
+- L163: `        x,` — python statement
+- L164: `        y,` — python statement
+- L165: `        z,` — python statement
+- L166: `        q,` — python statement
+- L167: `        vx,` — python statement
+- L168: `        vy,` — python statement
+- L169: `        vz,` — python statement
+- L170: `        roll_rate=0.0,` — python statement
+- L171: `        pitch_rate=0.0,` — python statement
+- L172: `        yaw_rate=0.0,` — python statement
+- L173: `        time_usec=None,` — python statement
+- L174: `        frame=mavutil.mavlink.MAV_FRAME_LOCAL_NED,` — python statement
+- L175: `        pose_covariance=None,` — python statement
+- L176: `        velocity_covariance=None,` — python statement
+- L177: `        reset_counter=0,` — python statement
+- L178: `        estimator_type=mavutil.mavlink.MAV_ESTIMATOR_TYPE_VISION,` — python statement
+- L179: `        quality=100,` — python statement
+- L180: `    ):` — python statement
+- L181: `        """Send MAVLink ODOMETRY message."""` — module docstring boundary
+- L182: `        if time_usec is None:` — conditional branch
+- L183: `            time_usec = int(time.time() * 1_000_000)` — python statement
+- L184: `        if pose_covariance is None:` — conditional branch
+- L185: `            # Default covariance reflects modest confidence in VO estimates.` — comment
+- L186: `            pose_covariance = self._diag_covariance(` — python statement
+- L187: `                [0.04, 0.04, 0.09, 0.03, 0.03, 0.03]` — python statement
+- L188: `            )` — python statement
+- L189: `        if velocity_covariance is None:` — conditional branch
+- L190: `            velocity_covariance = self._diag_covariance(` — python statement
+- L191: `                [0.25, 0.25, 0.25, 0.09, 0.09, 0.09]` — python statement
+- L192: `            )` — python statement
+- L193: `        self.master.mav.odometry_send(` — python statement
+- L194: `            time_usec,` — python statement
+- L195: `            frame,` — python statement
+- L196: `            frame,` — python statement
+- L197: `            x,` — python statement
+- L198: `            y,` — python statement
+- L199: `            z,` — python statement
+- L200: `            q,` — python statement
+- L201: `            vx,` — python statement
+- L202: `            vy,` — python statement
+- L203: `            vz,` — python statement
+- L204: `            roll_rate,` — python statement
+- L205: `            pitch_rate,` — python statement
+- L206: `            yaw_rate,` — python statement
+- L207: `            pose_covariance,` — python statement
+- L208: `            velocity_covariance,` — python statement
+- L209: `            int(reset_counter),` — python statement
+- L210: `            int(estimator_type),` — python statement
+- L211: `            int(quality),` — python statement
+- L212: `        )` — python statement
+- L213: `` — blank line
+- L214: `    @staticmethod` — python statement
+- L215: `    def _parse_gps_msg(msg):` — function definition
+- L216: `        """Parse MAVLink GPS messages into a dict."""` — module docstring boundary
+- L217: `        if msg is None:` — conditional branch
+- L218: `            return None` — return statement
+- L219: `        msg_type = msg.get_type()` — python statement
+- L220: `        if msg_type == "GPS_RAW_INT":` — conditional branch
+- L221: `            if msg.lat == 0 and msg.lon == 0:` — conditional branch
+- L222: `                return None` — return statement
+- L223: `            return {` — return statement
+- L224: `                "lat": msg.lat / 1e7,` — python statement
+- L225: `                "lon": msg.lon / 1e7,` — python statement
+- L226: `                "alt_m": msg.alt / 1000.0,` — python statement
+- L227: `                "fix_type": msg.fix_type,` — python statement
+- L228: `            }` — python statement
+- L229: `        if msg_type == "GLOBAL_POSITION_INT":` — conditional branch
+- L230: `            if msg.lat == 0 and msg.lon == 0:` — conditional branch
+- L231: `                return None` — return statement
+- L232: `            return {` — return statement
+- L233: `                "lat": msg.lat / 1e7,` — python statement
+- L234: `                "lon": msg.lon / 1e7,` — python statement
+- L235: `                "alt_m": msg.alt / 1000.0,` — python statement
+- L236: `                "fix_type": None,` — python statement
+- L237: `            }` — python statement
+- L238: `        return None` — return statement
+- L239: `` — blank line
+- L240: `    @staticmethod` — python statement
+- L241: `    def _diag_covariance(diag):` — function definition
+- L242: `        """Expand a 6D diagonal covariance into MAVLink format."""` — module docstring boundary
+- L243: `        if len(diag) != 6:` — conditional branch
+- L244: `            raise ValueError("Expected 6 diagonal covariance values.")` — error raise
+- L245: `        cov = [0.0] * 21` — python statement
+- L246: `        diag_indices = [0, 6, 11, 15, 18, 20]` — python statement
+- L247: `        for idx, value in zip(diag_indices, diag):` — loop
+- L248: `            cov[idx] = float(value)` — python statement
+- L249: `        return cov` — return statement
+
+## `src/navisar/pixhawk/vision_odometry.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Vision Odometry module. Provides vision odometry utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file.` — comment
+
+## `src/navisar/sensors/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Sensors package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/sensors/camera.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Camera driver factory and compatibility helpers."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `from navisar.sensors.cameras.opencv import OpenCVCamera` — import statement
+- L4: `` — blank line
+- L5: `` — blank line
+- L6: `CameraDriver = OpenCVCamera` — python statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `def create_camera_driver(camera_cfg):` — function definition
+- L10: `    """Instantiate a camera driver from config."""` — module docstring boundary
+- L11: `    model = str(camera_cfg.get("model", "opencv")).strip().lower()` — python statement
+- L12: `    width = camera_cfg.get("width", 640)` — python statement
+- L13: `    height = camera_cfg.get("height", 480)` — python statement
+- L14: `` — blank line
+- L15: `    if model in {"opencv", "usb", "generic"}:` — conditional branch
+- L16: `        index = camera_cfg.get("index", 0)` — python statement
+- L17: `        return OpenCVCamera(index=index, width=width, height=height)` — return statement
+- L18: `` — blank line
+- L19: `    if model in {"ov9281", "ov9821"}:` — conditional branch
+- L20: `        from navisar.sensors.cameras.ov9281 import OV9281Camera` — import statement
+- L21: `` — blank line
+- L22: `        format_name = camera_cfg.get("format", "YUV420")` — python statement
+- L23: `        return OV9281Camera(width=width, height=height, format_name=format_name)` — return statement
+- L24: `` — blank line
+- L25: `    raise ValueError(f"Unknown camera model '{model}'")` — error raise
+
+## `src/navisar/sensors/gps_serial.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""GPS Serial module. Provides gps serial utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import time` — import statement
+- L4: `` — blank line
+- L5: `import serial` — import statement
+- L6: `from serial.tools import list_ports` — import statement
+- L7: `` — blank line
+- L8: `DEFAULT_BAUDS = [4800, 9600, 19200, 38400, 57600, 115200]` — python statement
+- L9: `DEFAULT_PROBE_SECONDS = 3.0` — python statement
+- L10: `` — blank line
+- L11: `` — blank line
+- L12: `def _detect_ports():` — function definition
+- L13: `    ports = list(list_ports.comports())` — python statement
+- L14: `    if not ports:` — conditional branch
+- L15: `        return []` — return statement
+- L16: `    preferred = []` — python statement
+- L17: `    fallback = []` — python statement
+- L18: `    for port in ports:` — loop
+- L19: `        desc = (port.description or "").lower()` — python statement
+- L20: `        device = port.device or ""` — python statement
+- L21: `        if "/dev/serial/by-id" in device:` — conditional branch
+- L22: `            preferred.append(device)` — python statement
+- L23: `        elif device.startswith(("/dev/ttyUSB", "/dev/ttyACM", "/dev/ttyAMA", "/dev/ttyS")):` — conditional branch
+- L24: `            preferred.append(device)` — python statement
+- L25: `        elif "usb" in desc or "uart" in desc or "cp210" in desc or "ch340" in desc:` — conditional branch
+- L26: `            preferred.append(device)` — python statement
+- L27: `        else:` — conditional branch
+- L28: `            fallback.append(device)` — python statement
+- L29: `    return preferred + fallback` — return statement
+- L30: `` — blank line
+- L31: `` — blank line
+- L32: `def _read_nmea(ser, seconds, verbose=True):` — function definition
+- L33: `    end_time = time.time() + seconds` — python statement
+- L34: `    while time.time() < end_time:` — loop
+- L35: `        line = ser.readline()` — python statement
+- L36: `        if not line:` — conditional branch
+- L37: `            continue` — python statement
+- L38: `        if line.startswith(b"$"):` — conditional branch
+- L39: `            if verbose:` — conditional branch
+- L40: `                try:` — exception handling
+- L41: `                    print(line.decode("ascii", errors="ignore").strip())` — python statement
+- L42: `                except Exception:` — exception handling
+- L43: `                    pass` — python statement
+- L44: `            return True` — return statement
+- L45: `    return False` — return statement
+- L46: `` — blank line
+- L47: `` — blank line
+- L48: `def find_gps_port_and_baud(` — function definition
+- L49: `    port=None,` — python statement
+- L50: `    bauds=None,` — python statement
+- L51: `    probe_seconds=DEFAULT_PROBE_SECONDS,` — python statement
+- L52: `    verbose=True,` — python statement
+- L53: `):` — python statement
+- L54: `    ports = [port] if port else _detect_ports()` — python statement
+- L55: `    if not ports:` — conditional branch
+- L56: `        return None` — return statement
+- L57: `    for candidate in ports:` — loop
+- L58: `        for baud in bauds or DEFAULT_BAUDS:` — loop
+- L59: `            try:` — exception handling
+- L60: `                if verbose:` — conditional branch
+- L61: `                    print(f"Probing on {candidate} @ {baud} baud for {probe_seconds}s...")` — python statement
+- L62: `                with serial.Serial(candidate, baud, timeout=1) as ser:` — context manager
+- L63: `                    if _read_nmea(ser, probe_seconds, verbose=verbose):` — conditional branch
+- L64: `                        return candidate, baud` — return statement
+- L65: `            except serial.SerialException as exc:` — exception handling
+- L66: `                if verbose:` — conditional branch
+- L67: `                    print(f"Failed to open {candidate} @ {baud}: {exc}")` — python statement
+- L68: `    return None` — return statement
+- L69: `` — blank line
+- L70: `` — blank line
+- L71: `class GpsSerialReader:` — class definition
+- L72: `    """Read NMEA GPS data from a serial port."""` — module docstring boundary
+- L73: `    def __init__(` — function definition
+- L74: `        self,` — python statement
+- L75: `        port,` — python statement
+- L76: `        baud=9600,` — python statement
+- L77: `        fmt="auto",` — python statement
+- L78: `        probe_seconds=DEFAULT_PROBE_SECONDS,` — python statement
+- L79: `        bauds=None,` — python statement
+- L80: `        verbose=True,` — python statement
+- L81: `    ):` — python statement
+- L82: `        """Open the serial port and set parse format."""` — module docstring boundary
+- L83: `        port_is_auto = port is None or str(port).lower() == "auto"` — python statement
+- L84: `        baud_is_auto = baud is None or str(baud).lower() == "auto"` — python statement
+- L85: `        if port_is_auto or baud_is_auto:` — conditional branch
+- L86: `            choice = find_gps_port_and_baud(` — python statement
+- L87: `                port=None if port_is_auto else port,` — python statement
+- L88: `                bauds=bauds,` — python statement
+- L89: `                probe_seconds=probe_seconds,` — python statement
+- L90: `                verbose=verbose,` — python statement
+- L91: `            )` — python statement
+- L92: `            if not choice:` — conditional branch
+- L93: `                raise RuntimeError("No NMEA data received. Check wiring, port, and baud rate.")` — error raise
+- L94: `            port, baud = choice` — python statement
+- L95: `            if verbose:` — conditional branch
+- L96: `                print(f"Locked GPS on {port} @ {baud}")` — python statement
+- L97: `        self.port = port` — python statement
+- L98: `        self.baud = baud` — python statement
+- L99: `        self.fmt = (fmt or "auto").lower()` — python statement
+- L100: `        self._ser = serial.Serial(port, baud, timeout=0)` — python statement
+- L101: `        self._last_fix = None` — python statement
+- L102: `        self._last_time = None` — python statement
+- L103: `` — blank line
+- L104: `    def read_messages(self, max_lines=10):` — function definition
+- L105: `        """Read up to max_lines and return latest fix/time."""` — module docstring boundary
+- L106: `        for _ in range(max_lines):` — loop
+- L107: `            line = self._ser.readline()` — python statement
+- L108: `            if not line:` — conditional branch
+- L109: `                break` — python statement
+- L110: `            fix = self._parse_line(line)` — python statement
+- L111: `            if fix is not None:` — conditional branch
+- L112: `                self._last_fix = fix` — python statement
+- L113: `                self._last_time = time.time()` — python statement
+- L114: `        return self._last_fix, self._last_time` — return statement
+- L115: `` — blank line
+- L116: `    def _parse_line(self, raw):` — function definition
+- L117: `        """Decode a raw line and parse supported NMEA messages."""` — module docstring boundary
+- L118: `        if not raw:` — conditional branch
+- L119: `            return None` — return statement
+- L120: `        if self.fmt in ("auto", "nmea"):` — conditional branch
+- L121: `            if raw.startswith(b"$"):` — conditional branch
+- L122: `                try:` — exception handling
+- L123: `                    text = raw.decode("ascii", errors="ignore").strip()` — python statement
+- L124: `                except Exception:` — exception handling
+- L125: `                    return None` — return statement
+- L126: `                return _parse_nmea(text)` — return statement
+- L127: `        return None` — return statement
+- L128: `` — blank line
+- L129: `` — blank line
+- L130: `def _parse_nmea(line):` — function definition
+- L131: `    """Parse an NMEA sentence and return a fix dict."""` — module docstring boundary
+- L132: `    if not line.startswith("$"):` — conditional branch
+- L133: `        return None` — return statement
+- L134: `    if "*" in line:` — conditional branch
+- L135: `        line = line.split("*", 1)[0]` — python statement
+- L136: `    fields = line.split(",")` — python statement
+- L137: `    if not fields:` — conditional branch
+- L138: `        return None` — return statement
+- L139: `    msg = fields[0][3:] if len(fields[0]) >= 6 else fields[0]` — python statement
+- L140: `    if msg.endswith("GGA"):` — conditional branch
+- L141: `        return _parse_gga(fields)` — return statement
+- L142: `    if msg.endswith("RMC"):` — conditional branch
+- L143: `        return _parse_rmc(fields)` — return statement
+- L144: `    return None` — return statement
+- L145: `` — blank line
+- L146: `` — blank line
+- L147: `def _parse_gga(fields):` — function definition
+- L148: `    """Parse a GGA sentence into a fix dict."""` — module docstring boundary
+- L149: `    if len(fields) < 10:` — conditional branch
+- L150: `        return None` — return statement
+- L151: `    lat = _nmea_to_decimal(fields[2], fields[3])` — python statement
+- L152: `    lon = _nmea_to_decimal(fields[4], fields[5])` — python statement
+- L153: `    fix_quality = _safe_int(fields[6])` — python statement
+- L154: `    sats = _safe_int(fields[7])` — python statement
+- L155: `    alt = _safe_float(fields[9])` — python statement
+- L156: `    if lat is None or lon is None:` — conditional branch
+- L157: `        return None` — return statement
+- L158: `    fix_type = 3 if fix_quality and fix_quality > 0 else 0` — python statement
+- L159: `    return {` — return statement
+- L160: `        "lat": lat,` — python statement
+- L161: `        "lon": lon,` — python statement
+- L162: `        "alt_m": alt,` — python statement
+- L163: `        "fix_type": fix_type,` — python statement
+- L164: `        "sats": sats,` — python statement
+- L165: `    }` — python statement
+- L166: `` — blank line
+- L167: `` — blank line
+- L168: `def _parse_rmc(fields):` — function definition
+- L169: `    """Parse an RMC sentence into a fix dict."""` — module docstring boundary
+- L170: `    if len(fields) < 7:` — conditional branch
+- L171: `        return None` — return statement
+- L172: `    status = fields[2] if len(fields) > 2 else ""` — python statement
+- L173: `    lat = _nmea_to_decimal(fields[3], fields[4])` — python statement
+- L174: `    lon = _nmea_to_decimal(fields[5], fields[6])` — python statement
+- L175: `    if lat is None or lon is None:` — conditional branch
+- L176: `        return None` — return statement
+- L177: `    fix_type = 3 if status == "A" else 0` — python statement
+- L178: `    return {` — return statement
+- L179: `        "lat": lat,` — python statement
+- L180: `        "lon": lon,` — python statement
+- L181: `        "alt_m": None,` — python statement
+- L182: `        "fix_type": fix_type,` — python statement
+- L183: `        "sats": None,` — python statement
+- L184: `    }` — python statement
+- L185: `` — blank line
+- L186: `` — blank line
+- L187: `def _nmea_to_decimal(value, hemi):` — function definition
+- L188: `    """Convert NMEA lat/lon fields into decimal degrees."""` — module docstring boundary
+- L189: `    if not value or not hemi:` — conditional branch
+- L190: `        return None` — return statement
+- L191: `    try:` — exception handling
+- L192: `        val = float(value)` — python statement
+- L193: `    except ValueError:` — exception handling
+- L194: `        return None` — return statement
+- L195: `    hemi = hemi.upper()` — python statement
+- L196: `    if hemi in ("N", "S"):` — conditional branch
+- L197: `        deg = int(val / 100)` — python statement
+- L198: `        minutes = val - (deg * 100)` — python statement
+- L199: `        dec = deg + minutes / 60.0` — python statement
+- L200: `        if hemi == "S":` — conditional branch
+- L201: `            dec = -dec` — python statement
+- L202: `        return dec` — return statement
+- L203: `    if hemi in ("E", "W"):` — conditional branch
+- L204: `        deg = int(val / 100)` — python statement
+- L205: `        minutes = val - (deg * 100)` — python statement
+- L206: `        dec = deg + minutes / 60.0` — python statement
+- L207: `        if hemi == "W":` — conditional branch
+- L208: `            dec = -dec` — python statement
+- L209: `        return dec` — return statement
+- L210: `    return None` — return statement
+- L211: `` — blank line
+- L212: `` — blank line
+- L213: `def _safe_int(value):` — function definition
+- L214: `    """Convert to int, returning None on failure."""` — module docstring boundary
+- L215: `    try:` — exception handling
+- L216: `        return int(value)` — return statement
+- L217: `    except (TypeError, ValueError):` — exception handling
+- L218: `        return None` — return statement
+- L219: `` — blank line
+- L220: `` — blank line
+- L221: `def _safe_float(value):` — function definition
+- L222: `    """Convert to float, returning None on failure."""` — module docstring boundary
+- L223: `    try:` — exception handling
+- L224: `        return float(value)` — return statement
+- L225: `    except (TypeError, ValueError):` — exception handling
+- L226: `        return None` — return statement
+
+## `src/navisar/sensors/imu.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""IMU module. Provides imu utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/sensors/lidar.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""LiDAR module. Provides lidar utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import time` — import statement
+- L4: `` — blank line
+- L5: `` — blank line
+- L6: `class LidarHeightEstimator:` — class definition
+- L7: `    """Track LiDAR height from MAVLink distance sensor messages."""` — module docstring boundary
+- L8: `    def __init__(` — function definition
+- L9: `        self,` — python statement
+- L10: `        mavlink_interface,` — python statement
+- L11: `        min_m=0.2,` — python statement
+- L12: `        max_m=10.0,` — python statement
+- L13: `        fallback_m=1.0,` — python statement
+- L14: `        distance_divisor=100.0,` — python statement
+- L15: `    ):` — python statement
+- L16: `        """Configure valid range and conversion from sensor units."""` — module docstring boundary
+- L17: `        self.mavlink_interface = mavlink_interface` — python statement
+- L18: `        self.min_m = min_m` — python statement
+- L19: `        self.max_m = max_m` — python statement
+- L20: `        self.current_m = None` — python statement
+- L21: `        self.raw_distance = None` — python statement
+- L22: `        self.last_valid_m = fallback_m` — python statement
+- L23: `        self.last_msg = None` — python statement
+- L24: `        self.last_msg_time = None` — python statement
+- L25: `        self.distance_divisor = distance_divisor` — python statement
+- L26: `` — blank line
+- L27: `    def update(self):` — function definition
+- L28: `        """Fetch the latest distance sensor message."""` — module docstring boundary
+- L29: `        if self.mavlink_interface is None:` — conditional branch
+- L30: `            return` — python statement
+- L31: `        msg = self.mavlink_interface.recv_distance_sensor()` — python statement
+- L32: `        if msg is None:` — conditional branch
+- L33: `            return` — python statement
+- L34: `        self.last_msg = msg` — python statement
+- L35: `        self.last_msg_time = time.time()` — python statement
+- L36: `        self.raw_distance = msg.current_distance` — python statement
+- L37: `        height_m = msg.current_distance / self.distance_divisor` — python statement
+- L38: `        self.current_m = height_m` — python statement
+- L39: `        if self.min_m < height_m < self.max_m:` — conditional branch
+- L40: `            self.last_valid_m = height_m` — python statement
+- L41: `` — blank line
+- L42: `    def get_height_m(self):` — function definition
+- L43: `        """Return the best-known height estimate."""` — module docstring boundary
+- L44: `        # Prefer the most recent raw reading when available, even if out of range.` — comment
+- L45: `        if self.current_m is not None:` — conditional branch
+- L46: `            return self.current_m` — return statement
+- L47: `        return self.last_valid_m` — return statement
+
+## `src/navisar/utils/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Utils package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/utils/frames.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Frames module. Provides frames utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for ENU/NED transforms.` — comment
+
+## `src/navisar/utils/geo.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Geo module. Provides geo utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for geo conversions.` — comment
+
+## `src/navisar/utils/logging.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Logging module. Provides logging utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for logging helpers.` — comment
+
+## `src/navisar/utils/time_sync.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Time Sync module. Provides time sync utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder for time sync utilities.` — comment
+
+## `src/navisar/vps/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""VPS package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+
+## `src/navisar/vps/confidence.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Confidence module. Provides confidence utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/vps/feature_tracking.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Feature detection and tracking with grid-based coverage control."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import cv2` — import statement
+- L4: `import numpy as np` — import statement
+- L5: `` — blank line
+- L6: `` — blank line
+- L7: `class FeatureTracker:` — class definition
+- L8: `    """Track visual features with grid-based coverage control."""` — module docstring boundary
+- L9: `    def __init__(` — function definition
+- L10: `        self,` — python statement
+- L11: `        min_features=40,` — python statement
+- L12: `        max_features=300,` — python statement
+- L13: `        redetect_interval=10,` — python statement
+- L14: `        ransac_reproj_thresh=3.0,` — python statement
+- L15: `        grid_rows=6,` — python statement
+- L16: `        grid_cols=8,` — python statement
+- L17: `        per_cell_max_features=30,` — python statement
+- L18: `        texture_threshold=12.0,` — python statement
+- L19: `        quality_level=0.2,` — python statement
+- L20: `    ):` — python statement
+- L21: `        """Initialize tracking parameters and buffers."""` — module docstring boundary
+- L22: `        self.min_features = min_features` — python statement
+- L23: `        self.max_features = max_features` — python statement
+- L24: `        self.redetect_interval = redetect_interval` — python statement
+- L25: `        self.ransac_reproj_thresh = ransac_reproj_thresh` — python statement
+- L26: `        self.grid_rows = grid_rows` — python statement
+- L27: `        self.grid_cols = grid_cols` — python statement
+- L28: `        self.per_cell_max_features = per_cell_max_features` — python statement
+- L29: `        self.texture_threshold = texture_threshold` — python statement
+- L30: `        self.lk_params = dict(` — python statement
+- L31: `            winSize=(15, 15),` — python statement
+- L32: `            maxLevel=2,` — python statement
+- L33: `            criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03),` — python statement
+- L34: `        )` — python statement
+- L35: `        self.feature_params = dict(` — python statement
+- L36: `            maxCorners=per_cell_max_features,` — python statement
+- L37: `            qualityLevel=quality_level,` — python statement
+- L38: `            minDistance=7,` — python statement
+- L39: `            blockSize=7,` — python statement
+- L40: `        )` — python statement
+- L41: `        self.prev_gray = None` — python statement
+- L42: `        self.p0 = None` — python statement
+- L43: `        self.frame_idx = 0` — python statement
+- L44: `        self._colors = None` — python statement
+- L45: `        self._grid_colors = None` — python statement
+- L46: `` — blank line
+- L47: `    def _init_grid_colors(self):` — function definition
+- L48: `        """Build per-cell colors for debug visualization."""` — module docstring boundary
+- L49: `        total = self.grid_rows * self.grid_cols` — python statement
+- L50: `        if self._grid_colors is not None and len(self._grid_colors) == total:` — conditional branch
+- L51: `            return` — python statement
+- L52: `        hues = np.linspace(0, 179, total, endpoint=False).astype(np.uint8)` — python statement
+- L53: `        hsv = np.zeros((total, 1, 3), dtype=np.uint8)` — python statement
+- L54: `        hsv[:, 0, 0] = hues` — python statement
+- L55: `        hsv[:, 0, 1] = 200` — python statement
+- L56: `        hsv[:, 0, 2] = 255` — python statement
+- L57: `        bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR).reshape(total, 3)` — python statement
+- L58: `        self._grid_colors = [tuple(int(c) for c in color) for color in bgr]` — python statement
+- L59: `` — blank line
+- L60: `    @staticmethod` — python statement
+- L61: `    def _cell_texture(roi):` — function definition
+- L62: `        """Return a simple texture metric for a region."""` — module docstring boundary
+- L63: `        grad_x = cv2.Sobel(roi, cv2.CV_32F, 1, 0, ksize=3)` — python statement
+- L64: `        grad_y = cv2.Sobel(roi, cv2.CV_32F, 0, 1, ksize=3)` — python statement
+- L65: `        magnitude = cv2.magnitude(grad_x, grad_y)` — python statement
+- L66: `        return float(np.mean(magnitude))` — return statement
+- L67: `` — blank line
+- L68: `    def _detect_features_grid(self, gray):` — function definition
+- L69: `        """Detect features per grid cell for balanced coverage."""` — module docstring boundary
+- L70: `        self._init_grid_colors()` — python statement
+- L71: `        height, width = gray.shape[:2]` — python statement
+- L72: `        cell_h = max(1, height // self.grid_rows)` — python statement
+- L73: `        cell_w = max(1, width // self.grid_cols)` — python statement
+- L74: `` — blank line
+- L75: `        points = []` — python statement
+- L76: `        colors = []` — python statement
+- L77: `        for row in range(self.grid_rows):` — loop
+- L78: `            for col in range(self.grid_cols):` — loop
+- L79: `                x0 = col * cell_w` — python statement
+- L80: `                y0 = row * cell_h` — python statement
+- L81: `                x1 = width if col == self.grid_cols - 1 else x0 + cell_w` — python statement
+- L82: `                y1 = height if row == self.grid_rows - 1 else y0 + cell_h` — python statement
+- L83: `                roi = gray[y0:y1, x0:x1]` — python statement
+- L84: `                if roi.size == 0:` — conditional branch
+- L85: `                    continue` — python statement
+- L86: `                if self.texture_threshold is not None:` — conditional branch
+- L87: `                    if self._cell_texture(roi) < self.texture_threshold:` — conditional branch
+- L88: `                        continue` — python statement
+- L89: `                # Detect features per cell to keep spatial distribution balanced.` — comment
+- L90: `                features = cv2.goodFeaturesToTrack(roi, mask=None, **self.feature_params)` — python statement
+- L91: `                if features is None:` — conditional branch
+- L92: `                    continue` — python statement
+- L93: `                features[:, 0, 0] += x0` — python statement
+- L94: `                features[:, 0, 1] += y0` — python statement
+- L95: `                points.append(features)` — python statement
+- L96: `                cell_color = self._grid_colors[row * self.grid_cols + col]` — python statement
+- L97: `                colors.extend([cell_color] * len(features))` — python statement
+- L98: `` — blank line
+- L99: `        if not points:` — conditional branch
+- L100: `            return None, None` — return statement
+- L101: `` — blank line
+- L102: `        points = np.vstack(points)` — python statement
+- L103: `        colors = np.array(colors, dtype=np.uint8)` — python statement
+- L104: `` — blank line
+- L105: `        if len(points) > self.max_features:` — conditional branch
+- L106: `            # Retain highest-response corners to respect the global feature cap.` — comment
+- L107: `            responses = cv2.cornerMinEigenVal(gray, blockSize=self.feature_params["blockSize"])` — python statement
+- L108: `            coords = points.reshape(-1, 2)` — python statement
+- L109: `            xs = np.clip(coords[:, 0].astype(int), 0, width - 1)` — python statement
+- L110: `            ys = np.clip(coords[:, 1].astype(int), 0, height - 1)` — python statement
+- L111: `            scores = responses[ys, xs]` — python statement
+- L112: `            top_idx = np.argsort(scores)[-self.max_features :]` — python statement
+- L113: `            points = coords[top_idx].reshape(-1, 1, 2)` — python statement
+- L114: `            colors = colors[top_idx]` — python statement
+- L115: `` — blank line
+- L116: `        return points, colors` — return statement
+- L117: `` — blank line
+- L118: `    def initialize(self, gray):` — function definition
+- L119: `        """Initialize tracking on the first frame."""` — module docstring boundary
+- L120: `        self.prev_gray = gray` — python statement
+- L121: `        self.p0, self._colors = self._detect_features_grid(self.prev_gray)` — python statement
+- L122: `` — blank line
+- L123: `    def track(self, gray):` — function definition
+- L124: `        """Track features into the next frame."""` — module docstring boundary
+- L125: `        if self.prev_gray is None:` — conditional branch
+- L126: `            self.initialize(gray)` — python statement
+- L127: `            self.frame_idx += 1` — python statement
+- L128: `            return None, None, False` — return statement
+- L129: `` — blank line
+- L130: `        reset_mask = False` — python statement
+- L131: `        if self.p0 is None or len(self.p0) < self.min_features or (` — conditional branch
+- L132: `            self.frame_idx % self.redetect_interval == 0` — python statement
+- L133: `        ):` — python statement
+- L134: `            # Refresh features when count drops or on periodic re-detect.` — comment
+- L135: `            self.p0, self._colors = self._detect_features_grid(self.prev_gray)` — python statement
+- L136: `            reset_mask = True` — python statement
+- L137: `            if self.p0 is None:` — conditional branch
+- L138: `                self.prev_gray = gray` — python statement
+- L139: `                self.frame_idx += 1` — python statement
+- L140: `                return None, None, reset_mask` — return statement
+- L141: `` — blank line
+- L142: `        p1, st, _ = cv2.calcOpticalFlowPyrLK(self.prev_gray, gray, self.p0, None, **self.lk_params)` — python statement
+- L143: `        if p1 is None:` — conditional branch
+- L144: `            self.prev_gray = gray` — python statement
+- L145: `            self.frame_idx += 1` — python statement
+- L146: `            return None, None, reset_mask` — return statement
+- L147: `` — blank line
+- L148: `        status = st.reshape(-1).astype(bool)` — python statement
+- L149: `        good_old = self.p0[status]` — python statement
+- L150: `        good_new = p1[status]` — python statement
+- L151: `        colors = None` — python statement
+- L152: `        if self._colors is not None:` — conditional branch
+- L153: `            colors = self._colors[status]` — python statement
+- L154: `        if len(good_old) < 8:` — conditional branch
+- L155: `            self.prev_gray = gray` — python statement
+- L156: `            self.frame_idx += 1` — python statement
+- L157: `            return None, None, reset_mask` — return statement
+- L158: `` — blank line
+- L159: `        if len(good_old) >= 6:` — conditional branch
+- L160: `            # Cull outliers using a partial affine RANSAC fit.` — comment
+- L161: `            _, inliers = cv2.estimateAffinePartial2D(` — python statement
+- L162: `                good_old,` — python statement
+- L163: `                good_new,` — python statement
+- L164: `                method=cv2.RANSAC,` — python statement
+- L165: `                ransacReprojThreshold=self.ransac_reproj_thresh,` — python statement
+- L166: `            )` — python statement
+- L167: `            if inliers is not None:` — conditional branch
+- L168: `                inlier_mask = inliers.ravel().astype(bool)` — python statement
+- L169: `                good_old = good_old[inlier_mask]` — python statement
+- L170: `                good_new = good_new[inlier_mask]` — python statement
+- L171: `                if colors is not None:` — conditional branch
+- L172: `                    colors = colors[inlier_mask]` — python statement
+- L173: `` — blank line
+- L174: `        if len(good_old) < 8:` — conditional branch
+- L175: `            self.prev_gray = gray` — python statement
+- L176: `            self.frame_idx += 1` — python statement
+- L177: `            return None, None, reset_mask` — return statement
+- L178: `` — blank line
+- L179: `        self.prev_gray = gray` — python statement
+- L180: `        self.p0 = good_new.reshape(-1, 1, 2)` — python statement
+- L181: `        self._colors = colors` — python statement
+- L182: `        self.frame_idx += 1` — python statement
+- L183: `        return good_old, good_new, reset_mask` — return statement
+- L184: `` — blank line
+- L185: `    def current_colors(self):` — function definition
+- L186: `        """Return a copy of per-feature colors for display."""` — module docstring boundary
+- L187: `        if self._colors is None:` — conditional branch
+- L188: `            return None` — return statement
+- L189: `        return self._colors.copy()` — return statement
+
+## `src/navisar/vps/height_estimator.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Height Estimator module. Provides height estimator utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `class HeightEstimator:` — class definition
+- L4: `    """Expose height from LiDAR or fallback constant."""` — module docstring boundary
+- L5: `    def __init__(self, use_lidar=True, fallback_m=1.0, lidar_driver=None):` — function definition
+- L6: `        """Configure LiDAR usage and fallback height."""` — module docstring boundary
+- L7: `        self.use_lidar = use_lidar` — python statement
+- L8: `        self.fallback_m = fallback_m` — python statement
+- L9: `        self.lidar_driver = lidar_driver` — python statement
+- L10: `` — blank line
+- L11: `    def update(self):` — function definition
+- L12: `        """Poll the LiDAR driver when enabled."""` — module docstring boundary
+- L13: `        if self.use_lidar and self.lidar_driver is not None:` — conditional branch
+- L14: `            self.lidar_driver.update()` — python statement
+- L15: `` — blank line
+- L16: `    def get_height_m(self):` — function definition
+- L17: `        """Return the current height estimate."""` — module docstring boundary
+- L18: `        if self.use_lidar and self.lidar_driver is not None:` — conditional branch
+- L19: `            return self.lidar_driver.get_height_m()` — return statement
+- L20: `        return self.fallback_m` — return statement
+
+## `src/navisar/vps/localization.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Localization module. Provides localization utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/vps/pose_estimator.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Adapter that delegates pose estimation to the selected algorithm."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `from navisar.vps.algorithms.ransac_affine import RansacAffineEstimator` — import statement
+- L4: `` — blank line
+- L5: `` — blank line
+- L6: `class PoseEstimator:` — class definition
+- L7: `    """Route feature tracks through a motion estimator."""` — module docstring boundary
+- L8: `    def __init__(self, fx, fy, K, ransac_thresh=1.0, algorithm=None):` — function definition
+- L9: `        """Store camera intrinsics and selected algorithm."""` — module docstring boundary
+- L10: `        self.fx = fx` — python statement
+- L11: `        self.fy = fy` — python statement
+- L12: `        self.K = K` — python statement
+- L13: `        self.ransac_thresh = ransac_thresh` — python statement
+- L14: `        self.algorithm = algorithm or RansacAffineEstimator()` — python statement
+- L15: `` — blank line
+- L16: `    def estimate(self, good_old, good_new, height_m):` — function definition
+- L17: `        """Estimate motion given tracked points and height."""` — module docstring boundary
+- L18: `        return self.algorithm.estimate(` — return statement
+- L19: `            good_old,` — python statement
+- L20: `            good_new,` — python statement
+- L21: `            height_m,` — python statement
+- L22: `            self.fx,` — python statement
+- L23: `            self.fy,` — python statement
+- L24: `            self.ransac_thresh,` — python statement
+- L25: `        )` — python statement
+
+## `src/navisar/vps/slam_interface.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Slam Interface module. Provides slam interface utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/vps/vio_imu.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""IMU-only velocity estimation for VIO fallback mode."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import math` — import statement
+- L4: `import os` — import statement
+- L5: `import time` — import statement
+- L6: `` — blank line
+- L7: `from pymavlink import mavutil` — import statement
+- L8: `` — blank line
+- L9: `` — blank line
+- L10: `DEVICE = os.getenv("MAVLINK_DEVICE", "/dev/ttyACM0")` — python statement
+- L11: `BAUD = int(os.getenv("MAVLINK_BAUD", "115200"))` — python statement
+- L12: `HEARTBEAT_TIMEOUT_S = float(os.getenv("MAVLINK_HEARTBEAT_TIMEOUT_S", "5.0"))` — python statement
+- L13: `IMU_RATE_HZ = float(os.getenv("MAVLINK_IMU_RATE_HZ", "50.0"))` — python statement
+- L14: `PRINT_INTERVAL_S = float(os.getenv("MAVLINK_PRINT_INTERVAL_S", "0.1"))` — python statement
+- L15: `GRAVITY_M_S2 = 9.80665` — python statement
+- L16: `BIAS_CALIB_S = float(os.getenv("IMU_BIAS_CALIB_S", "3.0"))` — python statement
+- L17: `VEL_DAMPING = float(os.getenv("IMU_VEL_DAMPING", "0.98"))` — python statement
+- L18: `` — blank line
+- L19: `` — blank line
+- L20: `def _request_message_interval(master, msg_id, rate_hz):` — function definition
+- L21: `    if rate_hz <= 0:` — conditional branch
+- L22: `        return` — python statement
+- L23: `    interval_us = int(1_000_000 / rate_hz)` — python statement
+- L24: `    master.mav.command_long_send(` — python statement
+- L25: `        master.target_system,` — python statement
+- L26: `        master.target_component,` — python statement
+- L27: `        mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,` — python statement
+- L28: `        0,` — python statement
+- L29: `        msg_id,` — python statement
+- L30: `        interval_us,` — python statement
+- L31: `        0,` — python statement
+- L32: `        0,` — python statement
+- L33: `        0,` — python statement
+- L34: `        0,` — python statement
+- L35: `        0,` — python statement
+- L36: `    )` — python statement
+- L37: `` — blank line
+- L38: `` — blank line
+- L39: `def _rotation_body_to_ned(roll, pitch, yaw):` — function definition
+- L40: `    cr = math.cos(roll)` — python statement
+- L41: `    sr = math.sin(roll)` — python statement
+- L42: `    cp = math.cos(pitch)` — python statement
+- L43: `    sp = math.sin(pitch)` — python statement
+- L44: `    cy = math.cos(yaw)` — python statement
+- L45: `    sy = math.sin(yaw)` — python statement
+- L46: `` — blank line
+- L47: `    return (` — return statement
+- L48: `        (cp * cy, sr * sp * cy - cr * sy, cr * sp * cy + sr * sy),` — python statement
+- L49: `        (cp * sy, sr * sp * sy + cr * cy, cr * sp * sy - sr * cy),` — python statement
+- L50: `        (-sp, sr * cp, cr * cp),` — python statement
+- L51: `    )` — python statement
+- L52: `` — blank line
+- L53: `` — blank line
+- L54: `def _mat_vec_mul(mat, vec):` — function definition
+- L55: `    return (` — return statement
+- L56: `        mat[0][0] * vec[0] + mat[0][1] * vec[1] + mat[0][2] * vec[2],` — python statement
+- L57: `        mat[1][0] * vec[0] + mat[1][1] * vec[1] + mat[1][2] * vec[2],` — python statement
+- L58: `        mat[2][0] * vec[0] + mat[2][1] * vec[1] + mat[2][2] * vec[2],` — python statement
+- L59: `    )` — python statement
+- L60: `` — blank line
+- L61: `` — blank line
+- L62: `def _get_msg_time_s(msg):` — function definition
+- L63: `    time_usec = getattr(msg, "time_usec", 0) or 0` — python statement
+- L64: `    if time_usec:` — conditional branch
+- L65: `        return time_usec * 1e-6` — return statement
+- L66: `    time_boot_ms = getattr(msg, "time_boot_ms", 0) or 0` — python statement
+- L67: `    if time_boot_ms:` — conditional branch
+- L68: `        return time_boot_ms * 1e-3` — return statement
+- L69: `    return None` — return statement
+- L70: `` — blank line
+- L71: `` — blank line
+- L72: `class ImuVelocityEstimator:` — class definition
+- L73: `    """Estimate velocity by integrating IMU acceleration."""` — module docstring boundary
+- L74: `` — blank line
+- L75: `    def __init__(` — function definition
+- L76: `        self,` — python statement
+- L77: `        gravity_m_s2=GRAVITY_M_S2,` — python statement
+- L78: `        bias_calib_s=BIAS_CALIB_S,` — python statement
+- L79: `        vel_damping=VEL_DAMPING,` — python statement
+- L80: `    ):` — python statement
+- L81: `        self.gravity_m_s2 = float(gravity_m_s2)` — python statement
+- L82: `        self.bias_calib_s = float(bias_calib_s)` — python statement
+- L83: `        self.vel_damping = float(vel_damping)` — python statement
+- L84: `        self.last_time_s = None` — python statement
+- L85: `        self.roll = 0.0` — python statement
+- L86: `        self.pitch = 0.0` — python statement
+- L87: `        self.yaw = 0.0` — python statement
+- L88: `        self.have_attitude = False` — python statement
+- L89: `        self.vx = 0.0` — python statement
+- L90: `        self.vy = 0.0` — python statement
+- L91: `        self.vz = 0.0` — python statement
+- L92: `        self.bias_samples = []` — python statement
+- L93: `        self.bias = None` — python statement
+- L94: `        self.bias_frame = None` — python statement
+- L95: `        self.calib_start = None` — python statement
+- L96: `` — blank line
+- L97: `    def _calibrate_bias(self, ax, ay, az, current_frame):` — function definition
+- L98: `        if self.bias is not None:` — conditional branch
+- L99: `            return` — python statement
+- L100: `        if self.calib_start is None:` — conditional branch
+- L101: `            self.calib_start = time.time()` — python statement
+- L102: `            self.bias_frame = current_frame` — python statement
+- L103: `        if time.time() - self.calib_start <= self.bias_calib_s:` — conditional branch
+- L104: `            self.bias_samples.append((ax, ay, az))` — python statement
+- L105: `            return` — python statement
+- L106: `        if self.bias_samples:` — conditional branch
+- L107: `            bx = sum(s[0] for s in self.bias_samples) / len(self.bias_samples)` — python statement
+- L108: `            by = sum(s[1] for s in self.bias_samples) / len(self.bias_samples)` — python statement
+- L109: `            bz = sum(s[2] for s in self.bias_samples) / len(self.bias_samples)` — python statement
+- L110: `            self.bias = (bx, by, bz)` — python statement
+- L111: `            print(` — python statement
+- L112: `                f"IMU bias calibrated ({self.bias_frame}): "` — python statement
+- L113: `                f"{self.bias[0]:.4f}, {self.bias[1]:.4f}, {self.bias[2]:.4f}"` — python statement
+- L114: `            )` — python statement
+- L115: `        else:` — conditional branch
+- L116: `            self.bias = (0.0, 0.0, 0.0)` — python statement
+- L117: `` — blank line
+- L118: `    def update_attitude(self, roll, pitch, yaw):` — function definition
+- L119: `        """Update attitude from an external source."""` — module docstring boundary
+- L120: `        self.roll = float(roll)` — python statement
+- L121: `        self.pitch = float(pitch)` — python statement
+- L122: `        self.yaw = float(yaw)` — python statement
+- L123: `        self.have_attitude = True` — python statement
+- L124: `` — blank line
+- L125: `    def process_message(self, msg):` — function definition
+- L126: `        """Process a MAVLink message and return velocity tuple when updated."""` — module docstring boundary
+- L127: `        msg_type = msg.get_type()` — python statement
+- L128: `        if msg_type == "ATTITUDE":` — conditional branch
+- L129: `            self.roll = msg.roll` — python statement
+- L130: `            self.pitch = msg.pitch` — python statement
+- L131: `            self.yaw = msg.yaw` — python statement
+- L132: `            self.have_attitude = True` — python statement
+- L133: `            return None` — return statement
+- L134: `        if msg_type not in ("HIGHRES_IMU", "RAW_IMU"):` — conditional branch
+- L135: `            return None` — return statement
+- L136: `` — blank line
+- L137: `        msg_time_s = _get_msg_time_s(msg)` — python statement
+- L138: `        if msg_time_s is None:` — conditional branch
+- L139: `            return None` — return statement
+- L140: `        if self.last_time_s is None:` — conditional branch
+- L141: `            self.last_time_s = msg_time_s` — python statement
+- L142: `            return None` — return statement
+- L143: `        dt = msg_time_s - self.last_time_s` — python statement
+- L144: `        if dt <= 0.0 or dt > 1.0:` — conditional branch
+- L145: `            self.last_time_s = msg_time_s` — python statement
+- L146: `            return None` — return statement
+- L147: `        self.last_time_s = msg_time_s` — python statement
+- L148: `` — blank line
+- L149: `        if msg_type == "HIGHRES_IMU":` — conditional branch
+- L150: `            ax, ay, az = msg.xacc, msg.yacc, msg.zacc` — python statement
+- L151: `        else:` — conditional branch
+- L152: `            ax = (msg.xacc / 1000.0) * self.gravity_m_s2` — python statement
+- L153: `            ay = (msg.yacc / 1000.0) * self.gravity_m_s2` — python statement
+- L154: `            az = (msg.zacc / 1000.0) * self.gravity_m_s2` — python statement
+- L155: `` — blank line
+- L156: `        if self.have_attitude:` — conditional branch
+- L157: `            r_body_to_ned = _rotation_body_to_ned(self.roll, self.pitch, self.yaw)` — python statement
+- L158: `            ax, ay, az = _mat_vec_mul(r_body_to_ned, (ax, ay, az))` — python statement
+- L159: `            az -= self.gravity_m_s2` — python statement
+- L160: `            current_frame = "NED"` — python statement
+- L161: `        else:` — conditional branch
+- L162: `            current_frame = "BODY"` — python statement
+- L163: `` — blank line
+- L164: `        if (` — conditional branch
+- L165: `            self.bias is not None` — python statement
+- L166: `            and self.bias_frame == "BODY"` — python statement
+- L167: `            and current_frame == "NED"` — python statement
+- L168: `        ):` — python statement
+- L169: `            self.bias = None` — python statement
+- L170: `            self.bias_samples.clear()` — python statement
+- L171: `            self.bias_frame = None` — python statement
+- L172: `            self.calib_start = None` — python statement
+- L173: `` — blank line
+- L174: `        self._calibrate_bias(ax, ay, az, current_frame)` — python statement
+- L175: `        if self.bias is None:` — conditional branch
+- L176: `            return None` — return statement
+- L177: `` — blank line
+- L178: `        ax -= self.bias[0]` — python statement
+- L179: `        ay -= self.bias[1]` — python statement
+- L180: `        az -= self.bias[2]` — python statement
+- L181: `` — blank line
+- L182: `        self.vx = self.vx * self.vel_damping + ax * dt` — python statement
+- L183: `        self.vy = self.vy * self.vel_damping + ay * dt` — python statement
+- L184: `        self.vz = self.vz * self.vel_damping + az * dt` — python statement
+- L185: `` — blank line
+- L186: `        return self.vx, self.vy, self.vz, current_frame` — return statement
+- L187: `` — blank line
+- L188: `` — blank line
+- L189: `def run_with_master(` — function definition
+- L190: `    master,` — python statement
+- L191: `    print_interval_s=PRINT_INTERVAL_S,` — python statement
+- L192: `    imu_rate_hz=IMU_RATE_HZ,` — python statement
+- L193: `    print_enabled=True,` — python statement
+- L194: `):` — python statement
+- L195: `    """Stream IMU velocities from an existing MAVLink master."""` — module docstring boundary
+- L196: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_HIGHRES_IMU, imu_rate_hz)` — python statement
+- L197: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU, imu_rate_hz)` — python statement
+- L198: `    _request_message_interval(master, mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE, imu_rate_hz)` — python statement
+- L199: `` — blank line
+- L200: `    estimator = ImuVelocityEstimator()` — python statement
+- L201: `    last_print = 0.0` — python statement
+- L202: `    last_msg_time = time.time()` — python statement
+- L203: `` — blank line
+- L204: `    while True:` — loop
+- L205: `        msg = master.recv_match(blocking=True, timeout=1.0)` — python statement
+- L206: `        if msg is None:` — conditional branch
+- L207: `            if time.time() - last_msg_time > 5.0 and print_enabled:` — conditional branch
+- L208: `                print("No IMU messages yet... check stream/rates.")` — python statement
+- L209: `                last_msg_time = time.time()` — python statement
+- L210: `            continue` — python statement
+- L211: `` — blank line
+- L212: `        last_msg_time = time.time()` — python statement
+- L213: `        result = estimator.process_message(msg)` — python statement
+- L214: `        if result is None:` — conditional branch
+- L215: `            continue` — python statement
+- L216: `        vx, vy, vz, frame = result` — python statement
+- L217: `        if not print_enabled:` — conditional branch
+- L218: `            continue` — python statement
+- L219: `        now = time.time()` — python statement
+- L220: `        if print_interval_s > 0.0 and (now - last_print) < print_interval_s:` — conditional branch
+- L221: `            continue` — python statement
+- L222: `        last_print = now` — python statement
+- L223: `        print(f"{frame} Vx: {vx:.3f} | Vy: {vy:.3f} | Vz: {vz:.3f} m/s")` — python statement
+- L224: `` — blank line
+- L225: `` — blank line
+- L226: `def run():` — function definition
+- L227: `    """Stream IMU velocities and print Vx/Vy/Vz."""` — module docstring boundary
+- L228: `    print(f"Connecting to MAVLink on {DEVICE} @ {BAUD}...")` — python statement
+- L229: `    master = mavutil.mavlink_connection(DEVICE, baud=BAUD)` — python statement
+- L230: `    try:` — exception handling
+- L231: `        master.wait_heartbeat(timeout=HEARTBEAT_TIMEOUT_S)` — python statement
+- L232: `    except Exception as exc:` — exception handling
+- L233: `        raise RuntimeError("Failed to receive MAVLink heartbeat") from exc` — error raise
+- L234: `` — blank line
+- L235: `    print("Heartbeat received. Streaming IMU acceleration + attitude...")` — python statement
+- L236: `    run_with_master(master)` — python statement
+- L237: `` — blank line
+- L238: `` — blank line
+- L239: `if __name__ == "__main__":` — module entry point guard
+- L240: `    run()` — python statement
+
+## `src/navisar/vps/vio_interface.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""VIO Interface module. Provides vio interface utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `# Placeholder file` — comment
+
+## `src/navisar/vps/visual_odometry.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Visual odometry loop with motion gating and optional yaw compensation."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import cv2` — import statement
+- L4: `import numpy as np` — import statement
+- L5: `import time` — import statement
+- L6: `from collections import deque` — import statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `class VisualOdometry:` — class definition
+- L10: `    """Run a monocular VO pipeline with optional gating and yaw."""` — module docstring boundary
+- L11: `    def __init__(` — function definition
+- L12: `        self,` — python statement
+- L13: `        camera_driver,` — python statement
+- L14: `        feature_tracker,` — python statement
+- L15: `        pose_estimator,` — python statement
+- L16: `        height_estimator,` — python statement
+- L17: `        dist_coeffs=None,` — python statement
+- L18: `        metric_threshold=0.02,` — python statement
+- L19: `        frame_delay_s=0.02,` — python statement
+- L20: `        img_width=640,` — python statement
+- L21: `        img_height=480,` — python statement
+- L22: `        yaw_provider=None,` — python statement
+- L23: `        min_flow_px=0.4,` — python statement
+- L24: `        min_height_m=0.1,` — python statement
+- L25: `        exposure_min_mean=10.0,` — python statement
+- L26: `        exposure_max_mean=245.0,` — python statement
+- L27: `        zero_motion_window=8,` — python statement
+- L28: `        zero_motion_mean_m=0.004,` — python statement
+- L29: `        zero_motion_std_m=0.002,` — python statement
+- L30: `        motion_gate_enabled=True,` — python statement
+- L31: `        min_inlier_ratio=0.5,` — python statement
+- L32: `        max_flow_mad_px=1.2,` — python statement
+- L33: `    ):` — python statement
+- L34: `        """Configure VO components, thresholds, and smoothing."""` — module docstring boundary
+- L35: `        self.camera_driver = camera_driver` — python statement
+- L36: `        self.feature_tracker = feature_tracker` — python statement
+- L37: `        self.pose_estimator = pose_estimator` — python statement
+- L38: `        self.height_estimator = height_estimator` — python statement
+- L39: `        self.metric_threshold = metric_threshold` — python statement
+- L40: `        self.frame_delay_s = frame_delay_s` — python statement
+- L41: `        self.img_width = img_width` — python statement
+- L42: `        self.img_height = img_height` — python statement
+- L43: `        self.yaw_provider = yaw_provider` — python statement
+- L44: `        self.min_flow_px = min_flow_px` — python statement
+- L45: `        self.min_height_m = min_height_m` — python statement
+- L46: `        self.exposure_min_mean = exposure_min_mean` — python statement
+- L47: `        self.exposure_max_mean = exposure_max_mean` — python statement
+- L48: `        self.min_inlier_ratio = min_inlier_ratio` — python statement
+- L49: `        self.max_flow_mad_px = max_flow_mad_px` — python statement
+- L50: `        self.x = 0.0` — python statement
+- L51: `        self.y = 0.0` — python statement
+- L52: `        self.z = 0.0` — python statement
+- L53: `        self.zero_motion_window = zero_motion_window` — python statement
+- L54: `        self.zero_motion_mean_m = zero_motion_mean_m` — python statement
+- L55: `        self.zero_motion_std_m = zero_motion_std_m` — python statement
+- L56: `        self.motion_gate_enabled = motion_gate_enabled` — python statement
+- L57: `        self.min_inliers = 30` — python statement
+- L58: `        self.motion_confirm_frames = 3` — python statement
+- L59: `        self.motion_window = 5` — python statement
+- L60: `        self._motion_streak = 0` — python statement
+- L61: `        self._dx_hist = deque(maxlen=self.motion_window)` — python statement
+- L62: `        self._dy_hist = deque(maxlen=self.motion_window)` — python statement
+- L63: `        self._zero_motion_hist = deque(maxlen=self.zero_motion_window)` — python statement
+- L64: `        self._last_yaw = None` — python statement
+- L65: `        self._last_yaw_time = None` — python statement
+- L66: `        self.debug_enabled = False` — python statement
+- L67: `        self.debug_interval_s = 0.5` — python statement
+- L68: `        self._last_debug_time = 0.0` — python statement
+- L69: `        self.dist_coeffs = None` — python statement
+- L70: `        self._undistort_map = None` — python statement
+- L71: `        if dist_coeffs is not None:` — conditional branch
+- L72: `            dist = np.array(dist_coeffs, dtype=np.float64).ravel()` — python statement
+- L73: `            if dist.size > 0 and not np.allclose(dist, 0.0):` — conditional branch
+- L74: `                map1, map2 = cv2.initUndistortRectifyMap(` — python statement
+- L75: `                    self.pose_estimator.K,` — python statement
+- L76: `                    dist,` — python statement
+- L77: `                    None,` — python statement
+- L78: `                    self.pose_estimator.K,` — python statement
+- L79: `                    (int(self.img_width), int(self.img_height)),` — python statement
+- L80: `                    cv2.CV_16SC2,` — python statement
+- L81: `                )` — python statement
+- L82: `                self.dist_coeffs = dist` — python statement
+- L83: `                self._undistort_map = (map1, map2)` — python statement
+- L84: `` — blank line
+- L85: `    def _undistort(self, frame):` — function definition
+- L86: `        """Undistort a frame using cached remap when available."""` — module docstring boundary
+- L87: `        if self._undistort_map is None:` — conditional branch
+- L88: `            return frame` — return statement
+- L89: `        if frame.shape[1] != self.img_width or frame.shape[0] != self.img_height:` — conditional branch
+- L90: `            return cv2.undistort(frame, self.pose_estimator.K, self.dist_coeffs)` — return statement
+- L91: `        map1, map2 = self._undistort_map` — python statement
+- L92: `        return cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR)` — return statement
+- L93: `` — blank line
+- L94: `    @staticmethod` — python statement
+- L95: `    def _ensure_bgr(frame):` — function definition
+- L96: `        """Ensure a 3-channel BGR frame for display."""` — module docstring boundary
+- L97: `        if frame.ndim == 2:` — conditional branch
+- L98: `            return cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)` — return statement
+- L99: `        if frame.ndim == 3 and frame.shape[2] == 1:` — conditional branch
+- L100: `            return cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)` — return statement
+- L101: `        return frame` — return statement
+- L102: `` — blank line
+- L103: `    def _prepare_gray(self, frame):` — function definition
+- L104: `        """Convert a frame to grayscale and undistort if needed."""` — module docstring boundary
+- L105: `        if frame.ndim == 2:` — conditional branch
+- L106: `            gray = frame` — python statement
+- L107: `        elif frame.ndim == 3 and frame.shape[2] == 1:` — conditional branch
+- L108: `            gray = frame[:, :, 0]` — python statement
+- L109: `        else:` — conditional branch
+- L110: `            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)` — python statement
+- L111: `        if self.dist_coeffs is not None:` — conditional branch
+- L112: `            # Remove lens distortion to improve tracking consistency.` — comment
+- L113: `            gray = self._undistort(gray)` — python statement
+- L114: `        return gray` — return statement
+- L115: `` — blank line
+- L116: `    def _prepare_display(self, frame):` — function definition
+- L117: `        """Prepare a display frame with undistortion and BGR."""` — module docstring boundary
+- L118: `        if self.dist_coeffs is not None:` — conditional branch
+- L119: `            frame = self._undistort(frame)` — python statement
+- L120: `        return self._ensure_bgr(frame)` — return statement
+- L121: `` — blank line
+- L122: `    @staticmethod` — python statement
+- L123: `    def _wrap_angle(angle_rad):` — function definition
+- L124: `        """Wrap angle to [-pi, pi)."""` — module docstring boundary
+- L125: `        return (angle_rad + np.pi) % (2.0 * np.pi) - np.pi` — return statement
+- L126: `` — blank line
+- L127: `    def _compensate_yaw(self, points, yaw_delta):` — function definition
+- L128: `        """Rotate feature points to subtract yaw-induced motion."""` — module docstring boundary
+- L129: `        if points is None or len(points) == 0:` — conditional branch
+- L130: `            return points` — return statement
+- L131: `        # Rotate features around image center to subtract yaw-induced flow.` — comment
+- L132: `        center = np.array([self.img_width / 2.0, self.img_height / 2.0], dtype=np.float32)` — python statement
+- L133: `        cos_yaw = float(np.cos(-yaw_delta))` — python statement
+- L134: `        sin_yaw = float(np.sin(-yaw_delta))` — python statement
+- L135: `        pts = points.reshape(-1, 2).astype(np.float32) - center` — python statement
+- L136: `        rot = np.empty_like(pts)` — python statement
+- L137: `        rot[:, 0] = pts[:, 0] * cos_yaw - pts[:, 1] * sin_yaw` — python statement
+- L138: `        rot[:, 1] = pts[:, 0] * sin_yaw + pts[:, 1] * cos_yaw` — python statement
+- L139: `        rot += center` — python statement
+- L140: `        return rot.reshape(-1, 1, 2)` — return statement
+- L141: `` — blank line
+- L142: `    def _direction_from_motion(self, dx_m, dy_m):` — function definition
+- L143: `        """Convert motion deltas into a coarse direction label."""` — module docstring boundary
+- L144: `        direction = ""` — python statement
+- L145: `        if abs(dx_m) > self.metric_threshold or abs(dy_m) > self.metric_threshold:` — conditional branch
+- L146: `            if abs(dx_m) > abs(dy_m):` — conditional branch
+- L147: `                direction = "RIGHT" if dx_m > 0 else "LEFT"` — python statement
+- L148: `            else:` — conditional branch
+- L149: `                direction = "UP" if dy_m > 0 else "DOWN"` — python statement
+- L150: `        return direction` — return statement
+- L151: `` — blank line
+- L152: `    def _draw_grid(self, frame):` — function definition
+- L153: `        """Draw the tracking grid overlay."""` — module docstring boundary
+- L154: `        rows = getattr(self.feature_tracker, "grid_rows", None)` — python statement
+- L155: `        cols = getattr(self.feature_tracker, "grid_cols", None)` — python statement
+- L156: `        if rows is None or cols is None or rows <= 1 and cols <= 1:` — conditional branch
+- L157: `            return` — python statement
+- L158: `        height, width = frame.shape[:2]` — python statement
+- L159: `        for row in range(1, rows):` — loop
+- L160: `            y = int(row * height / rows)` — python statement
+- L161: `            cv2.line(frame, (0, y), (width, y), (60, 60, 60), 1)` — python statement
+- L162: `        for col in range(1, cols):` — loop
+- L163: `            x = int(col * width / cols)` — python statement
+- L164: `            cv2.line(frame, (x, 0), (x, height), (60, 60, 60), 1)` — python statement
+- L165: `` — blank line
+- L166: `    def run(self, window_name="VO + LiDAR", on_update=None):` — function definition
+- L167: `        """Run the VO loop, optionally emitting updates via callback."""` — module docstring boundary
+- L168: `        ret, prev_frame = self.camera_driver.read()` — python statement
+- L169: `        if not ret:` — conditional branch
+- L170: `            raise RuntimeError("Camera error: failed to read initial frame")` — error raise
+- L171: `` — blank line
+- L172: `        prev_gray = self._prepare_gray(prev_frame)` — python statement
+- L173: `        self.feature_tracker.initialize(prev_gray)` — python statement
+- L174: `        display_frame = self._prepare_display(prev_frame)` — python statement
+- L175: `        mask = np.zeros_like(display_frame)` — python statement
+- L176: `` — blank line
+- L177: `        while True:` — loop
+- L178: `            self.height_estimator.update()` — python statement
+- L179: `` — blank line
+- L180: `            ret, frame = self.camera_driver.read()` — python statement
+- L181: `            if not ret:` — conditional branch
+- L182: `                continue` — python statement
+- L183: `` — blank line
+- L184: `            gray = self._prepare_gray(frame)` — python statement
+- L185: `            display_frame = self._prepare_display(frame)` — python statement
+- L186: `            yaw_delta = 0.0` — python statement
+- L187: `            if self.yaw_provider is not None:` — conditional branch
+- L188: `                yaw_data = self.yaw_provider()` — python statement
+- L189: `                if yaw_data is not None:` — conditional branch
+- L190: `                    now_s = yaw_data.get("time_s", time.time())` — python statement
+- L191: `                    yaw = yaw_data.get("yaw")` — python statement
+- L192: `                    if yaw is not None:` — conditional branch
+- L193: `                        if self._last_yaw is not None:` — conditional branch
+- L194: `                            yaw_delta = self._wrap_angle(yaw - self._last_yaw)` — python statement
+- L195: `                        self._last_yaw = yaw` — python statement
+- L196: `                        self._last_yaw_time = now_s` — python statement
+- L197: `                    else:` — conditional branch
+- L198: `                        yaw_rate = yaw_data.get("yaw_rate")` — python statement
+- L199: `                        if yaw_rate is not None and self._last_yaw_time is not None:` — conditional branch
+- L200: `                            dt = max(0.0, now_s - self._last_yaw_time)` — python statement
+- L201: `                            yaw_delta = float(yaw_rate) * dt` — python statement
+- L202: `                            self._last_yaw_time = now_s` — python statement
+- L203: `` — blank line
+- L204: `            good_old, good_new, reset_mask = self.feature_tracker.track(gray)` — python statement
+- L205: `            if reset_mask:` — conditional branch
+- L206: `                mask = np.zeros_like(display_frame)` — python statement
+- L207: `` — blank line
+- L208: `            if good_old is None or good_new is None:` — conditional branch
+- L209: `                if cv2.waitKey(1) & 0xFF == 27:` — conditional branch
+- L210: `                    break` — python statement
+- L211: `                time.sleep(self.frame_delay_s)` — python statement
+- L212: `                continue` — python statement
+- L213: `` — blank line
+- L214: `            height = self.height_estimator.get_height_m()` — python statement
+- L215: `            if height is None:` — conditional branch
+- L216: `                height = self.z if self.z > 0.0 else self.min_height_m` — python statement
+- L217: `            if yaw_delta != 0.0:` — conditional branch
+- L218: `                good_new = self._compensate_yaw(good_new, yaw_delta)` — python statement
+- L219: `            (` — python statement
+- L220: `                dx_m,` — python statement
+- L221: `                dy_m,` — python statement
+- L222: `                dz_m,` — python statement
+- L223: `                dx_pixels,` — python statement
+- L224: `                dy_pixels,` — python statement
+- L225: `                inlier_count,` — python statement
+- L226: `                inlier_ratio,` — python statement
+- L227: `                flow_mad_px,` — python statement
+- L228: `            ) = self.pose_estimator.estimate(good_old, good_new, height)` — python statement
+- L229: `            if self.motion_gate_enabled:` — conditional branch
+- L230: `                # Gate integration to reduce drift when the camera is static.` — comment
+- L231: `                flow_mag_px = float(np.hypot(dx_pixels, dy_pixels))` — python statement
+- L232: `                height_valid = height is not None and height >= self.min_height_m` — python statement
+- L233: `                mean_intensity = float(np.mean(gray))` — python statement
+- L234: `                exposure_ok = self.exposure_min_mean <= mean_intensity <= self.exposure_max_mean` — python statement
+- L235: `                motion_detected = (` — python statement
+- L236: `                    abs(dx_m) >= self.metric_threshold or abs(dy_m) >= self.metric_threshold` — python statement
+- L237: `                )` — python statement
+- L238: `                low_inliers = inlier_count < self.min_inliers` — python statement
+- L239: `                low_ratio = inlier_ratio < self.min_inlier_ratio` — python statement
+- L240: `                zero_motion_reject = False` — python statement
+- L241: `                if (` — conditional branch
+- L242: `                    (low_inliers and low_ratio)` — python statement
+- L243: `                    or flow_mad_px > self.max_flow_mad_px` — python statement
+- L244: `                    or flow_mag_px < self.min_flow_px` — python statement
+- L245: `                    or not height_valid` — python statement
+- L246: `                    or not exposure_ok` — python statement
+- L247: `                ):` — python statement
+- L248: `                    motion_detected = False` — python statement
+- L249: `` — blank line
+- L250: `                step_m = float(np.hypot(dx_m, dy_m))` — python statement
+- L251: `                if self.zero_motion_window != self._zero_motion_hist.maxlen:` — conditional branch
+- L252: `                    self._zero_motion_hist = deque(` — python statement
+- L253: `                        self._zero_motion_hist, maxlen=self.zero_motion_window` — python statement
+- L254: `                    )` — python statement
+- L255: `                self._zero_motion_hist.append(step_m)` — python statement
+- L256: `                if len(self._zero_motion_hist) == self._zero_motion_hist.maxlen:` — conditional branch
+- L257: `                    mean_step = float(np.mean(self._zero_motion_hist))` — python statement
+- L258: `                    std_step = float(np.std(self._zero_motion_hist))` — python statement
+- L259: `                    if mean_step < self.zero_motion_mean_m and std_step < self.zero_motion_std_m:` — conditional branch
+- L260: `                        motion_detected = False` — python statement
+- L261: `                        zero_motion_reject = True` — python statement
+- L262: `` — blank line
+- L263: `                if self.debug_enabled:` — conditional branch
+- L264: `                    now_s = time.time()` — python statement
+- L265: `                    if now_s - self._last_debug_time >= self.debug_interval_s:` — conditional branch
+- L266: `                        print(` — python statement
+- L267: `                            "VO GATE: "` — python statement
+- L268: `                            f"motion={motion_detected} inliers={inlier_count} ratio={inlier_ratio:.2f} "` — python statement
+- L269: `                            f"flow_px={flow_mag_px:.2f} flow_mad={flow_mad_px:.2f} "` — python statement
+- L270: `                            f"height={height:.2f} exposure={mean_intensity:.1f} "` — python statement
+- L271: `                            f"low_inliers={low_inliers} low_ratio={low_ratio} "` — python statement
+- L272: `                            f"height_ok={height_valid} exposure_ok={exposure_ok} "` — python statement
+- L273: `                            f"zero_motion={zero_motion_reject}"` — python statement
+- L274: `                        )` — python statement
+- L275: `                        self._last_debug_time = now_s` — python statement
+- L276: `` — blank line
+- L277: `                if motion_detected:` — conditional branch
+- L278: `                    self._motion_streak += 1` — python statement
+- L279: `                else:` — conditional branch
+- L280: `                    self._motion_streak = 0` — python statement
+- L281: `                    self._dx_hist.clear()` — python statement
+- L282: `                    self._dy_hist.clear()` — python statement
+- L283: `` — blank line
+- L284: `                if (` — conditional branch
+- L285: `                    self.motion_window != self._dx_hist.maxlen` — python statement
+- L286: `                    or self.motion_window != self._dy_hist.maxlen` — python statement
+- L287: `                ):` — python statement
+- L288: `                    self._dx_hist = deque(self._dx_hist, maxlen=self.motion_window)` — python statement
+- L289: `                    self._dy_hist = deque(self._dy_hist, maxlen=self.motion_window)` — python statement
+- L290: `` — blank line
+- L291: `                if self._motion_streak >= self.motion_confirm_frames:` — conditional branch
+- L292: `                    # Smooth motion estimates once we've confirmed real movement.` — comment
+- L293: `                    self._dx_hist.append(dx_m)` — python statement
+- L294: `                    self._dy_hist.append(dy_m)` — python statement
+- L295: `                    dx_m = float(np.mean(self._dx_hist))` — python statement
+- L296: `                    dy_m = float(np.mean(self._dy_hist))` — python statement
+- L297: `                else:` — conditional branch
+- L298: `                    dx_m = 0.0` — python statement
+- L299: `                    dy_m = 0.0` — python statement
+- L300: `            else:` — conditional branch
+- L301: `                if (` — conditional branch
+- L302: `                    self.motion_window != self._dx_hist.maxlen` — python statement
+- L303: `                    or self.motion_window != self._dy_hist.maxlen` — python statement
+- L304: `                ):` — python statement
+- L305: `                    self._dx_hist = deque(self._dx_hist, maxlen=self.motion_window)` — python statement
+- L306: `                    self._dy_hist = deque(self._dy_hist, maxlen=self.motion_window)` — python statement
+- L307: `                self._dx_hist.append(dx_m)` — python statement
+- L308: `                self._dy_hist.append(dy_m)` — python statement
+- L309: `                dx_m = float(np.mean(self._dx_hist))` — python statement
+- L310: `                dy_m = float(np.mean(self._dy_hist))` — python statement
+- L311: `` — blank line
+- L312: `            self.z = height` — python statement
+- L313: `            self.x += dx_m` — python statement
+- L314: `            self.y += dy_m` — python statement
+- L315: `            if on_update is not None:` — conditional branch
+- L316: `                on_update(` — python statement
+- L317: `                    self.x,` — python statement
+- L318: `                    self.y,` — python statement
+- L319: `                    self.z,` — python statement
+- L320: `                    dx_m,` — python statement
+- L321: `                    dy_m,` — python statement
+- L322: `                    dz_m,` — python statement
+- L323: `                    dx_pixels,` — python statement
+- L324: `                    dy_pixels,` — python statement
+- L325: `                    inlier_count,` — python statement
+- L326: `                )` — python statement
+- L327: `` — blank line
+- L328: `            self._draw_grid(display_frame)` — python statement
+- L329: `            colors = self.feature_tracker.current_colors()` — python statement
+- L330: `            for idx, (new, old) in enumerate(zip(good_new[:50], good_old[:50])):` — loop
+- L331: `                a, b = new.ravel()` — python statement
+- L332: `                c, d = old.ravel()` — python statement
+- L333: `                line_color = (0, 255, 0)` — python statement
+- L334: `                dot_color = (0, 0, 255)` — python statement
+- L335: `                if colors is not None and idx < len(colors):` — conditional branch
+- L336: `                    bgr = colors[idx]` — python statement
+- L337: `                    line_color = (int(bgr[0]), int(bgr[1]), int(bgr[2]))` — python statement
+- L338: `                    dot_color = line_color` — python statement
+- L339: `                mask = cv2.line(` — python statement
+- L340: `                    mask,` — python statement
+- L341: `                    (int(a), int(b)),` — python statement
+- L342: `                    (int(c), int(d)),` — python statement
+- L343: `                    line_color,` — python statement
+- L344: `                    2,` — python statement
+- L345: `                )` — python statement
+- L346: `                display_frame = cv2.circle(` — python statement
+- L347: `                    display_frame, (int(a), int(b)), 3, dot_color, -1` — python statement
+- L348: `                )` — python statement
+- L349: `` — blank line
+- L350: `            direction = self._direction_from_motion(dx_m, dy_m)` — python statement
+- L351: `            if direction == "":` — conditional branch
+- L352: `                direction = self._direction_from_motion(dx_pixels, dy_pixels)` — python statement
+- L353: `            step_m = float(np.hypot(dx_m, dy_m))` — python statement
+- L354: `            move_label = "HOLD" if direction == "" else f"{direction} {step_m:.2f}m"` — python statement
+- L355: `            center = (int(self.img_width / 2), int(self.img_height / 2))` — python statement
+- L356: `            # Invert pixel flow so the arrow reflects camera motion direction.` — comment
+- L357: `            arrow_end = (int(center[0] - dx_pixels * 8), int(center[1] - dy_pixels * 8))` — python statement
+- L358: `            cv2.arrowedLine(display_frame, center, arrow_end, (0, 255, 0), 2)` — python statement
+- L359: `` — blank line
+- L360: `            cv2.putText(` — python statement
+- L361: `                display_frame,` — python statement
+- L362: `                f"MOVE: {move_label}",` — python statement
+- L363: `                (10, 20),` — python statement
+- L364: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement
+- L365: `                0.6,` — python statement
+- L366: `                (0, 255, 0),` — python statement
+- L367: `                2,` — python statement
+- L368: `            )` — python statement
+- L369: `            cv2.putText(` — python statement
+- L370: `                display_frame,` — python statement
+- L371: `                f"dx_pix: {dx_pixels:.2f} dy_pix: {dy_pixels:.2f}",` — python statement
+- L372: `                (10, 45),` — python statement
+- L373: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement
+- L374: `                0.5,` — python statement
+- L375: `                (0, 255, 255),` — python statement
+- L376: `                2,` — python statement
+- L377: `            )` — python statement
+- L378: `            cv2.putText(` — python statement
+- L379: `                display_frame,` — python statement
+- L380: `                f"X: {self.x:.2f} Y: {self.y:.2f} Z: {self.z:.2f}",` — python statement
+- L381: `                (10, 70),` — python statement
+- L382: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement
+- L383: `                0.5,` — python statement
+- L384: `                (0, 0, 255),` — python statement
+- L385: `                2,` — python statement
+- L386: `            )` — python statement
+- L387: `            cv2.putText(` — python statement
+- L388: `                display_frame,` — python statement
+- L389: `                f"dX: {dx_m:.3f} dY: {dy_m:.3f} dZ: {dz_m:.3f}",` — python statement
+- L390: `                (10, 95),` — python statement
+- L391: `                cv2.FONT_HERSHEY_SIMPLEX,` — python statement
+- L392: `                0.5,` — python statement
+- L393: `                (0, 0, 255),` — python statement
+- L394: `                2,` — python statement
+- L395: `            )` — python statement
+- L396: `` — blank line
+- L397: `            img = cv2.add(display_frame, mask)` — python statement
+- L398: `            cv2.imshow(window_name, img)` — python statement
+- L399: `` — blank line
+- L400: `            if cv2.waitKey(1) & 0xFF == 27:` — conditional branch
+- L401: `                break` — python statement
+- L402: `` — blank line
+- L403: `            time.sleep(self.frame_delay_s)` — python statement
+- L404: `` — blank line
+- L405: `        self.camera_driver.release()` — python statement
+- L406: `        cv2.destroyAllWindows()` — python statement
+
+## `src/navisar/sensors/cameras/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Camera model drivers and shared interfaces."""` — module docstring boundary
+
+## `src/navisar/sensors/cameras/base.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Shared camera interface."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `` — blank line
+- L4: `class BaseCamera:` — class definition
+- L5: `    """Abstract camera interface used by the pipeline."""` — module docstring boundary
+- L6: `    def read(self):` — function definition
+- L7: `        """Return (ret, frame) like cv2.VideoCapture.read()."""` — module docstring boundary
+- L8: `        raise NotImplementedError` — error raise
+- L9: `` — blank line
+- L10: `    def release(self):` — function definition
+- L11: `        """Release camera resources (optional)."""` — module docstring boundary
+- L12: `        pass` — python statement
+
+## `src/navisar/sensors/cameras/opencv.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""OpenCV-backed camera capture driver."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import cv2` — import statement
+- L4: `` — blank line
+- L5: `from navisar.sensors.cameras.base import BaseCamera` — import statement
+- L6: `` — blank line
+- L7: `` — blank line
+- L8: `class OpenCVCamera(BaseCamera):` — class definition
+- L9: `    """OpenCV VideoCapture-based camera driver."""` — module docstring boundary
+- L10: `    def __init__(self, index=0, width=640, height=480):` — function definition
+- L11: `        """Open the camera device and apply capture size."""` — module docstring boundary
+- L12: `        self.index = index` — python statement
+- L13: `        self.width = width` — python statement
+- L14: `        self.height = height` — python statement
+- L15: `        # Open the device early so width/height can be applied immediately.` — comment
+- L16: `        self.cap = cv2.VideoCapture(index)` — python statement
+- L17: `        if width:` — conditional branch
+- L18: `            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)` — python statement
+- L19: `        if height:` — conditional branch
+- L20: `            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)` — python statement
+- L21: `` — blank line
+- L22: `    def read(self):` — function definition
+- L23: `        """Read a frame from the camera."""` — module docstring boundary
+- L24: `        return self.cap.read()` — return statement
+- L25: `` — blank line
+- L26: `    def release(self):` — function definition
+- L27: `        """Release the OpenCV capture handle."""` — module docstring boundary
+- L28: `        self.cap.release()` — python statement
+
+## `src/navisar/sensors/cameras/ov9281.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""OV9281 camera driver using Picamera2."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `from navisar.sensors.cameras.base import BaseCamera` — import statement
+- L4: `` — blank line
+- L5: `` — blank line
+- L6: `class OV9281Camera(BaseCamera):` — class definition
+- L7: `    """Picamera2-backed driver for the OV9281 sensor."""` — module docstring boundary
+- L8: `    def __init__(self, width=640, height=400, format_name="YUV420"):` — function definition
+- L9: `        """Configure Picamera2 with the requested format/size."""` — module docstring boundary
+- L10: `        self.width = width` — python statement
+- L11: `        self.height = height` — python statement
+- L12: `        self.format_name = format_name` — python statement
+- L13: `        try:` — exception handling
+- L14: `            from picamera2 import Picamera2` — import statement
+- L15: `        except Exception as exc:  # pragma: no cover - hardware dependency` — exception handling
+- L16: `            raise ImportError("Picamera2 is required for the OV9281 camera.") from exc` — error raise
+- L17: `` — blank line
+- L18: `        self._picam2 = Picamera2()` — python statement
+- L19: `        config = self._picam2.create_video_configuration(` — python statement
+- L20: `            main={"format": format_name, "size": (width, height)}` — python statement
+- L21: `        )` — python statement
+- L22: `        self._picam2.configure(config)` — python statement
+- L23: `        self._picam2.start()` — python statement
+- L24: `` — blank line
+- L25: `    def read(self):` — function definition
+- L26: `        """Capture a frame and return a grayscale image."""` — module docstring boundary
+- L27: `        frame = self._picam2.capture_array()` — python statement
+- L28: `        if frame is None:` — conditional branch
+- L29: `            return False, None` — return statement
+- L30: `` — blank line
+- L31: `        if frame.ndim == 2:` — conditional branch
+- L32: `            # YUV420 luma plane is the top portion of the frame.` — comment
+- L33: `            return True, frame[: self.height, : self.width]` — return statement
+- L34: `` — blank line
+- L35: `        if frame.ndim == 3 and frame.shape[2] >= 1:` — conditional branch
+- L36: `            return True, frame[:, :, 0]` — return statement
+- L37: `` — blank line
+- L38: `        return False, None` — return statement
+- L39: `` — blank line
+- L40: `    def release(self):` — function definition
+- L41: `        """Stop the Picamera2 stream."""` — module docstring boundary
+- L42: `        self._picam2.stop()` — python statement
+
+## `src/navisar/vps/algorithms/__init__.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Algorithms package. Exports submodules for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `from navisar.vps.algorithms.median_flow import MedianFlowEstimator` — import statement
+- L4: `from navisar.vps.algorithms.ransac_affine import RansacAffineEstimator` — import statement
+- L5: `` — blank line
+- L6: `__all__ = ["MedianFlowEstimator", "RansacAffineEstimator"]` — python statement
+
+## `src/navisar/vps/algorithms/base.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Base module. Provides base utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `class MotionEstimator:` — class definition
+- L4: `    """Interface for motion estimation algorithms."""` — module docstring boundary
+- L5: `    def estimate(self, good_old, good_new, height_m, fx, fy, ransac_thresh):` — function definition
+- L6: `        """Estimate motion given tracked feature points."""` — module docstring boundary
+- L7: `        raise NotImplementedError` — error raise
+
+## `src/navisar/vps/algorithms/median_flow.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Median Flow module. Provides median flow utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import numpy as np` — import statement
+- L4: `` — blank line
+- L5: `from navisar.vps.algorithms.base import MotionEstimator` — import statement
+- L6: `` — blank line
+- L7: `` — blank line
+- L8: `class MedianFlowEstimator(MotionEstimator):` — class definition
+- L9: `    """Estimate motion using median optical flow."""` — module docstring boundary
+- L10: `    def estimate(self, good_old, good_new, height_m, fx, fy, ransac_thresh):` — function definition
+- L11: `        """Compute motion from median flow between point sets."""` — module docstring boundary
+- L12: `        if len(good_old) == 0:` — conditional branch
+- L13: `            return 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0` — return statement
+- L14: `` — blank line
+- L15: `        flow = (good_new - good_old).reshape(-1, 2)` — python statement
+- L16: `        dx_pixels = float(np.median(flow[:, 0]))` — python statement
+- L17: `        dy_pixels = float(np.median(flow[:, 1]))` — python statement
+- L18: `` — blank line
+- L19: `        flow_mag = np.hypot(flow[:, 0], flow[:, 1])` — python statement
+- L20: `        if flow_mag.size:` — conditional branch
+- L21: `            median_mag = float(np.median(flow_mag))` — python statement
+- L22: `            flow_mad_px = float(np.median(np.abs(flow_mag - median_mag)))` — python statement
+- L23: `        else:` — conditional branch
+- L24: `            flow_mad_px = 0.0` — python statement
+- L25: `` — blank line
+- L26: `        # Invert pixel flow to represent camera motion instead of image motion.` — comment
+- L27: `        dx_m = -(dx_pixels / fx) * height_m` — python statement
+- L28: `        dy_m = -(dy_pixels / fy) * height_m` — python statement
+- L29: `        dz_m = 0.0` — python statement
+- L30: `` — blank line
+- L31: `        inlier_count = len(flow)` — python statement
+- L32: `        inlier_ratio = 1.0` — python statement
+- L33: `` — blank line
+- L34: `        return (` — return statement
+- L35: `            dx_m,` — python statement
+- L36: `            dy_m,` — python statement
+- L37: `            dz_m,` — python statement
+- L38: `            dx_pixels,` — python statement
+- L39: `            dy_pixels,` — python statement
+- L40: `            inlier_count,` — python statement
+- L41: `            inlier_ratio,` — python statement
+- L42: `            flow_mad_px,` — python statement
+- L43: `        )` — python statement
+
+## `src/navisar/vps/algorithms/ransac_affine.py`
+- Role: Source code
+### Line-by-line
+- L1: `"""Ransac Affine module. Provides ransac affine utilities for NAVISAR."""` — module docstring boundary
+- L2: `` — blank line
+- L3: `import cv2` — import statement
+- L4: `import numpy as np` — import statement
+- L5: `` — blank line
+- L6: `from navisar.vps.algorithms.base import MotionEstimator` — import statement
+- L7: `` — blank line
+- L8: `` — blank line
+- L9: `class RansacAffineEstimator(MotionEstimator):` — class definition
+- L10: `    """Estimate translation using RANSAC affine fits."""` — module docstring boundary
+- L11: `    def __init__(self, confidence=0.999, refine_iters=10):` — function definition
+- L12: `        """Configure RANSAC confidence and refinement."""` — module docstring boundary
+- L13: `        self.confidence = confidence` — python statement
+- L14: `        self.refine_iters = refine_iters` — python statement
+- L15: `` — blank line
+- L16: `    def _ransac_translation(self, good_old, good_new, ransac_thresh):` — function definition
+- L17: `        """Estimate affine translation and return inlier mask."""` — module docstring boundary
+- L18: `        model, inliers = cv2.estimateAffinePartial2D(` — python statement
+- L19: `            good_old,` — python statement
+- L20: `            good_new,` — python statement
+- L21: `            method=cv2.RANSAC,` — python statement
+- L22: `            ransacReprojThreshold=ransac_thresh,` — python statement
+- L23: `            confidence=self.confidence,` — python statement
+- L24: `            refineIters=self.refine_iters,` — python statement
+- L25: `        )` — python statement
+- L26: `        if inliers is None:` — conditional branch
+- L27: `            return None, None` — return statement
+- L28: `        inlier_mask = inliers.ravel().astype(bool)` — python statement
+- L29: `        if model is None or not np.any(inlier_mask):` — conditional branch
+- L30: `            return None, None` — return statement
+- L31: `        return model, inlier_mask` — return statement
+- L32: `` — blank line
+- L33: `    def estimate(self, good_old, good_new, height_m, fx, fy, ransac_thresh):` — function definition
+- L34: `        """Estimate motion using a RANSAC translation model."""` — module docstring boundary
+- L35: `        total = len(good_old)` — python statement
+- L36: `        model, inlier_mask = self._ransac_translation(good_old, good_new, ransac_thresh)` — python statement
+- L37: `        if inlier_mask is not None:` — conditional branch
+- L38: `            good_old_use = good_old[inlier_mask]` — python statement
+- L39: `            good_new_use = good_new[inlier_mask]` — python statement
+- L40: `            inlier_count = len(good_old_use)` — python statement
+- L41: `        else:` — conditional branch
+- L42: `            good_old_use = good_old` — python statement
+- L43: `            good_new_use = good_new` — python statement
+- L44: `            inlier_count = 0` — python statement
+- L45: `` — blank line
+- L46: `        if len(good_old_use) == 0:` — conditional branch
+- L47: `            return 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0` — return statement
+- L48: `` — blank line
+- L49: `        flow = (good_new_use - good_old_use).reshape(-1, 2)` — python statement
+- L50: `        dx_pixels = float(np.median(flow[:, 0]))` — python statement
+- L51: `        dy_pixels = float(np.median(flow[:, 1]))` — python statement
+- L52: `` — blank line
+- L53: `        if model is not None:` — conditional branch
+- L54: `            dx_pixels = float(model[0, 2])` — python statement
+- L55: `            dy_pixels = float(model[1, 2])` — python statement
+- L56: `` — blank line
+- L57: `        flow_mag = np.hypot(flow[:, 0], flow[:, 1])` — python statement
+- L58: `        if flow_mag.size:` — conditional branch
+- L59: `            median_mag = float(np.median(flow_mag))` — python statement
+- L60: `            flow_mad_px = float(np.median(np.abs(flow_mag - median_mag)))` — python statement
+- L61: `        else:` — conditional branch
+- L62: `            flow_mad_px = 0.0` — python statement
+- L63: `` — blank line
+- L64: `        inlier_ratio = float(inlier_count) / float(max(1, total))` — python statement
+- L65: `` — blank line
+- L66: `        # Invert pixel flow to represent camera motion instead of image motion.` — comment
+- L67: `        dx_m = -(dx_pixels / fx) * height_m` — python statement
+- L68: `        dy_m = -(dy_pixels / fy) * height_m` — python statement
+- L69: `        dz_m = 0.0` — python statement
+- L70: `` — blank line
+- L71: `        return (` — return statement
+- L72: `            dx_m,` — python statement
+- L73: `            dy_m,` — python statement
+- L74: `            dz_m,` — python statement
+- L75: `            dx_pixels,` — python statement
+- L76: `            dy_pixels,` — python statement
+- L77: `            inlier_count,` — python statement
+- L78: `            inlier_ratio,` — python statement
+- L79: `            flow_mad_px,` — python statement
+- L80: `        )` — python statement

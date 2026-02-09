@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Optical Flow Sensor Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0b0c10;
+        --bg-2: #10151b;
+        --panel: #121826;
+        --panel-2: #0f1420;
+        --accent: #ff7a3d;
+        --accent-2: #3df2d1;
+        --accent-3: #ffe66d;
+        --text: #f3f5f7;
+        --muted: #a8b0bd;
+        --grid: rgba(255, 255, 255, 0.08);
+        --danger: #ff4d6d;
+        --good: #20c997;
+        --shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(900px 600px at 10% -10%, #1f2a3a 0%, transparent 60%),
+          radial-gradient(700px 500px at 90% 10%, #2a1f30 0%, transparent 55%),
+          linear-gradient(120deg, #0b0c10 0%, #0f1621 55%, #0b0c10 100%);
+        min-height: 100vh;
+      }
+
+      .app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px 40px;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .title h1 {
+        margin: 0;
+        font-size: 2.3rem;
+        letter-spacing: 0.02em;
+      }
+
+      .title p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        box-shadow: var(--shadow);
+      }
+
+      button {
+        appearance: none;
+        border: none;
+        background: var(--accent);
+        color: #0b0c10;
+        font-weight: 700;
+        padding: 10px 18px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(255, 122, 61, 0.3);
+      }
+
+      button.secondary {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      input[type="range"] {
+        width: 160px;
+        accent-color: var(--accent-2);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 20px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border-radius: 18px;
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: var(--shadow);
+      }
+
+      .log {
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        max-height: 520px;
+        overflow: auto;
+        padding-right: 8px;
+      }
+
+      .log-line {
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .log-line strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .metric {
+        background: var(--panel-2);
+        border-radius: 14px;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .metric h4 {
+        margin: 0 0 4px;
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .metric p {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .vis {
+        display: grid;
+        gap: 14px;
+      }
+
+      .canvas-wrap {
+        background: #0b0f17;
+        border-radius: 16px;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      canvas {
+        width: 100%;
+        height: 240px;
+        display: block;
+      }
+
+      .legend {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      .dot.orange {
+        background: var(--accent);
+      }
+
+      .dot.teal {
+        background: var(--accent-2);
+      }
+
+      .dot.yellow {
+        background: var(--accent-3);
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .status b {
+        color: var(--text);
+      }
+
+      .status .led {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--danger);
+        box-shadow: 0 0 12px rgba(255, 77, 109, 0.6);
+      }
+
+      .status .led.on {
+        background: var(--good);
+        box-shadow: 0 0 12px rgba(32, 201, 151, 0.6);
+      }
+
+      footer {
+        margin-top: 20px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <div class="title">
+          <h1>Optical Flow Sensor Simulator</h1>
+          <p>Live stream format aligned with oftical_flow.py output.</p>
+        </div>
+        <div class="controls">
+          <div class="pill status">
+            <span class="led" id="led"></span>
+            <span>Stream: <b id="streamState">paused</b></span>
+          </div>
+          <div class="pill">
+            <label for="rate">Rate</label>
+            <input id="rate" type="range" min="10" max="100" step="5" value="50" />
+            <span id="rateLabel">50 ms</span>
+          </div>
+          <button id="toggleBtn">Start</button>
+          <button id="burstBtn" class="secondary">Burst</button>
+          <button id="clearBtn" class="secondary">Clear Log</button>
+        </div>
+      </header>
+
+      <section class="grid">
+        <div class="panel">
+          <h3>Live Serial Log</h3>
+          <div class="log" id="log"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Sensor Metrics</h3>
+          <div class="metrics">
+            <div class="metric">
+              <h4>Distance (cm)</h4>
+              <p id="distCm">0.0</p>
+            </div>
+            <div class="metric">
+              <h4>Flow Velocity</h4>
+              <p id="flowVel">0, 0</p>
+            </div>
+            <div class="metric">
+              <h4>Speed (m/s)</h4>
+              <p id="speed">0.00, 0.00</p>
+            </div>
+            <div class="metric">
+              <h4>Quality</h4>
+              <p id="quality">0</p>
+            </div>
+          </div>
+          <div class="vis">
+            <div class="canvas-wrap">
+              <canvas id="flowCanvas" width="640" height="240"></canvas>
+              <div class="legend">
+                <span><span class="dot orange"></span>Flow vector</span>
+                <span><span class="dot teal"></span>Speed magnitude</span>
+              </div>
+            </div>
+            <div class="canvas-wrap">
+              <canvas id="chartCanvas" width="640" height="240"></canvas>
+              <div class="legend">
+                <span><span class="dot yellow"></span>Distance (cm)</span>
+                <span><span class="dot teal"></span>Flow quality</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        The simulator produces data lines like the MTF-01 reader: dist_ok and flow_ok flags toggle
+        based on generated quality and distance validity.
+      </footer>
+    </div>
+
+    <script>
+      const logEl = document.getElementById("log");
+      const distEl = document.getElementById("distCm");
+      const flowVelEl = document.getElementById("flowVel");
+      const speedEl = document.getElementById("speed");
+      const qualityEl = document.getElementById("quality");
+      const rateEl = document.getElementById("rate");
+      const rateLabel = document.getElementById("rateLabel");
+      const toggleBtn = document.getElementById("toggleBtn");
+      const burstBtn = document.getElementById("burstBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const streamState = document.getElementById("streamState");
+      const led = document.getElementById("led");
+      const flowCanvas = document.getElementById("flowCanvas");
+      const chartCanvas = document.getElementById("chartCanvas");
+      const flowCtx = flowCanvas.getContext("2d");
+      const chartCtx = chartCanvas.getContext("2d");
+
+      let running = false;
+      let counter = 76;
+      let timer = null;
+      let lastTimeMs = 6943928;
+      let burstMode = false;
+
+      const history = [];
+      const maxHistory = 80;
+
+      function pad(num, len) {
+        return String(num).padStart(len, "0");
+      }
+
+      function nowTimestamp() {
+        const date = new Date();
+        const yyyy = date.getFullYear();
+        const mm = pad(date.getMonth() + 1, 2);
+        const dd = pad(date.getDate(), 2);
+        const hh = pad(date.getHours(), 2);
+        const mi = pad(date.getMinutes(), 2);
+        const ss = pad(date.getSeconds(), 2);
+        const ms = pad(date.getMilliseconds(), 3);
+        return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}.${ms}`;
+      }
+
+      function randomRange(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function pickFlowValue() {
+        if (burstMode && Math.random() > 0.6) {
+          return Math.random() > 0.5 ? 20 : -20;
+        }
+        if (Math.random() > 0.93) {
+          return Math.random() > 0.5 ? 20 : -20;
+        }
+        return 0;
+      }
+
+      function generateSample() {
+        lastTimeMs += Math.round(randomRange(18, 24));
+        const distance = Math.round(randomRange(1790, 1985));
+        const strength = 7;
+        const precision = 14;
+        const flowVx = pickFlowValue();
+        const flowVy = pickFlowValue();
+        const flowQ = Math.round(randomRange(61, 66));
+        const distOk = distance > 0 ? 1 : 0;
+        const flowOk = flowQ >= 62 ? 1 : 0;
+        const heightM = distance / 1000;
+        const speedX = flowVx * heightM;
+        const speedY = flowVy * heightM;
+
+        return {
+          ts: nowTimestamp(),
+          timeMs: lastTimeMs,
+          distance,
+          distCm: distance / 10,
+          distOk,
+          strength,
+          precision,
+          flowVx,
+          flowVy,
+          flowQ,
+          flowOk,
+          speedX,
+          speedY,
+        };
+      }
+
+      function formatLine(sample) {
+        return `[${pad(counter, 5)}] ts=${sample.ts} time_ms=${sample.timeMs} dist_mm=${sample.distance} dist_cm=${sample.distCm.toFixed(1)} dist_ok=${sample.distOk} strength=${sample.strength} precision=${sample.precision} flow_vx=${sample.flowVx} flow_vy=${sample.flowVy} flow_q=${sample.flowQ} flow_ok=${sample.flowOk} speed_x=${sample.speedX.toFixed(2)} speed_y=${sample.speedY.toFixed(2)}`;
+      }
+
+      function updateUI(sample) {
+        distEl.textContent = sample.distCm.toFixed(1);
+        flowVelEl.textContent = `${sample.flowVx}, ${sample.flowVy}`;
+        speedEl.textContent = `${sample.speedX.toFixed(2)}, ${sample.speedY.toFixed(2)}`;
+        qualityEl.textContent = sample.flowQ;
+      }
+
+      function pushHistory(sample) {
+        history.push(sample);
+        if (history.length > maxHistory) {
+          history.shift();
+        }
+      }
+
+      function drawFlow() {
+        const ctx = flowCtx;
+        const { width, height } = flowCanvas;
+        ctx.clearRect(0, 0, width, height);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        for (let i = 1; i < 10; i++) {
+          const x = (i / 10) * width;
+          const y = (i / 10) * height;
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, height);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+
+        if (!history.length) return;
+
+        const latest = history[history.length - 1];
+        const centerX = width * 0.5;
+        const centerY = height * 0.5;
+        const scale = 3;
+        const vx = latest.flowVx * scale;
+        const vy = latest.flowVy * scale;
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff7a3d";
+        ctx.fill();
+
+        ctx.strokeStyle = "#ff7a3d";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + vx, centerY + vy);
+        ctx.stroke();
+
+        ctx.fillStyle = "#3df2d1";
+        const speed = Math.hypot(latest.speedX, latest.speedY);
+        const radius = Math.min(60, 12 + speed * 3);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(61, 242, 209, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      function drawChart() {
+        const ctx = chartCtx;
+        const { width, height } = chartCanvas;
+        ctx.clearRect(0, 0, width, height);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        for (let i = 1; i < 6; i++) {
+          const y = (i / 6) * height;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(width, y);
+          ctx.stroke();
+        }
+
+        if (history.length < 2) return;
+
+        const distMin = 170;
+        const distMax = 210;
+        const qMin = 60;
+        const qMax = 66;
+
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        history.forEach((sample, index) => {
+          const x = (index / (history.length - 1)) * width;
+          const y = height - ((sample.distCm - distMin) / (distMax - distMin)) * height;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = "#ffe66d";
+        ctx.stroke();
+
+        ctx.beginPath();
+        history.forEach((sample, index) => {
+          const x = (index / (history.length - 1)) * width;
+          const y = height - ((sample.flowQ - qMin) / (qMax - qMin)) * height;
+          if (index === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = "#3df2d1";
+        ctx.stroke();
+      }
+
+      function addLine(sample) {
+        const line = document.createElement("div");
+        line.className = "log-line";
+        line.textContent = formatLine(sample);
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      function tick() {
+        const sample = generateSample();
+        counter += 1;
+        updateUI(sample);
+        pushHistory(sample);
+        addLine(sample);
+        drawFlow();
+        drawChart();
+      }
+
+      function start() {
+        if (running) return;
+        running = true;
+        streamState.textContent = "streaming";
+        led.classList.add("on");
+        toggleBtn.textContent = "Pause";
+        timer = setInterval(tick, Number(rateEl.value));
+      }
+
+      function pause() {
+        running = false;
+        streamState.textContent = "paused";
+        led.classList.remove("on");
+        toggleBtn.textContent = "Start";
+        if (timer) clearInterval(timer);
+      }
+
+      rateEl.addEventListener("input", () => {
+        rateLabel.textContent = `${rateEl.value} ms`;
+        if (running) {
+          clearInterval(timer);
+          timer = setInterval(tick, Number(rateEl.value));
+        }
+      });
+
+      toggleBtn.addEventListener("click", () => {
+        if (running) pause();
+        else start();
+      });
+
+      burstBtn.addEventListener("click", () => {
+        burstMode = !burstMode;
+        burstBtn.textContent = burstMode ? "Burst On" : "Burst";
+      });
+
+      clearBtn.addEventListener("click", () => {
+        logEl.innerHTML = "";
+        history.length = 0;
+        counter = 76;
+      });
+
+      rateLabel.textContent = `${rateEl.value} ms`;
+      drawFlow();
+      drawChart();
+    </script>
+  </body>
+</html>

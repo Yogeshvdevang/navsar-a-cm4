@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NAVISAR Live Dashboard</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+      :root {
+        --bg-1: #0b1221;
+        --bg-2: #111b33;
+        --bg-3: #071021;
+        --card: rgba(18, 30, 54, 0.9);
+        --card-border: rgba(120, 150, 200, 0.15);
+        --text: #e6edf7;
+        --muted: #92a4bf;
+        --accent: #3dd5f3;
+        --accent-2: #f29d50;
+        --accent-3: #7ef29d;
+        --warning: #f26b6b;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 10% 10%, rgba(61, 213, 243, 0.15), transparent 50%),
+          radial-gradient(circle at 90% 10%, rgba(242, 157, 80, 0.2), transparent 45%),
+          radial-gradient(circle at 20% 80%, rgba(126, 242, 157, 0.18), transparent 45%),
+          linear-gradient(135deg, var(--bg-1), var(--bg-2) 45%, var(--bg-3));
+        min-height: 100vh;
+        padding: 32px 24px 48px;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+      }
+
+      .title {
+        font-size: clamp(28px, 4vw, 44px);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        margin: 4px 0 0;
+        font-size: 14px;
+      }
+
+      .status {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .status-pill {
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+
+      .mode-picker {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .mode-picker button {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .mode-picker button.active {
+        background: rgba(61, 213, 243, 0.2);
+        border-color: rgba(61, 213, 243, 0.5);
+        color: var(--accent);
+      }
+
+      .grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 18px;
+        padding: 18px 18px 20px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(6px);
+        animation: rise 0.6s ease forwards;
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      .card h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .source-line {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px 12px;
+        align-items: baseline;
+        margin-top: 12px;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 13px;
+      }
+
+      .kv div {
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .kv div:last-child,
+      .kv div:nth-last-child(2) {
+        border-bottom: none;
+      }
+
+      .value {
+        color: var(--text);
+        font-weight: 500;
+        text-align: right;
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        margin-left: 8px;
+      }
+
+      .tag.accent {
+        background: rgba(61, 213, 243, 0.2);
+        color: var(--accent);
+      }
+
+      .tag.orange {
+        background: rgba(242, 157, 80, 0.2);
+        color: var(--accent-2);
+      }
+
+      .tag.green {
+        background: rgba(126, 242, 157, 0.2);
+        color: var(--accent-3);
+      }
+
+      .tag.warn {
+        background: rgba(242, 107, 107, 0.2);
+        color: var(--warning);
+      }
+
+      .mode-block {
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        grid-column: 1 / -1;
+      }
+
+      .mode-block.active {
+        border-color: rgba(61, 213, 243, 0.6);
+        box-shadow: 0 0 0 1px rgba(61, 213, 243, 0.2);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .flow {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .flow-step {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .flow-arrow {
+        text-align: center;
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .raw-block {
+        margin-top: 12px;
+        background: rgba(8, 14, 28, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--muted);
+        word-break: break-word;
+      }
+
+      .canvas-3d {
+        margin-top: 12px;
+        background: rgba(7, 12, 24, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 10px;
+      }
+
+      .canvas-3d canvas {
+        width: 100%;
+        height: 220px;
+        display: block;
+      }
+
+      .of-plot-controls {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .of-layout {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .of-data-side {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 14px;
+        padding: 10px;
+      }
+
+      .of-subtitle {
+        margin: 4px 0 0;
+        font-size: 13px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .of-plot-controls label {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .of-plot-controls input {
+        width: 90px;
+        padding: 7px 9px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      .of-plot-canvas-wrap {
+        margin-top: 10px;
+        background: rgba(7, 12, 24, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 10px;
+      }
+
+      .of-plot-canvas-wrap canvas {
+        width: 100%;
+        height: 280px;
+        display: block;
+      }
+
+      .series-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .series-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 12px;
+      }
+
+      .series-item .left {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .table-wrap {
+        margin-top: 10px;
+        max-height: 220px;
+        overflow: auto;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .table-wrap table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 11px;
+      }
+
+      .table-wrap th,
+      .table-wrap td {
+        padding: 7px 8px;
+        text-align: right;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .table-wrap th {
+        position: sticky;
+        top: 0;
+        background: rgba(14, 24, 44, 0.95);
+      }
+
+      .table-wrap th:first-child,
+      .table-wrap td:first-child {
+        text-align: left;
+      }
+
+      .of-traj-panel {
+        margin-top: 14px;
+      }
+
+      .of-traj-canvas-wrap {
+        margin-top: 8px;
+        background: rgba(7, 12, 24, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 10px;
+      }
+
+      .of-traj-canvas-wrap canvas {
+        width: 100%;
+        height: 300px;
+        display: block;
+      }
+
+      .of-traj-controls {
+        margin-top: 10px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .of-traj-controls label {
+        display: block;
+        margin-bottom: 5px;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .of-traj-controls input {
+        width: 100%;
+        padding: 7px 9px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      @keyframes rise {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          padding: 20px 16px 32px;
+        }
+        .status {
+          width: 100%;
+        }
+        .of-layout {
+          grid-template-columns: 1fr;
+        }
+        .of-traj-controls {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1 class="title">NAVISAR Live Dashboard</h1>
+        <p class="subtitle">Camera to ENU to NED pipeline with live fusion state.</p>
+      </div>
+      <div class="status">
+        <div class="status-pill">Live Mode: <span id="mode">--</span></div>
+        <div class="status-pill">Source: <span id="source">--</span></div>
+        <div class="status-pill">Drift: <span id="drift">--</span></div>
+        <div class="status-pill">GPS Fix: <span id="fix">--</span></div>
+      </div>
+    </header>
+
+    <div class="mode-picker">
+      <button data-mode="odometry" class="active">ODOM</button>
+      <button data-mode="gps_mavlink">GPS MAVLINK</button>
+      <button data-mode="gps_port">GPS PORT</button>
+      <button data-mode="optical_flow_mavlink">OPTICAL FLOW</button>
+    </div>
+
+    <main class="grid" style="margin-top: 18px">
+      <section class="card" style="animation-delay: 0.05s">
+        <h3>Camera ENU <span class="tag accent">Input</span></h3>
+        <p>Accumulated position from visual odometry.</p>
+        <div class="source-line">Source: VO integration (camera)</div>
+        <div class="kv">
+          <div>X (m)</div><div class="value" id="cam-x">--</div>
+          <div>Y (m)</div><div class="value" id="cam-y">--</div>
+          <div>Z (m)</div><div class="value" id="cam-z">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.06s">
+        <h3>VO (Camera) <span class="tag accent">Input</span></h3>
+        <p>Visual odometry position and velocity.</p>
+        <div class="source-line">Source: VO camera pipeline</div>
+        <div class="kv">
+          <div>X (m)</div><div class="value" id="vo-x">--</div>
+          <div>Y (m)</div><div class="value" id="vo-y">--</div>
+          <div>Vx (m/s)</div><div class="value" id="vo-vx">--</div>
+          <div>Vy (m/s)</div><div class="value" id="vo-vy">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.07s">
+        <h3>VIO (VO + IMU) <span class="tag green">Fusion</span></h3>
+        <p>Fused position and velocity from IMU + VO.</p>
+        <div class="source-line">Source: SensorFusion</div>
+        <div class="kv">
+          <div>X (m)</div><div class="value" id="vio-x">--</div>
+          <div>Y (m)</div><div class="value" id="vio-y">--</div>
+          <div>Vx (m/s)</div><div class="value" id="vio-vx">--</div>
+          <div>Vy (m/s)</div><div class="value" id="vio-vy">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.08s">
+        <h3>Camera XY <span class="tag accent">Input</span></h3>
+        <p>Initial X/Y accumulation from camera.</p>
+        <div class="source-line">Source: VO position</div>
+        <div class="kv">
+          <div>X (m)</div><div class="value" id="cam-x-only">--</div>
+          <div>Y (m)</div><div class="value" id="cam-y-only">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.1s">
+        <h3>Camera Motion <span class="tag orange">Delta</span></h3>
+        <p>Per-frame displacement and velocity.</p>
+        <div class="source-line">Source: VO flow + height</div>
+        <div class="kv">
+          <div>dX (m)</div><div class="value" id="cam-dx">--</div>
+          <div>dY (m)</div><div class="value" id="cam-dy">--</div>
+          <div>dZ (m)</div><div class="value" id="cam-dz">--</div>
+          <div>Vx (m/s)</div><div class="value" id="cam-vx">--</div>
+          <div>Vy (m/s)</div><div class="value" id="cam-vy">--</div>
+          <div>Vz (m/s)</div><div class="value" id="cam-vz">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.12s">
+        <h3>Drift dX/dY <span class="tag orange">Delta</span></h3>
+        <p>Frame-to-frame X/Y drift from VO.</p>
+        <div class="source-line">Source: VO metric delta</div>
+        <div class="kv">
+          <div>dX (m)</div><div class="value" id="cam-dx-only">--</div>
+          <div>dY (m)</div><div class="value" id="cam-dy-only">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.15s">
+        <h3>Fusion ENU <span class="tag green">Output</span></h3>
+        <p>Sensor fusion state used for downstream modes.</p>
+        <div class="source-line">Source: SensorFusion</div>
+        <div class="kv">
+          <div>X (m)</div><div class="value" id="fused-x">--</div>
+          <div>Y (m)</div><div class="value" id="fused-y">--</div>
+          <div>Z (m)</div><div class="value" id="fused-z">--</div>
+          <div>VIO Mode</div><div class="value" id="vio-mode">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.2s">
+        <h3>GPS / Drift</h3>
+        <p>Live GPS origin, local coordinates, and drift.</p>
+        <div class="source-line">Source: GPS input + selector</div>
+        <div class="kv">
+          <div>Origin Lat</div><div class="value" id="gps-olat">--</div>
+          <div>Origin Lon</div><div class="value" id="gps-olon">--</div>
+          <div>Origin Alt</div><div class="value" id="gps-oalt">--</div>
+          <div>Local X</div><div class="value" id="gps-lx">--</div>
+          <div>Local Y</div><div class="value" id="gps-ly">--</div>
+          <div>Local Z</div><div class="value" id="gps-lz">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.25s">
+        <h3>Raw VO Data <span class="tag orange">Pixels</span></h3>
+        <p>Feature tracking output before metric conversion.</p>
+        <div class="source-line">Source: Feature tracking</div>
+        <div class="kv">
+          <div>dX (px)</div><div class="value" id="raw-dx">--</div>
+          <div>dY (px)</div><div class="value" id="raw-dy">--</div>
+          <div>Inliers</div><div class="value" id="raw-inliers">--</div>
+          <div>Inlier Ratio</div><div class="value" id="raw-ratio">--</div>
+          <div>Flow MAD</div><div class="value" id="raw-mad">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.35s">
+        <h3>Attitude</h3>
+        <p>Orientation data from the flight controller.</p>
+        <div class="source-line">Source: MAVLink ATTITUDE</div>
+        <div class="kv">
+          <div>Roll</div><div class="value" id="att-roll">--</div>
+          <div>Pitch</div><div class="value" id="att-pitch">--</div>
+          <div>Yaw</div><div class="value" id="att-yaw">--</div>
+          <div>Roll rate</div><div class="value" id="att-rr">--</div>
+          <div>Pitch rate</div><div class="value" id="att-pr">--</div>
+          <div>Yaw rate</div><div class="value" id="att-yr">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.4s">
+        <h3>Barometer Height</h3>
+        <p>Height used for metric scaling.</p>
+        <div class="source-line">Source: MAVLink SCALED_PRESSURE / VFR_HUD</div>
+        <div class="kv">
+          <div>Height (m)</div><div class="value" id="baro-h">--</div>
+          <div>Pressure (hPa)</div><div class="value" id="baro-press">--</div>
+          <div>Raw Alt (m)</div><div class="value" id="baro-alt">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.45s">
+        <h3>GPS Input</h3>
+        <p>External GPS data (if enabled).</p>
+        <div class="source-line">Source: GPS serial input</div>
+        <div class="kv">
+          <div>Lat</div><div class="value" id="gps-in-lat">--</div>
+          <div>Lon</div><div class="value" id="gps-in-lon">--</div>
+          <div>Alt</div><div class="value" id="gps-in-alt">--</div>
+          <div>Fix Type</div><div class="value" id="gps-in-fix">--</div>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.46s">
+        <h3>Optical Flow 3D <span class="tag accent">MTF-01</span></h3>
+        <p>Flow vector projected onto a 3D ground plane.</p>
+        <div class="source-line">Source: Optical flow sensor</div>
+        <div class="kv">
+          <div>Distance (cm)</div><div class="value" id="of-dist">--</div>
+          <div>Flow VX</div><div class="value" id="of-vx">--</div>
+          <div>Flow VY</div><div class="value" id="of-vy">--</div>
+          <div>Speed X</div><div class="value" id="of-sx">--</div>
+          <div>Speed Y</div><div class="value" id="of-sy">--</div>
+          <div>Quality</div><div class="value" id="of-q">--</div>
+        </div>
+        <div class="canvas-3d">
+          <canvas id="optflow-canvas" width="640" height="220"></canvas>
+        </div>
+      </section>
+
+      <section class="card" style="animation-delay: 0.47s">
+        <h3>Compass <span class="tag green">I2C</span></h3>
+        <p>Incoming magnetometer data and MAVLink payload.</p>
+        <div class="source-line">Source: HMC/QMC sensor -> SCALED_IMU2</div>
+        <div class="kv">
+          <div>Bus</div><div class="value" id="compass-bus">--</div>
+          <div>Addr</div><div class="value" id="compass-addr">--</div>
+          <div>Heading (deg)</div><div class="value" id="compass-heading">--</div>
+          <div>X (mG)</div><div class="value" id="compass-x">--</div>
+          <div>Y (mG)</div><div class="value" id="compass-y">--</div>
+          <div>Z (mG)</div><div class="value" id="compass-z">--</div>
+        </div>
+        <div class="raw-block" id="compass-out">No compass payload yet.</div>
+      </section>
+
+      <section class="card mode-block" id="mode-odometry" style="animation-delay: 0.5s">
+        <h3>ODOMETRY Mode</h3>
+        <p>ENU to NED conversion for MAVLink ODOMETRY.</p>
+        <div class="source-line">Source: Fused ENU + ATTITUDE</div>
+        <div class="kv">
+          <div>NED X</div><div class="value" id="ned-x">--</div>
+          <div>NED Y</div><div class="value" id="ned-y">--</div>
+          <div>NED Z</div><div class="value" id="ned-z">--</div>
+        </div>
+        <div class="kv" style="margin-top: 10px">
+          <div>Vx</div><div class="value" id="odom-vx">--</div>
+          <div>Vy</div><div class="value" id="odom-vy">--</div>
+          <div>Vz</div><div class="value" id="odom-vz">--</div>
+          <div>Quat</div><div class="value" id="odom-q">--</div>
+        </div>
+        <div class="flow">
+          <div class="flow-step" id="flow-odom-step-1">Camera ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-odom-step-2">Metric Drift: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-odom-step-3">Fusion ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-odom-step-4">NED Conversion: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-odom-step-5">NED Velocity: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-odom-step-6">MAVLink ODOMETRY: waiting...</div>
+        </div>
+      </section>
+
+      <section class="card mode-block hidden" id="mode-gps-mavlink" style="animation-delay: 0.55s">
+        <h3>GPS MAVLINK Mode</h3>
+        <p>Local ENU to latitude/longitude for GPS_INPUT.</p>
+        <div class="source-line">Source: Fused ENU + GPS origin</div>
+        <div class="kv">
+          <div>Lat</div><div class="value" id="gps-ll-lat">--</div>
+          <div>Lon</div><div class="value" id="gps-ll-lon">--</div>
+          <div>Alt</div><div class="value" id="gps-ll-alt">--</div>
+        </div>
+        <div class="kv" style="margin-top: 10px">
+          <div>VN</div><div class="value" id="gpsm-vn">--</div>
+          <div>VE</div><div class="value" id="gpsm-ve">--</div>
+          <div>VD</div><div class="value" id="gpsm-vd">--</div>
+          <div>Sats</div><div class="value" id="gpsm-sats">--</div>
+        </div>
+        <div class="raw-block" id="gpsm-payload">
+          GPS_INPUT payload will appear here.
+        </div>
+        <div class="flow">
+          <div class="flow-step" id="flow-gpsm-step-1">Camera ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsm-step-2">Metric Drift: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsm-step-3">Fusion ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsm-step-4">LLA Conversion: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsm-step-5">Velocity ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsm-step-6">MAVLink GPS_INPUT: waiting...</div>
+        </div>
+      </section>
+
+      <section class="card mode-block hidden" id="mode-gps-port" style="animation-delay: 0.6s">
+        <h3>GPS PORT Mode</h3>
+        <p>Same ENU to LL conversion for NMEA/UBX output.</p>
+        <div class="source-line">Source: Smoothed ENU + GPS origin</div>
+        <div class="kv">
+          <div>Lat</div><div class="value" id="gps-port-lat">--</div>
+          <div>Lon</div><div class="value" id="gps-port-lon">--</div>
+          <div>Alt</div><div class="value" id="gps-port-alt">--</div>
+        </div>
+        <div class="kv" style="margin-top: 10px">
+          <div>Speed</div><div class="value" id="gpsp-speed">--</div>
+          <div>Heading</div><div class="value" id="gpsp-heading">--</div>
+          <div>Sats</div><div class="value" id="gpsp-sats">--</div>
+        </div>
+        <div class="raw-block" id="gpsp-raw">NMEA/UBX raw payloads will appear here.</div>
+        <div class="flow">
+          <div class="flow-step" id="flow-gpsp-step-1">Camera ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsp-step-2">Metric Drift: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsp-step-3">Fusion ENU: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsp-step-4">LLA Conversion: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsp-step-5">Speed / Heading: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-gpsp-step-6">NMEA / UBX Output: waiting...</div>
+        </div>
+      </section>
+
+      <section class="card mode-block hidden" id="mode-optical-flow" style="animation-delay: 0.65s">
+        <h3>OPTICAL FLOW MAVLINK Mode</h3>
+        <p>MTF-01 optical flow streamed via OPTICAL_FLOW_RAD with integrated live plotter.</p>
+        <div class="source-line">Source: MTF-01 -> MAVLink bridge</div>
+        <div class="kv">
+          <div>Integrated X (rad)</div><div class="value" id="of-int-x">--</div>
+          <div>Integrated Y (rad)</div><div class="value" id="of-int-y">--</div>
+          <div>Distance (m)</div><div class="value" id="of-dist-m">--</div>
+          <div>Quality</div><div class="value" id="of-q-out">--</div>
+        </div>
+        <div class="raw-block" id="of-payload">OPTICAL_FLOW_RAD payload will appear here.</div>
+        <div class="flow">
+          <div class="flow-step" id="flow-of-step-1">MTF-01 Sample: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-of-step-2">Frame Integration: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-of-step-3">Range + Quality: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-of-step-4">MAVLink OPTICAL_FLOW_RAD: waiting...</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-step" id="flow-of-step-5">MAVLink DISTANCE_SENSOR: waiting...</div>
+        </div>
+        <div class="of-layout">
+          <div class="of-plot-side">
+            <div class="of-plot-controls">
+              <label for="of-window-seconds">Plot Window (s)</label>
+              <input id="of-window-seconds" type="text" value="8" />
+            </div>
+            <div class="of-plot-canvas-wrap">
+              <canvas id="of-plot-canvas"></canvas>
+            </div>
+          </div>
+          <div class="of-data-side">
+            <h4 class="of-subtitle">Data</h4>
+            <div id="of-series-list" class="series-list"></div>
+            <h4 class="of-subtitle" style="margin-top: 14px;">Recent Records</h4>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>time_ms</th>
+                    <th>dist_mm</th>
+                    <th>strength</th>
+                    <th>precision</th>
+                    <th>flow_vx</th>
+                    <th>flow_vy</th>
+                    <th>flow_q</th>
+                  </tr>
+                </thead>
+                <tbody id="of-plot-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="of-traj-panel">
+          <h4 class="of-subtitle">3D Trajectory</h4>
+          <div class="of-traj-canvas-wrap">
+            <canvas id="of-traj-canvas"></canvas>
+          </div>
+          <div class="of-traj-controls">
+            <div>
+              <label for="of-trail-len">Trail Length</label>
+              <input id="of-trail-len" type="text" value="260" />
+            </div>
+            <div>
+              <label for="of-trail-scale">Zoom</label>
+              <input id="of-trail-scale" type="text" value="1.0" />
+            </div>
+            <div>
+              <label for="of-trail-yaw">Yaw (deg)</label>
+              <input id="of-trail-yaw" type="text" value="45" />
+            </div>
+            <div>
+              <label for="of-trail-pitch">Pitch (deg)</label>
+              <input id="of-trail-pitch" type="text" value="35.264" />
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const fmt = (value, digits = 3) => {
+        if (value === null || value === undefined) return "--";
+        if (Number.isFinite(value)) return value.toFixed(digits);
+        return value;
+      };
+
+      const fmtHex = (value) => {
+        if (value === null || value === undefined) return "--";
+        if (!Number.isFinite(Number(value))) return "--";
+        return `0x${Number(value).toString(16).padStart(2, "0").toUpperCase()}`;
+      };
+
+      const setText = (id, value, digits) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmt(value, digits);
+      };
+
+      const setHex = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmtHex(value);
+      };
+
+      const setRaw = (id, value) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (!value) {
+          el.textContent = "No data yet.";
+          return;
+        }
+        el.textContent = value;
+      };
+
+      const setFlowStep = (id, label, entries = []) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const parts = entries
+          .filter((entry) => Array.isArray(entry) && entry.length >= 2)
+          .map(([key, value, digits = 3]) => `${key}=${fmt(value, digits)}`);
+        el.textContent = parts.length ? `${label}: ${parts.join(" | ")}` : `${label}: waiting...`;
+      };
+
+      const optflowCanvas = document.getElementById("optflow-canvas");
+      const optflowCtx = optflowCanvas ? optflowCanvas.getContext("2d") : null;
+      const projectPoint = (x, y, z) => {
+        const scale = 6;
+        const isoX = (x - y) * 0.9;
+        const isoY = (x + y) * 0.5 - z;
+        return {
+          x: optflowCanvas.width * 0.5 + isoX * scale,
+          y: optflowCanvas.height * 0.65 - isoY * scale,
+        };
+      };
+
+      const drawOpticalFlow3D = (sample) => {
+        if (!optflowCtx || !optflowCanvas) return;
+        const ctx = optflowCtx;
+        ctx.clearRect(0, 0, optflowCanvas.width, optflowCanvas.height);
+
+        ctx.fillStyle = "rgba(11, 18, 33, 0.6)";
+        ctx.fillRect(0, 0, optflowCanvas.width, optflowCanvas.height);
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.lineWidth = 1;
+        for (let i = -4; i <= 4; i++) {
+          const a = projectPoint(-10, i * 2, 0);
+          const b = projectPoint(10, i * 2, 0);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+        for (let i = -4; i <= 4; i++) {
+          const a = projectPoint(i * 2, -10, 0);
+          const b = projectPoint(i * 2, 10, 0);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+
+        if (!sample) {
+          ctx.fillStyle = "rgba(255,255,255,0.6)";
+          ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
+          ctx.fillText("No optical flow data yet.", 16, 24);
+          return;
+        }
+
+        const vx = sample.flow_vx || 0;
+        const vy = sample.flow_vy || 0;
+        const height = Math.max(0, (sample.dist_cm || 0) / 10);
+        const arrowScale = 0.12;
+        const tip = projectPoint(vx * arrowScale, vy * arrowScale, 0);
+        const origin = projectPoint(0, 0, 0);
+
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.strokeStyle = "rgba(61, 213, 243, 0.9)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(242, 157, 80, 0.9)";
+        const top = projectPoint(0, 0, height);
+        ctx.beginPath();
+        ctx.arc(top.x, top.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(242, 157, 80, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(top.x, top.y);
+        ctx.stroke();
+      };
+
+      const ofPlotCanvas = document.getElementById("of-plot-canvas");
+      const ofPlotCtx = ofPlotCanvas ? ofPlotCanvas.getContext("2d") : null;
+      const ofSeriesList = document.getElementById("of-series-list");
+      const ofPlotTableBody = document.getElementById("of-plot-table-body");
+      const ofWindowSecondsEl = document.getElementById("of-window-seconds");
+
+      const ofPlotState = {
+        times: [],
+        records: [],
+        lastKey: null,
+        maxPoints: 900,
+        series: [
+          { key: "distance_mm", label: "DIST_MM", color: "#f29d50", enabled: true, digits: 0, values: [] },
+          { key: "strength", label: "STRENGTH", color: "#7ef29d", enabled: true, digits: 0, values: [] },
+          { key: "precision", label: "PRECISION", color: "#3dd5f3", enabled: true, digits: 0, values: [] },
+          { key: "flow_vel_x", label: "FLOW_VX", color: "#d970ff", enabled: true, digits: 0, values: [] },
+          { key: "flow_vel_y", label: "FLOW_VY", color: "#ff7fa4", enabled: true, digits: 0, values: [] },
+          { key: "flow_quality", label: "FLOW_Q", color: "#ffe66d", enabled: true, digits: 0, values: [] },
+        ],
+      };
+
+      const ofTrajCanvas = document.getElementById("of-traj-canvas");
+      const ofTrajCtx = ofTrajCanvas ? ofTrajCanvas.getContext("2d") : null;
+      const ofTrailLenEl = document.getElementById("of-trail-len");
+      const ofTrailScaleEl = document.getElementById("of-trail-scale");
+      const ofTrailYawEl = document.getElementById("of-trail-yaw");
+      const ofTrailPitchEl = document.getElementById("of-trail-pitch");
+      const ofTrajectoryState = {
+        pose: { x: 0, y: 0, z: 0 },
+        lastTimeMs: null,
+        lastVel: { x: 0, y: 0, z: 0 },
+        trail: [],
+      };
+
+      const asFiniteNumber = (...values) => {
+        for (const value of values) {
+          const num = Number(value);
+          if (Number.isFinite(num)) {
+            return num;
+          }
+        }
+        return null;
+      };
+
+      const normalizeOpticalPlotRecord = (sample) => {
+        if (!sample || typeof sample !== "object") {
+          return null;
+        }
+        const distCm = asFiniteNumber(sample.dist_cm);
+        const time_ms = asFiniteNumber(sample.time_ms, Date.now());
+        const distance_mm = asFiniteNumber(
+          sample.dist_mm,
+          sample.distance_mm,
+          distCm === null ? null : distCm * 10
+        );
+        if (distance_mm === null) {
+          return null;
+        }
+        return {
+          time_ms,
+          distance_mm,
+          strength: asFiniteNumber(sample.strength, 0),
+          precision: asFiniteNumber(sample.precision, 0),
+          distance_status: asFiniteNumber(sample.dist_ok, sample.distance_status, 0),
+          flow_vel_x: asFiniteNumber(sample.flow_vx, sample.flow_vel_x, 0),
+          flow_vel_y: asFiniteNumber(sample.flow_vy, sample.flow_vel_y, 0),
+          flow_quality: asFiniteNumber(sample.flow_q, sample.flow_quality, 0),
+          flow_status: asFiniteNumber(sample.flow_ok, sample.flow_status, 0),
+        };
+      };
+
+      const projectTrailPoint = (point, yawRad, pitchRad) => {
+        const cosY = Math.cos(yawRad);
+        const sinY = Math.sin(yawRad);
+        const cosP = Math.cos(pitchRad);
+        const sinP = Math.sin(pitchRad);
+        const x1 = point.x * cosY - point.y * sinY;
+        const y1 = point.x * sinY + point.y * cosY;
+        const z1 = point.z;
+        const y2 = y1 * cosP - z1 * sinP;
+        const z2 = y1 * sinP + z1 * cosP;
+        return { x: x1, y: y2, z: z2 };
+      };
+
+      const getTrailBounds = (trail) => {
+        let minX = Infinity;
+        let minY = Infinity;
+        let minZ = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        let maxZ = -Infinity;
+        for (const pt of trail) {
+          minX = Math.min(minX, pt.x);
+          minY = Math.min(minY, pt.y);
+          minZ = Math.min(minZ, pt.z);
+          maxX = Math.max(maxX, pt.x);
+          maxY = Math.max(maxY, pt.y);
+          maxZ = Math.max(maxZ, pt.z);
+        }
+        return {
+          minX,
+          minY,
+          minZ,
+          maxX,
+          maxY,
+          maxZ,
+          center: {
+            x: (minX + maxX) * 0.5,
+            y: (minY + maxY) * 0.5,
+            z: (minZ + maxZ) * 0.5,
+          },
+        };
+      };
+
+      const computeTrailScale = (trail, yawRad, pitchRad, rect, zoom) => {
+        if (!trail.length) {
+          return { scale: 1, center: { x: 0, y: 0, z: 0 } };
+        }
+        const bounds = getTrailBounds(trail);
+        let minPX = Infinity;
+        let minPY = Infinity;
+        let maxPX = -Infinity;
+        let maxPY = -Infinity;
+        for (const pt of trail) {
+          const shifted = {
+            x: pt.x - bounds.center.x,
+            y: pt.y - bounds.center.y,
+            z: pt.z - bounds.center.z,
+          };
+          const p = projectTrailPoint(shifted, yawRad, pitchRad);
+          minPX = Math.min(minPX, p.x);
+          minPY = Math.min(minPY, p.y);
+          maxPX = Math.max(maxPX, p.x);
+          maxPY = Math.max(maxPY, p.y);
+        }
+        const spanX = Math.max(1, maxPX - minPX);
+        const spanY = Math.max(1, maxPY - minPY);
+        const scaleX = (rect.width * 0.72) / spanX;
+        const scaleY = (rect.height * 0.7) / spanY;
+        return { scale: Math.min(scaleX, scaleY) * zoom, center: bounds.center };
+      };
+
+      const niceStep = (value) => {
+        if (value <= 0) {
+          return 1;
+        }
+        const pow = 10 ** Math.floor(Math.log10(value));
+        const norm = value / pow;
+        if (norm < 1.5) return 1 * pow;
+        if (norm < 3.5) return 2 * pow;
+        if (norm < 7.5) return 5 * pow;
+        return 10 * pow;
+      };
+
+      const drawOpticalTrajectory = () => {
+        if (!ofTrajCtx || !ofTrajCanvas) {
+          return;
+        }
+        const rect = ofTrajCanvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          return;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        ofTrajCanvas.width = Math.floor(rect.width * dpr);
+        ofTrajCanvas.height = Math.floor(rect.height * dpr);
+        ofTrajCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ofTrajCtx.clearRect(0, 0, rect.width, rect.height);
+
+        const zoom = asFiniteNumber(ofTrailScaleEl?.value, 1) || 1;
+        const yawRad = (asFiniteNumber(ofTrailYawEl?.value, 45) || 45) * (Math.PI / 180);
+        const pitchRad = (asFiniteNumber(ofTrailPitchEl?.value, 35.264) || 35.264) * (Math.PI / 180);
+        const cx = rect.width * 0.5;
+        const cy = rect.height * 0.62;
+
+        const { scale, center } = computeTrailScale(ofTrajectoryState.trail, yawRad, pitchRad, rect, zoom);
+        const bounds = ofTrajectoryState.trail.length ? getTrailBounds(ofTrajectoryState.trail) : null;
+        const spanX = bounds ? Math.max(bounds.maxX - bounds.center.x, bounds.center.x - bounds.minX) : 2000;
+        const spanY = bounds ? Math.max(bounds.maxY - bounds.center.y, bounds.center.y - bounds.minY) : 2000;
+        const spanZ = bounds ? Math.max(bounds.maxZ - bounds.center.z, bounds.center.z - bounds.minZ) : 2000;
+        const gridSpan = Math.max(spanX, spanY, 1000);
+        const gridStep = niceStep(gridSpan / 4);
+        const zStep = niceStep(Math.max(spanZ, 1000) / 4);
+
+        ofTrajCtx.strokeStyle = "rgba(255,255,255,0.12)";
+        ofTrajCtx.lineWidth = 1;
+        for (let i = -4; i <= 4; i += 1) {
+          const a = { x: i * gridStep, y: -gridSpan, z: 0 };
+          const b = { x: i * gridStep, y: gridSpan, z: 0 };
+          const p1 = projectTrailPoint({ x: a.x - center.x, y: a.y - center.y, z: a.z - center.z }, yawRad, pitchRad);
+          const p2 = projectTrailPoint({ x: b.x - center.x, y: b.y - center.y, z: b.z - center.z }, yawRad, pitchRad);
+          ofTrajCtx.beginPath();
+          ofTrajCtx.moveTo(cx + p1.x * scale, cy + p1.y * scale);
+          ofTrajCtx.lineTo(cx + p2.x * scale, cy + p2.y * scale);
+          ofTrajCtx.stroke();
+        }
+        for (let j = -4; j <= 4; j += 1) {
+          const a = { x: -gridSpan, y: j * gridStep, z: 0 };
+          const b = { x: gridSpan, y: j * gridStep, z: 0 };
+          const p1 = projectTrailPoint({ x: a.x - center.x, y: a.y - center.y, z: a.z - center.z }, yawRad, pitchRad);
+          const p2 = projectTrailPoint({ x: b.x - center.x, y: b.y - center.y, z: b.z - center.z }, yawRad, pitchRad);
+          ofTrajCtx.beginPath();
+          ofTrajCtx.moveTo(cx + p1.x * scale, cy + p1.y * scale);
+          ofTrajCtx.lineTo(cx + p2.x * scale, cy + p2.y * scale);
+          ofTrajCtx.stroke();
+        }
+
+        if (bounds) {
+          const padX = gridStep * 0.6;
+          const padY = gridStep * 0.6;
+          const padZ = zStep * 0.6;
+          const minX = bounds.minX - padX;
+          const maxX = bounds.maxX + padX;
+          const minY = bounds.minY - padY;
+          const maxY = bounds.maxY + padY;
+          const minZ = bounds.minZ - padZ;
+          const maxZ = bounds.maxZ + padZ;
+          const corners = [
+            { x: minX, y: minY, z: minZ },
+            { x: maxX, y: minY, z: minZ },
+            { x: maxX, y: maxY, z: minZ },
+            { x: minX, y: maxY, z: minZ },
+            { x: minX, y: minY, z: maxZ },
+            { x: maxX, y: minY, z: maxZ },
+            { x: maxX, y: maxY, z: maxZ },
+            { x: minX, y: maxY, z: maxZ },
+          ].map((pt) =>
+            projectTrailPoint(
+              { x: pt.x - center.x, y: pt.y - center.y, z: pt.z - center.z },
+              yawRad,
+              pitchRad
+            )
+          );
+          const edges = [
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            [0, 4], [1, 5], [2, 6], [3, 7],
+          ];
+          ofTrajCtx.strokeStyle = "rgba(61,213,243,0.28)";
+          ofTrajCtx.lineWidth = 1.1;
+          for (const [a, b] of edges) {
+            ofTrajCtx.beginPath();
+            ofTrajCtx.moveTo(cx + corners[a].x * scale, cy + corners[a].y * scale);
+            ofTrajCtx.lineTo(cx + corners[b].x * scale, cy + corners[b].y * scale);
+            ofTrajCtx.stroke();
+          }
+        }
+
+        if (!ofTrajectoryState.trail.length) {
+          ofTrajCtx.fillStyle = "rgba(255,255,255,0.6)";
+          ofTrajCtx.font = "13px IBM Plex Mono, ui-monospace, monospace";
+          ofTrajCtx.fillText("Waiting for trajectory data...", 14, 24);
+          return;
+        }
+
+        ofTrajCtx.beginPath();
+        const lastIdx = ofTrajectoryState.trail.length - 1;
+        ofTrajectoryState.trail.forEach((pt, idx) => {
+          const p = projectTrailPoint(
+            { x: pt.x - center.x, y: pt.y - center.y, z: pt.z - center.z },
+            yawRad,
+            pitchRad
+          );
+          if (idx === 0) {
+            ofTrajCtx.moveTo(cx + p.x * scale, cy + p.y * scale);
+          } else {
+            ofTrajCtx.lineTo(cx + p.x * scale, cy + p.y * scale);
+          }
+        });
+        ofTrajCtx.strokeStyle = "#ff5f5f";
+        ofTrajCtx.lineWidth = 2.2;
+        ofTrajCtx.stroke();
+
+        const head = projectTrailPoint(
+          {
+            x: ofTrajectoryState.trail[lastIdx].x - center.x,
+            y: ofTrajectoryState.trail[lastIdx].y - center.y,
+            z: ofTrajectoryState.trail[lastIdx].z - center.z,
+          },
+          yawRad,
+          pitchRad
+        );
+        const headX = cx + head.x * scale;
+        const headY = cy + head.y * scale;
+        const vproj = projectTrailPoint(ofTrajectoryState.lastVel, yawRad, pitchRad);
+        const heading = Math.atan2(vproj.y, vproj.x);
+        const size = 20;
+        ofTrajCtx.save();
+        ofTrajCtx.translate(headX, headY);
+        ofTrajCtx.rotate(heading);
+        ofTrajCtx.fillStyle = "#1d2130";
+        ofTrajCtx.beginPath();
+        ofTrajCtx.moveTo(0, -size * 0.6);
+        ofTrajCtx.lineTo(size * 0.42, size * 0.35);
+        ofTrajCtx.lineTo(0, size * 0.2);
+        ofTrajCtx.lineTo(-size * 0.42, size * 0.35);
+        ofTrajCtx.closePath();
+        ofTrajCtx.fill();
+        ofTrajCtx.restore();
+      };
+
+      const updateOpticalTrajectory = (record) => {
+        if (!record) {
+          return;
+        }
+        const timeMs = asFiniteNumber(record.time_ms, Date.now()) || Date.now();
+        const last = ofTrajectoryState.lastTimeMs ?? timeMs;
+        const dt = Math.max(0, (timeMs - last) / 1000);
+        ofTrajectoryState.pose.x += (record.flow_vel_x || 0) * dt;
+        ofTrajectoryState.pose.y += (record.flow_vel_y || 0) * dt;
+        ofTrajectoryState.pose.z = asFiniteNumber(record.distance_mm, ofTrajectoryState.pose.z) || 0;
+        ofTrajectoryState.lastTimeMs = timeMs;
+        ofTrajectoryState.lastVel = { x: record.flow_vel_x || 0, y: record.flow_vel_y || 0, z: 0 };
+        ofTrajectoryState.trail.push({
+          x: ofTrajectoryState.pose.x,
+          y: ofTrajectoryState.pose.y,
+          z: ofTrajectoryState.pose.z,
+          t: timeMs,
+        });
+        const maxLen = Math.max(20, Math.floor(asFiniteNumber(ofTrailLenEl?.value, 260) || 260));
+        if (ofTrajectoryState.trail.length > maxLen) {
+          ofTrajectoryState.trail.splice(0, ofTrajectoryState.trail.length - maxLen);
+        }
+        drawOpticalTrajectory();
+      };
+
+      const drawOpticalPlot = () => {
+        if (!ofPlotCtx || !ofPlotCanvas) {
+          return;
+        }
+        const rect = ofPlotCanvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+          return;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        ofPlotCanvas.width = Math.floor(rect.width * dpr);
+        ofPlotCanvas.height = Math.floor(rect.height * dpr);
+        ofPlotCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ofPlotCtx.clearRect(0, 0, rect.width, rect.height);
+
+        const padding = { left: 48, right: 16, top: 12, bottom: 30 };
+        const w = rect.width - padding.left - padding.right;
+        const h = rect.height - padding.top - padding.bottom;
+        ofPlotCtx.save();
+        ofPlotCtx.translate(padding.left, padding.top);
+
+        ofPlotCtx.strokeStyle = "rgba(255,255,255,0.1)";
+        ofPlotCtx.lineWidth = 1;
+        for (let i = 0; i <= 5; i += 1) {
+          const y = (h / 5) * i;
+          ofPlotCtx.beginPath();
+          ofPlotCtx.moveTo(0, y);
+          ofPlotCtx.lineTo(w, y);
+          ofPlotCtx.stroke();
+        }
+
+        if (!ofPlotState.times.length) {
+          ofPlotCtx.fillStyle = "rgba(255,255,255,0.6)";
+          ofPlotCtx.font = "12px IBM Plex Mono, ui-monospace, monospace";
+          ofPlotCtx.fillText("Waiting for optical flow samples...", 10, 22);
+          ofPlotCtx.restore();
+          return;
+        }
+
+        const windowSeconds = Math.max(1, Number.parseFloat(ofWindowSecondsEl?.value) || 8);
+        const latestTime = ofPlotState.times[ofPlotState.times.length - 1];
+        const startTime = latestTime - windowSeconds * 1000;
+        let startIndex = 0;
+        while (startIndex < ofPlotState.times.length && ofPlotState.times[startIndex] < startTime) {
+          startIndex += 1;
+        }
+
+        let min = Infinity;
+        let max = -Infinity;
+        for (const series of ofPlotState.series) {
+          if (!series.enabled) {
+            continue;
+          }
+          for (let i = startIndex; i < series.values.length; i += 1) {
+            const value = series.values[i];
+            if (Number.isFinite(value)) {
+              min = Math.min(min, value);
+              max = Math.max(max, value);
+            }
+          }
+        }
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+          min = 0;
+          max = 1;
+        }
+        const pad = min === max ? 1 : (max - min) * 0.12;
+        min -= pad;
+        max += pad;
+
+        const span = Math.max(1, latestTime - Math.max(startTime, ofPlotState.times[0]));
+        for (const series of ofPlotState.series) {
+          if (!series.enabled) {
+            continue;
+          }
+          ofPlotCtx.beginPath();
+          let moved = false;
+          for (let i = startIndex; i < series.values.length; i += 1) {
+            const value = series.values[i];
+            if (!Number.isFinite(value)) {
+              moved = false;
+              continue;
+            }
+            const t = ofPlotState.times[i];
+            const x = ((t - startTime) / span) * w;
+            const y = h - ((value - min) / (max - min)) * h;
+            if (!moved) {
+              ofPlotCtx.moveTo(x, y);
+              moved = true;
+            } else {
+              ofPlotCtx.lineTo(x, y);
+            }
+          }
+          ofPlotCtx.strokeStyle = series.color;
+          ofPlotCtx.lineWidth = 2;
+          ofPlotCtx.stroke();
+        }
+
+        ofPlotCtx.fillStyle = "rgba(255,255,255,0.6)";
+        ofPlotCtx.font = "11px IBM Plex Mono, ui-monospace, monospace";
+        ofPlotCtx.fillText(`${windowSeconds}s`, 0, h + 18);
+        ofPlotCtx.fillText(`min ${min.toFixed(1)}`, 0, h + 30);
+        ofPlotCtx.fillText(`max ${max.toFixed(1)}`, Math.max(0, w - 85), h + 30);
+        ofPlotCtx.restore();
+      };
+
+      const renderOpticalSeriesList = () => {
+        if (!ofSeriesList) {
+          return;
+        }
+        ofSeriesList.innerHTML = "";
+        for (const series of ofPlotState.series) {
+          const latest = series.values[series.values.length - 1];
+          const item = document.createElement("div");
+          item.className = "series-item";
+          const left = document.createElement("div");
+          left.className = "left";
+          const swatch = document.createElement("span");
+          swatch.className = "swatch";
+          swatch.style.background = series.color;
+          const label = document.createElement("strong");
+          label.textContent = series.label;
+          left.appendChild(swatch);
+          left.appendChild(label);
+          const value = document.createElement("span");
+          value.textContent = Number.isFinite(latest) ? latest.toFixed(series.digits) : "--";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = series.enabled;
+          checkbox.addEventListener("change", () => {
+            series.enabled = checkbox.checked;
+            drawOpticalPlot();
+          });
+          item.appendChild(left);
+          item.appendChild(value);
+          item.appendChild(checkbox);
+          ofSeriesList.appendChild(item);
+        }
+      };
+
+      const renderOpticalTable = () => {
+        if (!ofPlotTableBody) {
+          return;
+        }
+        ofPlotTableBody.innerHTML = ofPlotState.records
+          .slice()
+          .reverse()
+          .map((record) => {
+            const cells = [
+              record.time_ms,
+              record.distance_mm,
+              record.strength,
+              record.precision,
+              record.flow_vel_x,
+              record.flow_vel_y,
+              record.flow_quality,
+            ].map((value) => `<td>${Number.isFinite(value) ? value : "--"}</td>`);
+            return `<tr>${cells.join("")}</tr>`;
+          })
+          .join("");
+      };
+
+      const ingestOpticalPlotSample = (sample) => {
+        const record = normalizeOpticalPlotRecord(sample);
+        if (!record) {
+          return null;
+        }
+        const key = `${record.time_ms}:${record.distance_mm}:${record.flow_vel_x}:${record.flow_vel_y}:${record.flow_quality}`;
+        if (key === ofPlotState.lastKey) {
+          return null;
+        }
+        ofPlotState.lastKey = key;
+
+        ofPlotState.times.push(record.time_ms);
+        for (const series of ofPlotState.series) {
+          series.values.push(record[series.key]);
+        }
+
+        if (ofPlotState.times.length > ofPlotState.maxPoints) {
+          ofPlotState.times.shift();
+          for (const series of ofPlotState.series) {
+            series.values.shift();
+          }
+        }
+
+        ofPlotState.records.push(record);
+        if (ofPlotState.records.length > 20) {
+          ofPlotState.records.shift();
+        }
+
+        renderOpticalSeriesList();
+        renderOpticalTable();
+        drawOpticalPlot();
+        return record;
+      };
+
+      const modeBlocks = {
+        odometry: document.getElementById("mode-odometry"),
+        gps_mavlink: document.getElementById("mode-gps-mavlink"),
+        gps_port: document.getElementById("mode-gps-port"),
+        optical_flow_mavlink: document.getElementById("mode-optical-flow"),
+      };
+
+      const modeButtons = Array.from(document.querySelectorAll(".mode-picker button"));
+      let selectedMode = "odometry";
+
+      const updateModeBlocks = (mode) => {
+        Object.entries(modeBlocks).forEach(([key, block]) => {
+          if (!block) return;
+          block.classList.toggle("active", key === mode);
+          block.classList.toggle("hidden", key !== mode);
+        });
+        modeButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.mode === mode);
+        });
+      };
+
+      modeButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          selectedMode = btn.dataset.mode;
+          updateModeBlocks(selectedMode);
+        });
+      });
+
+      const dataUrl = (() => {
+        if (window.location.protocol === "file:") {
+          return "http://127.0.0.1:8765/data";
+        }
+        return "/data";
+      })();
+
+      const tick = async () => {
+        try {
+          const res = await fetch(dataUrl, { cache: "no-store" });
+          const data = await res.json();
+
+          setText("mode", data.mode);
+          setText("vio-mode", data.vio_mode);
+          setText("source", data.source);
+          setText("drift", data.drift_m, 2);
+          setText("fix", data.gps?.fix_type, 0);
+
+          setText("cam-x", data.camera?.x);
+          setText("cam-y", data.camera?.y);
+          setText("cam-z", data.camera?.z);
+          setText("vo-x", data.camera?.x);
+          setText("vo-y", data.camera?.y);
+          setText("vo-vx", data.camera?.vx);
+          setText("vo-vy", data.camera?.vy);
+          setText("vio-x", data.fused?.x);
+          setText("vio-y", data.fused?.y);
+          setText("vio-vx", data.fused?.vx);
+          setText("vio-vy", data.fused?.vy);
+          setText("cam-x-only", data.camera?.x);
+          setText("cam-y-only", data.camera?.y);
+          setText("cam-dx", data.camera?.dx);
+          setText("cam-dy", data.camera?.dy);
+          setText("cam-dz", data.camera?.dz);
+          setText("cam-dx-only", data.camera?.dx);
+          setText("cam-dy-only", data.camera?.dy);
+          setText("cam-vx", data.camera?.vx);
+          setText("cam-vy", data.camera?.vy);
+          setText("cam-vz", data.camera?.vz);
+
+          setText("fused-x", data.fused?.x);
+          setText("fused-y", data.fused?.y);
+          setText("fused-z", data.fused?.z);
+
+          setText("gps-olat", data.gps?.origin?.lat, 6);
+          setText("gps-olon", data.gps?.origin?.lon, 6);
+          setText("gps-oalt", data.gps?.origin?.alt_m, 2);
+          setText("gps-lx", data.gps?.local?.x);
+          setText("gps-ly", data.gps?.local?.y);
+          setText("gps-lz", data.gps?.local?.z);
+
+          setText("raw-dx", data.raw?.dx_px);
+          setText("raw-dy", data.raw?.dy_px);
+          setText("raw-inliers", data.raw?.inliers, 0);
+          setText("raw-ratio", data.raw?.inlier_ratio, 2);
+          setText("raw-mad", data.raw?.flow_mad_px, 3);
+
+          setText("att-roll", data.sensors?.attitude?.roll);
+          setText("att-pitch", data.sensors?.attitude?.pitch);
+          setText("att-yaw", data.sensors?.attitude?.yaw);
+          setText("att-rr", data.sensors?.attitude?.roll_rate);
+          setText("att-pr", data.sensors?.attitude?.pitch_rate);
+          setText("att-yr", data.sensors?.attitude?.yaw_rate);
+
+          setText("baro-h", data.sensors?.barometer?.height_m);
+          setText("baro-press", data.sensors?.barometer?.raw_press_hpa, 1);
+          setText("baro-alt", data.sensors?.barometer?.raw_alt_m, 2);
+
+          setText("gps-in-lat", data.sensors?.gps_input?.lat, 6);
+          setText("gps-in-lon", data.sensors?.gps_input?.lon, 6);
+          setText("gps-in-alt", data.sensors?.gps_input?.alt_m, 2);
+          setText("gps-in-fix", data.sensors?.gps_input?.fix_type, 0);
+
+          const opt = data.sensors?.optical_flow;
+          const optRecord = ingestOpticalPlotSample(opt);
+          updateOpticalTrajectory(optRecord);
+          setText("of-dist", opt?.dist_cm, 1);
+          setText("of-vx", opt?.flow_vx, 0);
+          setText("of-vy", opt?.flow_vy, 0);
+          setText("of-sx", opt?.speed_x, 2);
+          setText("of-sy", opt?.speed_y, 2);
+          setText("of-q", opt?.flow_q, 0);
+          drawOpticalFlow3D(opt);
+
+          setText("compass-bus", data.compass?.bus, 0);
+          setHex("compass-addr", data.compass?.addr);
+          setText("compass-heading", data.compass?.incoming?.heading_deg, 2);
+          setText("compass-x", data.compass?.incoming?.x_mg, 1);
+          setText("compass-y", data.compass?.incoming?.y_mg, 1);
+          setText("compass-z", data.compass?.incoming?.z_mg, 1);
+          const compassOut = data.compass?.outgoing;
+          if (compassOut?.time_boot_ms !== null && compassOut?.time_boot_ms !== undefined) {
+            const lines = [
+              `time_boot_ms: ${compassOut.time_boot_ms}`,
+              `x_mg: ${fmt(compassOut.x_mg, 0)}`,
+              `y_mg: ${fmt(compassOut.y_mg, 0)}`,
+              `z_mg: ${fmt(compassOut.z_mg, 0)}`,
+            ];
+            setRaw("compass-out", lines.join("\n"));
+          } else {
+            setRaw("compass-out", "No compass payload yet.");
+          }
+
+          setText("ned-x", data.odom_ned?.x);
+          setText("ned-y", data.odom_ned?.y);
+          setText("ned-z", data.odom_ned?.z);
+
+          setText("gps-ll-lat", data.gps_ll_from_fused?.lat, 6);
+          setText("gps-ll-lon", data.gps_ll_from_fused?.lon, 6);
+          setText("gps-ll-alt", data.gps_ll_from_fused?.alt_m, 2);
+
+          setText("gps-port-lat", data.gps_ll_from_fused?.lat, 6);
+          setText("gps-port-lon", data.gps_ll_from_fused?.lon, 6);
+          setText("gps-port-alt", data.gps_ll_from_fused?.alt_m, 2);
+
+          setText("odom-vx", data.outputs?.odometry?.vx);
+          setText("odom-vy", data.outputs?.odometry?.vy);
+          setText("odom-vz", data.outputs?.odometry?.vz);
+          if (data.outputs?.odometry?.q) {
+            const q = data.outputs.odometry.q;
+            setText("odom-q", `[${q.map((v) => v.toFixed(3)).join(", ")}]`);
+          } else {
+            setText("odom-q", "--");
+          }
+
+          setText("gpsm-vn", data.outputs?.gps_mavlink?.vn);
+          setText("gpsm-ve", data.outputs?.gps_mavlink?.ve);
+          setText("gpsm-vd", data.outputs?.gps_mavlink?.vd);
+          setText("gpsm-sats", data.outputs?.gps_mavlink?.satellites, 0);
+          const gpsPayload = data.outputs?.gps_mavlink?.payload;
+          if (gpsPayload) {
+            const gpsLines = [
+              `time_usec: ${gpsPayload.time_usec}`,
+              `time_week_ms: ${gpsPayload.time_week_ms}`,
+              `time_week: ${gpsPayload.time_week}`,
+              `gps_id: ${gpsPayload.gps_id}`,
+              `ignore_flags: ${gpsPayload.ignore_flags}`,
+              `fix_type: ${gpsPayload.fix_type}`,
+              `lat: ${fmt(gpsPayload.lat, 7)}`,
+              `lon: ${fmt(gpsPayload.lon, 7)}`,
+              `alt_m: ${fmt(gpsPayload.alt_m, 2)}`,
+              `hdop: ${fmt(gpsPayload.hdop, 2)}`,
+              `vdop: ${fmt(gpsPayload.vdop, 2)}`,
+              `vn: ${fmt(gpsPayload.vn, 2)}`,
+              `ve: ${fmt(gpsPayload.ve, 2)}`,
+              `vd: ${fmt(gpsPayload.vd, 2)}`,
+              `speed_accuracy: ${fmt(gpsPayload.speed_accuracy, 2)}`,
+              `horiz_accuracy: ${fmt(gpsPayload.horiz_accuracy, 2)}`,
+              `vert_accuracy: ${fmt(gpsPayload.vert_accuracy, 2)}`,
+              `satellites_visible: ${gpsPayload.satellites_visible}`,
+            ];
+            setRaw("gpsm-payload", gpsLines.join("\n"));
+          } else {
+            setRaw("gpsm-payload", "No GPS_INPUT payload yet.");
+          }
+
+          setText("gpsp-speed", data.outputs?.gps_port?.speed_mps);
+          setText("gpsp-heading", data.outputs?.gps_port?.heading_deg, 1);
+          setText("gpsp-sats", data.outputs?.gps_port?.nmea?.sats ?? data.outputs?.gps_port?.ubx?.sats, 0);
+          const nmea = data.outputs?.gps_port?.nmea;
+          const ubx = data.outputs?.gps_port?.ubx;
+          const rawLines = [];
+          if (nmea?.gga_hex) rawLines.push(`NMEA GGA: ${nmea.gga_hex}`);
+          if (nmea?.rmc_hex) rawLines.push(`NMEA RMC: ${nmea.rmc_hex}`);
+          if (ubx?.pvt_hex) rawLines.push(`UBX NAV-PVT: ${ubx.pvt_hex}`);
+          if (ubx?.posllh_hex) rawLines.push(`UBX NAV-POSLLH: ${ubx.posllh_hex}`);
+          if (ubx?.velned_hex) rawLines.push(`UBX NAV-VELNED: ${ubx.velned_hex}`);
+          if (ubx?.sol_hex) rawLines.push(`UBX NAV-SOL: ${ubx.sol_hex}`);
+          setRaw("gpsp-raw", rawLines.join("\n"));
+
+          const ofOut = data.outputs?.optical_flow_mavlink;
+          setText("of-int-x", ofOut?.integrated_x, 4);
+          setText("of-int-y", ofOut?.integrated_y, 4);
+          setText("of-dist-m", ofOut?.distance_m, 2);
+          setText("of-q-out", ofOut?.quality, 0);
+          const ofPayload = ofOut?.payload;
+          if (ofPayload) {
+            const ofLines = [
+              `time_usec: ${ofPayload.time_usec}`,
+              `integration_time_us: ${ofPayload.integration_time_us}`,
+              `integrated_x: ${fmt(ofPayload.integrated_x, 5)}`,
+              `integrated_y: ${fmt(ofPayload.integrated_y, 5)}`,
+              `distance_m: ${fmt(ofPayload.distance_m, 3)}`,
+              `quality: ${ofPayload.quality}`,
+            ];
+            setRaw("of-payload", ofLines.join("\n"));
+          } else {
+            setRaw("of-payload", "OPTICAL_FLOW_RAD payload will appear here.");
+          }
+
+          const ofRange = ofOut?.range_payload;
+          if (ofRange) {
+            const rangeLines = [
+              `distance_cm: ${ofRange.distance_cm}`,
+              `min_cm: ${ofRange.min_cm}`,
+              `max_cm: ${ofRange.max_cm}`,
+              `orientation: ${ofRange.orientation}`,
+              `sensor_type: ${ofRange.sensor_type}`,
+            ];
+            setRaw("of-payload", `${document.getElementById("of-payload").textContent}\n\nDISTANCE_SENSOR\n${rangeLines.join("\n")}`);
+          }
+
+          setFlowStep("flow-odom-step-1", "Camera ENU", [
+            ["x", data.camera?.x, 3],
+            ["y", data.camera?.y, 3],
+            ["z", data.camera?.z, 3],
+          ]);
+          setFlowStep("flow-odom-step-2", "Metric Drift", [
+            ["dx", data.camera?.dx, 3],
+            ["dy", data.camera?.dy, 3],
+            ["dz", data.camera?.dz, 3],
+          ]);
+          setFlowStep("flow-odom-step-3", "Fusion ENU", [
+            ["x", data.fused?.x, 3],
+            ["y", data.fused?.y, 3],
+            ["z", data.fused?.z, 3],
+          ]);
+          setFlowStep("flow-odom-step-4", "NED Conversion", [
+            ["x", data.odom_ned?.x, 3],
+            ["y", data.odom_ned?.y, 3],
+            ["z", data.odom_ned?.z, 3],
+          ]);
+          setFlowStep("flow-odom-step-5", "NED Velocity", [
+            ["vx", data.outputs?.odometry?.vx, 3],
+            ["vy", data.outputs?.odometry?.vy, 3],
+            ["vz", data.outputs?.odometry?.vz, 3],
+          ]);
+          setFlowStep("flow-odom-step-6", "MAVLink ODOMETRY", [
+            ["q0", data.outputs?.odometry?.q?.[0], 3],
+            ["q3", data.outputs?.odometry?.q?.[3], 3],
+          ]);
+
+          setFlowStep("flow-gpsm-step-1", "Camera ENU", [
+            ["x", data.camera?.x, 3],
+            ["y", data.camera?.y, 3],
+            ["z", data.camera?.z, 3],
+          ]);
+          setFlowStep("flow-gpsm-step-2", "Metric Drift", [
+            ["dx", data.camera?.dx, 3],
+            ["dy", data.camera?.dy, 3],
+          ]);
+          setFlowStep("flow-gpsm-step-3", "Fusion ENU", [
+            ["x", data.fused?.x, 3],
+            ["y", data.fused?.y, 3],
+            ["z", data.fused?.z, 3],
+          ]);
+          setFlowStep("flow-gpsm-step-4", "LLA Conversion", [
+            ["lat", data.gps_ll_from_fused?.lat, 6],
+            ["lon", data.gps_ll_from_fused?.lon, 6],
+            ["alt", data.gps_ll_from_fused?.alt_m, 2],
+          ]);
+          setFlowStep("flow-gpsm-step-5", "Velocity ENU", [
+            ["vn", data.outputs?.gps_mavlink?.vn, 3],
+            ["ve", data.outputs?.gps_mavlink?.ve, 3],
+            ["vd", data.outputs?.gps_mavlink?.vd, 3],
+          ]);
+          setFlowStep("flow-gpsm-step-6", "MAVLink GPS_INPUT", [
+            ["fix", data.outputs?.gps_mavlink?.fix_type, 0],
+            ["sats", data.outputs?.gps_mavlink?.satellites, 0],
+          ]);
+
+          setFlowStep("flow-gpsp-step-1", "Camera ENU", [
+            ["x", data.camera?.x, 3],
+            ["y", data.camera?.y, 3],
+            ["z", data.camera?.z, 3],
+          ]);
+          setFlowStep("flow-gpsp-step-2", "Metric Drift", [
+            ["dx", data.camera?.dx, 3],
+            ["dy", data.camera?.dy, 3],
+          ]);
+          setFlowStep("flow-gpsp-step-3", "Fusion ENU", [
+            ["x", data.fused?.x, 3],
+            ["y", data.fused?.y, 3],
+            ["z", data.fused?.z, 3],
+          ]);
+          setFlowStep("flow-gpsp-step-4", "LLA Conversion", [
+            ["lat", data.outputs?.gps_port?.lat, 6],
+            ["lon", data.outputs?.gps_port?.lon, 6],
+            ["alt", data.outputs?.gps_port?.alt_m, 2],
+          ]);
+          setFlowStep("flow-gpsp-step-5", "Speed / Heading", [
+            ["spd", data.outputs?.gps_port?.speed_mps, 2],
+            ["hdg", data.outputs?.gps_port?.heading_deg, 1],
+          ]);
+          setFlowStep("flow-gpsp-step-6", "NMEA / UBX Output", [
+            ["nmea", nmea?.gga_hex || nmea?.rmc_hex ? 1 : 0, 0],
+            ["ubx", ubx?.pvt_hex || ubx?.posllh_hex ? 1 : 0, 0],
+          ]);
+
+          setFlowStep("flow-of-step-1", "MTF-01 Sample", [
+            ["vx", opt?.flow_vx, 0],
+            ["vy", opt?.flow_vy, 0],
+            ["dist_cm", opt?.dist_cm, 1],
+            ["q", opt?.flow_q, 0],
+          ]);
+          setFlowStep("flow-of-step-2", "Frame Integration", [
+            ["ix", ofOut?.integrated_x, 4],
+            ["iy", ofOut?.integrated_y, 4],
+          ]);
+          setFlowStep("flow-of-step-3", "Range + Quality", [
+            ["dist_m", ofOut?.distance_m, 2],
+            ["q", ofOut?.quality, 0],
+          ]);
+          setFlowStep("flow-of-step-4", "MAVLink OPTICAL_FLOW_RAD", [
+            ["sent", ofOut?.payload ? 1 : 0, 0],
+          ]);
+          setFlowStep("flow-of-step-5", "MAVLink DISTANCE_SENSOR", [
+            ["sent", ofOut?.range_payload ? 1 : 0, 0],
+          ]);
+
+          const uiMode = data.mode === "optical_flow_gps_port" ? "optical_flow_mavlink" : data.mode;
+          if (uiMode && modeBlocks[uiMode] && selectedMode !== uiMode) {
+            selectedMode = uiMode;
+          }
+          updateModeBlocks(selectedMode);
+        } catch (err) {
+          setText("mode", "offline");
+        }
+      };
+
+      if (ofWindowSecondsEl) {
+        ofWindowSecondsEl.addEventListener("input", drawOpticalPlot);
+      }
+      [ofTrailLenEl, ofTrailScaleEl, ofTrailYawEl, ofTrailPitchEl].forEach((el) => {
+        if (el) {
+          el.addEventListener("input", drawOpticalTrajectory);
+        }
+      });
+      window.addEventListener("resize", () => {
+        drawOpticalPlot();
+        drawOpticalTrajectory();
+      });
+      renderOpticalSeriesList();
+      renderOpticalTable();
+      drawOpticalPlot();
+      drawOpticalTrajectory();
+      tick();
+      setInterval(tick, 250);
+    </script>
+  </body>
+</html>

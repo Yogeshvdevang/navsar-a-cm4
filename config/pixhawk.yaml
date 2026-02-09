@@ -1,0 +1,124 @@
+# Pixhawk parameters
+use_mavlink: true
+use_barometer: true
+use_imu_fusion: true
+use_sensor_fusion: false
+device: /dev/ttyAMA0
+baud: 115200
+attitude_rate_hz: 30.0
+fallback_altitude_m: 1.0
+mavlink_source:
+  system_id: 1
+  component_id: 192
+  rangefinder_component_id: 191
+
+gps_drift_threshold_m: 5.0
+gps_timeout_s: 2.0
+gps_min_fix_type: 3
+gps_input:
+  enabled: true
+  port: /dev/ttyAMA5
+  baud: 9600
+  format: auto
+  init_wait_s: 3
+  min_fix_type: 3
+#!/usr/bin/env python3
+odom_gps_send_interval_s: 0.2
+odom_gps_fix_type: 3
+odom_gps_sats: 10
+odometry_send_interval_s: 0.04
+output_mode: optical_flow_gps_port # odometry, gps_mavlink, gps_port, optical_flow_mavlink, optical_flow_gps_port, optical_flow_then_vo
+vio_mode: vo # vo, vio_imu
+
+vio_imu:
+  print: true
+  print_interval_s: 0.5
+gps_serial:
+  enabled: false
+  port: /dev/serial0
+  baud: 9600
+  format: auto
+
+optical_flow:
+  enabled: true
+  port: /dev/ttyAMA3
+  baud: 115200
+  rate_hz: 100.0
+  heartbeat_interval_s: 0.6
+  print: false
+  max_flow_raw: 200
+
+optical_flow_mavlink:
+  send_interval_s: 0.05
+  print: true
+  range_min_m: 0.01
+  range_max_m: 8.0
+  min_quality: 70
+  max_speed_mps: 1.0
+  deadband_mps: 0.10
+  smoothing_alpha: 0.10
+  stationary_speed_mps: 0.04
+  stationary_samples: 20
+  stationary_quality_min: 70
+  speed_scale: 0.01
+
+optical_flow_vo:
+  switch_m: 8.0
+  optical_flow_output_mode: optical_flow_gps_port
+  vo_output_mode: gps_mavlink
+
+compass:
+  enabled: true
+  i2c_bus: 1
+  rate_hz: 10
+  print: false
+  send_mavlink: true
+  heading_offset_deg: 112.75
+  heading_smoothing_alpha: 0.1
+  heading_max_delta_deg: 5.0
+  heading_jump_reject_deg: 20.0
+
+gps_output:
+  enabled: true
+  format: ubx 
+  port: /dev/ttyAMA0
+  baud: 230400
+  rate_hz: 10
+  fix_quality: 1
+  min_sats: 10
+  max_sats: 20
+  update_s: 7
+  print: true
+  raw_print: true
+
+vps_gps:
+  send_interval_s: 0.1
+  mavlink_send_interval_s: 0.1
+  fix_type: 3
+  satellites: 10
+  print: false
+  use_compass_yaw: true
+  ignore_flags: 28
+
+print_gps_values: false
+print_baro_values: false
+print_interval_s: 0.5
+
+gnss_monitor:
+  spoof_detector:
+    enabled: false
+    drift_threshold_m: 5.0
+    max_speed_mps: 25.0
+    consecutive: 3
+    cooldown_s: 2.0
+    min_fix_type: 3
+  spoof_reporter:
+    enabled: false
+    log_path: data/spoof_events.jsonl
+    gcs_severity: warning
+    min_interval_s: 2.0
+
+gps_origin:
+  lat: 12
+  lon: 77
+  alt: 910

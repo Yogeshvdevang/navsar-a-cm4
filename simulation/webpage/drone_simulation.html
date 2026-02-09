@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Drone Mission Simulator</title>
+    
+    <style>
+        :root { 
+            --bg: #0f172a; 
+            --panel: #1e293b; 
+            --accent: #38bdf8; 
+            --success: #4ade80;
+            --warning: #facc15;
+            --text: #f1f5f9; 
+            --input: #334155;
+            --border: #475569;
+        }
+        body { margin: 0; font-family: 'Segoe UI', monospace; background: var(--bg); color: var(--text); overflow: hidden; display: flex; height: 100vh; }
+        
+        /* SIDEBAR */
+        #sidebar { 
+            width: 400px; 
+            background: var(--panel); 
+            padding: 20px; 
+            overflow-y: auto; 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.5); 
+            z-index: 20; 
+        }
+
+        /* HEADER */
+        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 10px; }
+        h1 { margin: 0; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+        .subtitle { font-size: 11px; color: #94a3b8; }
+
+        /* SECTIONS */
+        .section { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .sec-title { font-size: 11px; font-weight: bold; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;}
+
+        /* INPUTS */
+        .input-group { margin-bottom: 8px; }
+        .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+        label { display: block; font-size: 10px; color: #cbd5e1; margin-bottom: 2px; }
+        input, select { 
+            width: 100%; 
+            background: var(--input); 
+            border: 1px solid var(--border); 
+            color: white; 
+            padding: 6px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            font-size: 11px; 
+            box-sizing: border-box;
+        }
+        input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+
+        /* BUTTONS */
+        .btn-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        button { 
+            padding: 10px; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            transition: all 0.2s;
+        }
+        .btn-auto { background: #6366f1; color: white; grid-column: span 2; }
+        .btn-auto:hover { background: #4f46e5; }
+        .btn-launch { background: var(--success); color: #022c22; }
+        .btn-launch:hover { background: #22c55e; }
+        .btn-pause { background: var(--warning); color: #422006; }
+        .btn-pause:hover { background: #eab308; }
+        .btn-reset { background: #ef4444; color: white; }
+        .btn-reset:hover { background: #dc2626; }
+        .btn-follow { background: #334155; color: #94a3b8; border: 1px solid #475569; }
+        .btn-follow.active { background: var(--accent); color: #0f172a; border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+        .btn-home { background: #0ea5e9; color: white; }
+        .btn-home:hover { background: #0284c7; }
+
+        /* DATA MONITOR */
+        #data-stream { 
+            background: #000; 
+            color: #22c55e; 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 10px; 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #14532d;
+            height: 150px; 
+            overflow-y: auto; 
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+
+        /* VIEWPORT CONTAINER */
+        #viewport { 
+            flex-grow: 1; 
+            position: relative; 
+            overflow: hidden; 
+            background: #000;
+        }
+
+        /* OVERLAY INFO */
+        #overlay { position: absolute; top: 10px; right: 10px; color: white; font-size: 12px; text-align: right; pointer-events: none; z-index: 50; text-shadow: 0 0 5px black;}
+        
+        /* 3D LABELS */
+        .label-marker {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--accent);
+            color: var(--text);
+            padding: 5px 8px;
+            font-size: 10px;
+            border-radius: 4px;
+            pointer-events: none; /* Let clicks pass through */
+            transform: translate(-50%, -100%); /* Center above point */
+            white-space: nowrap;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 40;
+        }
+        .label-title { color: var(--accent); font-weight: bold; margin-bottom: 2px; border-bottom: 1px solid #334155; padding-bottom: 2px; }
+        .label-coord { color: #94a3b8; font-family: monospace; }
+    </style>
+    
+    <!-- THREE.JS IMPORT MAP -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- CONTROL PANEL -->
+    <div id="sidebar">
+        <div class="header">
+            <h1>PROTOCOL SIMULATOR</h1>
+            <div class="subtitle">Bridge / Telemetry / Visual SLAM</div>
+        </div>
+
+        <!-- MODE SELECTION -->
+        <div class="section">
+            <div class="sec-title">1. Configuration</div>
+            <label>Communication Protocol</label>
+            <select id="mode-select" onchange="updateModeInfo()">
+                <option value="GPS_INPUT">MAVLink: GPS_INPUT (Software Bridge)</option>
+                <option value="ODOM">ROS: ODOMETRY (Visual SLAM)</option>
+                <option value="UBX">u-blox: NAV-PVT (Hardware Serial)</option>
+            </select>
+            
+            <div id="mode-desc" style="font-size:10px; color:#64748b; margin-top:5px; font-style:italic;">
+                Format: Float Lat/Lon + Meters.
+            </div>
+        </div>
+
+        <!-- INPUT PARAMETERS -->
+        <div class="section">
+            <div class="sec-title">
+                2. Mission Parameters
+                <span id="calc-status" style="color:var(--accent)">Waiting...</span>
+            </div>
+            
+            <!-- Start Point -->
+            <div class="input-group">
+                <label>Start Point (Lat / Lon / Alt)</label>
+                <div class="input-row">
+                    <input type="number" id="start-lat" placeholder="Lat">
+                    <input type="number" id="start-lon" placeholder="Lon">
+                    <input type="number" id="start-alt" placeholder="Alt (m)">
+                </div>
+            </div>
+
+            <!-- End Point -->
+            <div class="input-group">
+                <label>Target Point (Lat / Lon / Alt)</label>
+                <div class="input-row">
+                    <input type="number" id="end-lat" placeholder="Lat">
+                    <input type="number" id="end-lon" placeholder="Lon">
+                    <input type="number" id="end-alt" placeholder="Alt (m)">
+                </div>
+            </div>
+
+            <!-- Dynamics -->
+            <div class="input-group">
+                <label>Max Velocity (m/s)</label>
+                <input type="number" id="max-speed" value="10">
+            </div>
+
+            <!-- Actions -->
+            <div class="btn-container">
+                <button class="btn-auto" onclick="autoFill()">Generate Random Mission</button>
+                <button class="btn-launch" onclick="launchMission()">Launch Drone</button>
+                <button class="btn-pause" onclick="togglePause()" id="btn-pause">Pause</button>
+                <button class="btn-follow" onclick="toggleFollow()" id="btn-follow">Follow Cam: OFF</button>
+                <button class="btn-home" onclick="viewHome()">View Home</button>
+                <button class="btn-reset" onclick="resetSim()">Reset / Stop</button>
+            </div>
+        </div>
+
+        <!-- LIVE DATA -->
+        <div style="flex-grow:1; display:flex; flex-direction:column;">
+            <div class="sec-title">3. Data Stream Output <span style="font-size:9px;">(Live Packet)</span></div>
+            <div id="data-stream">Select a mode and Launch...</div>
+        </div>
+    </div>
+
+    <!-- VIEWPORT -->
+    <div id="viewport">
+        <div id="overlay">
+            <div><span style="color:#00ff00">■</span> Velocity Vector</div>
+            <div><span style="color:#ff0000">■</span> Acceleration Vector</div>
+            <div><span style="color:#ffff00">■</span> Flight Trail</div>
+            <div style="margin-top:5px; color:#aaa; font-size:10px;">(Left Click: Rotate | Right Click: Pan | Scroll: Zoom)</div>
+            <div id="distance-readout">Dist: 0m</div>
+        </div>
+        
+        <!-- 3D Labels -->
+        <div id="label-start" class="label-marker">
+            <div class="label-title">START POINT</div>
+            <div class="label-coord" id="lbl-start-coord"></div>
+        </div>
+        <div id="label-end" class="label-marker">
+            <div class="label-title">TARGET POINT</div>
+            <div class="label-coord" id="lbl-end-coord"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- GLOBAL STATE ---
+        const state = {
+            flying: false,
+            paused: false,
+            following: false,
+            startTime: 0,
+            bootTime: performance.now(),
+            pauseTime: 0,
+            totalPausedTime: 0,
+            duration: 0,
+            
+            // Physics State (Local Meters)
+            startPos: new THREE.Vector3(), 
+            endPos: new THREE.Vector3(),
+            currentPos: new THREE.Vector3(),
+            prevPos: new THREE.Vector3(), // For Follow Logic
+            velocity: new THREE.Vector3(),
+            acceleration: new THREE.Vector3(),
+            
+            // Geographic Reference
+            refLat: 0, 
+            refLon: 0,
+            refAlt: 0,
+            
+            // 3D Objects
+            droneGroup: null,
+            pathLine: null,
+            trailLine: null,
+            trailPoints: [],
+            velArrow: null,
+            accArrow: null
+        };
+
+        const ui = {
+            mode: document.getElementById('mode-select'),
+            desc: document.getElementById('mode-desc'),
+            stream: document.getElementById('data-stream'),
+            slat: document.getElementById('start-lat'),
+            slon: document.getElementById('start-lon'),
+            salt: document.getElementById('start-alt'),
+            elat: document.getElementById('end-lat'),
+            elon: document.getElementById('end-lon'),
+            ealt: document.getElementById('end-alt'),
+            speed: document.getElementById('max-speed'),
+            status: document.getElementById('calc-status'),
+            dist: document.getElementById('distance-readout'),
+            btnPause: document.getElementById('btn-pause'),
+            btnFollow: document.getElementById('btn-follow'),
+            viewport: document.getElementById('viewport'),
+            lblStart: document.getElementById('label-start'),
+            lblEnd: document.getElementById('label-end'),
+            txtStart: document.getElementById('lbl-start-coord'),
+            txtEnd: document.getElementById('lbl-end-coord')
+        };
+
+        // --- 1. THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a); 
+        scene.fog = new THREE.Fog(0x0f172a, 2000, 10000); // Increased fog distance for better zoom
+
+        const camera = new THREE.PerspectiveCamera(45, (window.innerWidth - 400) / window.innerHeight, 0.1, 20000); // Extended render distance
+        camera.position.set(-50, 50, 50);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth - 400, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        ui.viewport.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.enableZoom = true;
+        controls.zoomToCursor = true;
+        controls.target.set(0, 0, 0);
+        controls.maxDistance = 8000;  // Keep zoom range usable for the scene scale
+        controls.minDistance = 15;    // Prevent extreme close-up clipping
+        controls.zoomSpeed = 0.25;    // Gentle zoom for better control
+
+        // --- LIGHTS ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // --- ENVIRONMENT ---
+        // Enhanced Grid visibility
+        const gridHelper = new THREE.GridHelper(1000, 100, 0x64748b, 0x334155); 
+        scene.add(gridHelper);
+
+        // Ground Plane (Invisible mostly, catches shadows)
+        const planeGeo = new THREE.PlaneGeometry(2000, 2000);
+        const planeMat = new THREE.MeshPhongMaterial({ color: 0x0f172a, depthWrite: false });
+        const plane = new THREE.Mesh(planeGeo, planeMat);
+        plane.rotation.x = -Math.PI / 2;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // --- DRONE OBJECT ---
+        state.droneGroup = new THREE.Group();
+        
+        // 1. Central Body
+        const bodyGeo = new THREE.BoxGeometry(1.2, 0.4, 0.8); 
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.castShadow = true;
+        state.droneGroup.add(body);
+
+        // 2. Arms (X-Frame)
+        const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5);
+        const armMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+        
+        const arm1 = new THREE.Mesh(armGeo, armMat);
+        arm1.rotation.z = Math.PI / 2;
+        arm1.rotation.y = Math.PI / 4; // X shape
+        state.droneGroup.add(arm1);
+
+        const arm2 = new THREE.Mesh(armGeo, armMat);
+        arm2.rotation.z = Math.PI / 2;
+        arm2.rotation.y = -Math.PI / 4; // X shape
+        state.droneGroup.add(arm2);
+
+        // 3. Motors & Props
+        const motorGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.3);
+        const motorMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
+        const propGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.02, 32);
+        const propMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.4 });
+
+        const positions = [
+            {x: 1.2, z: 1.2}, {x: -1.2, z: -1.2}, 
+            {x: 1.2, z: -1.2}, {x: -1.2, z: 1.2}
+        ];
+
+        positions.forEach(pos => {
+            const motor = new THREE.Mesh(motorGeo, motorMat);
+            motor.position.set(pos.x, 0.1, pos.z);
+            state.droneGroup.add(motor);
+
+            const prop = new THREE.Mesh(propGeo, propMat);
+            prop.position.set(pos.x, 0.25, pos.z);
+            state.droneGroup.add(prop);
+        });
+
+        // 4. Direction Arrow (Yellow Cone pointing Forward +Z local)
+        // In our sim logic, velocity is the direction. We use lookAt to orient the drone.
+        // ThreeJS standard: LookAt points +Z axis towards target.
+        // So we place the yellow arrow pointing +Z relative to the drone center.
+        const arrowGeo = new THREE.ConeGeometry(0.15, 0.5, 32);
+        const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+        arrowMesh.rotation.x = Math.PI / 2; // Point cone along Z
+        // Body is 0.8 deep (Z goes from -0.4 to 0.4). 
+        // Cone is 0.5 high (local Z goes from -0.25 to 0.25).
+        // To place base (-0.25) at body front (0.4): Position Z = 0.65
+        arrowMesh.position.z = 0.65; 
+        state.droneGroup.add(arrowMesh);
+
+        // 5. Vectors (Helpers)
+        state.velArrow = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 0, 0x4ade80);
+        state.accArrow = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(0,0,0), 0, 0xf87171);
+        state.droneGroup.add(state.velArrow);
+        state.droneGroup.add(state.accArrow);
+        
+        scene.add(state.droneGroup);
+
+        // --- PATH LINES ---
+        // 1. Predicted Path (Blue Line)
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 1, opacity: 0.5, transparent: true });
+        const lineGeo = new THREE.BufferGeometry();
+        state.pathLine = new THREE.Line(lineGeo, lineMat);
+        state.pathLine.frustumCulled = false; 
+        scene.add(state.pathLine);
+
+        // 2. Actual Trail (Yellow Line)
+        const trailMat = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
+        const trailGeo = new THREE.BufferGeometry();
+        state.trailLine = new THREE.Line(trailGeo, trailMat);
+        state.trailLine.frustumCulled = false; 
+        scene.add(state.trailLine);
+
+        // --- 4. UI HANDLERS ---
+
+        window.updateModeInfo = function() {
+            const m = ui.mode.value;
+            let txt = "";
+            if (m === "GPS_INPUT") txt = "MAVLink Software Bridge. Expects Float Lat/Lon, Float Alt, Float Velocity.";
+            if (m === "ODOM") txt = "ROS / Visual SLAM. Expects Local Position (Meters) & Quaternions.";
+            if (m === "UBX") txt = "Hardware Serial Protocol. Expects Integers (Deg*1e7) and Millimeters.";
+            ui.desc.innerText = txt;
+        }
+
+        window.autoFill = function() {
+            const baseLat = 37.7940; 
+            const baseLon = -122.3960; 
+            
+            ui.slat.value = baseLat.toFixed(6);
+            ui.slon.value = baseLon.toFixed(6);
+            ui.salt.value = "10";
+            
+            // Generate a target ~200m away
+            const tLat = baseLat + 0.002; 
+            const tLon = baseLon + 0.002; 
+            
+            ui.elat.value = tLat.toFixed(6); 
+            ui.elon.value = tLon.toFixed(6); 
+            ui.ealt.value = "40";
+            ui.speed.value = "10";
+
+            ui.status.innerText = "Values Generated!";
+            ui.status.style.color = "#4ade80";
+
+            // Preview logic
+            state.refLat = baseLat;
+            state.refLon = baseLon;
+            state.refAlt = 10;
+            
+            // Calculate pseudo-physics for preview
+            const R = 6371000;
+            const dLat = (tLat - baseLat) * Math.PI / 180;
+            const dLon = (tLon - baseLon) * Math.PI / 180;
+            const latRad = baseLat * Math.PI / 180;
+            const dN = dLat * R;
+            const dE = dLon * Math.cos(latRad) * R;
+
+            state.startPos.set(0, 10, 0);
+            state.endPos.set(dE, 40, -dN);
+            
+            // Show Labels
+            updateLabelText(baseLat, baseLon, 10, tLat, tLon, 40);
+            
+            viewHome();
+        }
+
+        window.togglePause = function() {
+            if (!state.flying) return;
+            state.paused = !state.paused;
+            ui.btnPause.innerText = state.paused ? "Resume" : "Pause";
+            ui.btnPause.style.background = state.paused ? "#22c55e" : "#facc15";
+            
+            if (state.paused) state.pauseTime = performance.now() / 1000;
+            else state.totalPausedTime += (performance.now() / 1000 - state.pauseTime);
+        }
+
+        window.toggleFollow = function() {
+            state.following = !state.following;
+            ui.btnFollow.innerText = state.following ? "Follow Cam: ON" : "Follow Cam: OFF";
+            ui.btnFollow.className = state.following ? "btn-follow active" : "btn-follow";
+        }
+
+        window.viewHome = function() {
+            // Reset camera to look at startPos
+            const center = new THREE.Vector3().addVectors(state.startPos, state.endPos).multiplyScalar(0.5);
+            controls.target.copy(center);
+            camera.position.set(state.startPos.x - 50, state.startPos.y + 50, state.startPos.z + 50);
+            controls.update();
+        }
+
+        window.launchMission = function() {
+            if(!ui.slat.value || !ui.elat.value) { alert("Please Auto-Fill first."); return; }
+
+            state.refLat = parseFloat(ui.slat.value);
+            state.refLon = parseFloat(ui.slon.value);
+            state.refAlt = parseFloat(ui.salt.value);
+            const tLat = parseFloat(ui.elat.value);
+            const tLon = parseFloat(ui.elon.value);
+            const tAlt = parseFloat(ui.ealt.value);
+
+            // Calculate Local Physics Vector
+            const R = 6378137;
+            const dLat = (tLat - state.refLat) * Math.PI / 180;
+            const dLon = (tLon - state.refLon) * Math.PI / 180;
+            const latRad = state.refLat * Math.PI / 180;
+            
+            const distN = dLat * R;
+            const distE = dLon * Math.cos(latRad) * R;
+
+            state.startPos.set(0, state.refAlt, 0); 
+            state.endPos.set(distE, tAlt, -distN); 
+
+            const dist = state.startPos.distanceTo(state.endPos);
+            const speed = parseFloat(ui.speed.value);
+            
+            state.duration = dist / speed;
+            state.startTime = performance.now() / 1000;
+            state.totalPausedTime = 0;
+            state.paused = false;
+            state.flying = true;
+
+            // Reset Trail
+            state.trailPoints = [];
+            state.trailPoints.push(state.startPos.clone());
+            state.trailLine.geometry.setFromPoints(state.trailPoints);
+            state.prevPos.copy(state.startPos);
+
+            ui.status.innerText = "IN FLIGHT";
+            ui.btnPause.innerText = "Pause";
+            
+            // Draw Trajectory Line
+            state.pathLine.geometry.setFromPoints([state.startPos, state.endPos]);
+
+            // Update Labels
+            updateLabelText(state.refLat, state.refLon, state.refAlt, tLat, tLon, tAlt);
+        }
+
+        function updateLabelText(sLat, sLon, sAlt, eLat, eLon, eAlt) {
+            ui.lblStart.style.display = 'block';
+            ui.lblEnd.style.display = 'block';
+            ui.txtStart.innerHTML = `Lat: ${sLat.toFixed(5)}<br>Lon: ${sLon.toFixed(5)}<br>Alt: ${sAlt}m`;
+            ui.txtEnd.innerHTML = `Lat: ${eLat.toFixed(5)}<br>Lon: ${eLon.toFixed(5)}<br>Alt: ${eAlt}m`;
+        }
+
+        window.resetSim = function() {
+            state.flying = false;
+            state.paused = false;
+            state.velocity.set(0,0,0);
+            state.acceleration.set(0,0,0);
+            state.droneGroup.position.set(0,0,0);
+            state.trailPoints = [];
+            state.trailLine.geometry.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,0)]);
+            ui.stream.innerText = "Simulation Reset.";
+            ui.status.innerText = "Ready";
+        }
+
+        // --- 5. PHYSICS LOOP ---
+        function updateLoop() {
+            controls.update();
+            updateLabelPositions();
+
+            if (!state.flying || state.paused) return;
+
+            const now = performance.now() / 1000;
+            const elapsed = now - state.startTime - state.totalPausedTime;
+            const progress = Math.min(elapsed / state.duration, 1.0);
+
+            // Store previous pos for Follow Cam logic
+            state.prevPos.copy(state.currentPos);
+
+            // Interpolate new position
+            state.currentPos.lerpVectors(state.startPos, state.endPos, progress);
+            
+            // Calc Velocity for display
+            const speed = parseFloat(ui.speed.value);
+            const moveVec = new THREE.Vector3().subVectors(state.endPos, state.startPos);
+            
+            if (progress < 1.0) {
+                state.velocity.copy(moveVec).normalize().multiplyScalar(speed);
+            } else {
+                state.velocity.set(0,0,0);
+                state.acceleration.set(0,0,0);
+                state.flying = false;
+                ui.status.innerText = "ARRIVED";
+                ui.btnPause.innerText = "Done";
+            }
+
+            // Fake Accel
+            if (progress < 0.1) state.acceleration.copy(state.velocity).multiplyScalar(2);
+            else if (progress > 0.9) state.acceleration.copy(state.velocity).multiplyScalar(-2);
+            else state.acceleration.set(0,0,0);
+
+            // Apply to Drone Mesh
+            state.droneGroup.position.copy(state.currentPos);
+            
+            // FOLLOW CAM LOGIC
+            if(state.following) {
+                const delta = new THREE.Vector3().subVectors(state.currentPos, state.prevPos);
+                camera.position.add(delta);
+                controls.target.copy(state.currentPos);
+            }
+
+            // Rotate
+            if(state.velocity.lengthSq() > 0.01) {
+                const target = state.currentPos.clone().add(state.velocity);
+                state.droneGroup.lookAt(target);
+            }
+
+            // Vectors
+            if (state.velocity.length() > 0.1) {
+                state.velArrow.visible = true;
+                // Vel Arrow points Forward relative to drone (Z axis)
+                state.velArrow.setDirection(new THREE.Vector3(0,0,1)); 
+                state.velArrow.setLength(state.velocity.length() * 0.5);
+            } else state.velArrow.visible = false;
+
+            // --- TRAIL UPDATE ---
+            state.trailPoints.push(state.currentPos.clone());
+            state.trailLine.geometry.setFromPoints(state.trailPoints);
+
+            // Update Dist
+            ui.dist.innerText = `Dist: ${Math.floor(state.startPos.distanceTo(state.endPos) * (1-progress))}m`; 
+
+            // Back-calculate Geo for Data Stream
+            const dE = state.currentPos.x;
+            const dN = -state.currentPos.z;
+            const R = 6378137;
+            const dLat = dN / R * (180/Math.PI);
+            const dLon = dE / (R * Math.cos(state.refLat * Math.PI/180)) * (180/Math.PI);
+
+            const curLat = state.refLat + dLat;
+            const curLon = state.refLon + dLon;
+            const curAlt = state.currentPos.y;
+
+            generateDataPacket(curLat, curLon, curAlt);
+        }
+
+        // Project 3D positions to 2D screen CSS
+        function updateLabelPositions() {
+            // Helper function to handle visibility and position
+            const updateLabel = (position, element) => {
+                if(element.style.display === 'none' && !state.flying) return; // Don't show if hidden by logic unless flying logic overrides? 
+                // Actually simpler: just calculate and show/hide based on camera.
+                
+                const vec = position.clone();
+                vec.project(camera); // Project to normalized screen coords (-1 to +1)
+
+                // Check 1: Is it behind the camera? (z > 1 in ThreeJS usually means outside far plane or behind)
+                // Check 2: Is it strictly behind the camera plane?
+                const isBehind = vec.z > 1;
+
+                // Check 3: Is it way off screen? (buffer of 1.1 allows partially off-screen)
+                const isOffScreen = Math.abs(vec.x) > 1.1 || Math.abs(vec.y) > 1.1;
+
+                if (isBehind || isOffScreen) {
+                    element.style.opacity = 0; // Hide it
+                } else {
+                    element.style.opacity = 1; // Show it
+                    const x = (vec.x * .5 + .5) * ui.viewport.clientWidth;
+                    const y = (vec.y * -.5 + .5) * ui.viewport.clientHeight;
+                    element.style.left = `${x}px`;
+                    element.style.top = `${y}px`;
+                }
+            };
+
+            // Only update if the elements exist and are meant to be active (managed by launch/autofill visibility logic previously)
+            // We use opacity for smooth hiding, but display state is controlled by mission start.
+            if(ui.lblStart.style.display !== 'none') updateLabel(state.startPos, ui.lblStart);
+            if(ui.lblEnd.style.display !== 'none') updateLabel(state.endPos, ui.lblEnd);
+        }
+
+        function generateDataPacket(lat, lon, alt) {
+            const mode = ui.mode.value;
+            let text = "";
+            const vx = state.velocity.x; 
+            const vz = -state.velocity.z; // North
+            const vy = state.velocity.y; // Up
+            const ax = state.acceleration.x;
+            const az = -state.acceleration.z; // North
+            const ay = state.acceleration.y; // Up
+            const speed2d = Math.hypot(vx, vz);
+            const yawRad = speed2d > 0.001 ? Math.atan2(vx, vz) : 0; // 0 = North, +90 = East
+            const yawCentideg = Math.round(((yawRad * 180 / Math.PI) + 360) % 360 * 100);
+            const timeUsec = Math.floor((performance.now() - state.bootTime) * 1000);
+            const iTow = Math.floor((performance.now() - state.bootTime) % 604800000);
+            const velNmm = Math.round(vz * 1000);
+            const velEmm = Math.round(vx * 1000);
+            const velDmm = Math.round(-vy * 1000);
+            const headMot = Math.round(((yawRad * 180 / Math.PI) + 360) % 360 * 100000);
+            const halfYaw = yawRad * 0.5;
+            const qx = 0;
+            const qy = 0;
+            const qz = Math.sin(halfYaw);
+            const qw = Math.cos(halfYaw);
+            
+            if (mode === "GPS_INPUT") {
+                text += `[MAVLINK MSG: GPS_INPUT]\n------------------------\n`;
+                text += `time_usec: ${timeUsec}\n`;
+                text += `lat: ${Math.floor(lat*1e7)}, lon: ${Math.floor(lon*1e7)}\n`;
+                text += `alt: ${alt.toFixed(2)} m\n`;
+                text += `vn: ${vz.toFixed(2)} ve: ${vx.toFixed(2)} vd: ${(-vy).toFixed(2)}\n`;
+                text += `ax: ${az.toFixed(2)} ay: ${ax.toFixed(2)} az: ${ay.toFixed(2)}\n`;
+                text += `yaw: ${yawCentideg}\n`;
+                text += `hdop: ${0.9}\n`;
+                text += `vdop: ${1.1}\n`;
+            } else if (mode === "ODOM") {
+                text += `[ROS MSG: nav_msgs/Odometry]\n----------------------------\n`;
+                text += `frame: odom -> base_link\n`;
+                text += `pose.pose.position: {x:${vz.toFixed(2)}, y:${vx.toFixed(2)}, z:${vy.toFixed(2)}}\n`;
+                text += `pose.pose.orientation: {x:${qx.toFixed(4)}, y:${qy.toFixed(4)}, z:${qz.toFixed(4)}, w:${qw.toFixed(4)}}\n`;
+                text += `twist.twist.linear: {x:${vz.toFixed(2)}, y:${vx.toFixed(2)}, z:${vy.toFixed(2)}}\n`;
+                text += `twist.twist.angular: {x:0.00, y:0.00, z:0.00}\n`;
+                text += `pose.covariance: [${Array(36).fill(0).join(', ')}]\n`;
+                text += `twist.covariance: [${Array(36).fill(0).join(', ')}]\n`;
+            } else if (mode === "UBX") {
+                text += `[UBX PAYLOAD: NAV-PVT]\n----------------------\n`;
+                text += `iTOW: ${iTow}\n`;
+                text += `lat: ${Math.floor(lat*1e7)}, lon: ${Math.floor(lon*1e7)}\n`;
+                text += `hMSL: ${Math.floor(alt*1000)} mm\n`;
+                text += `velN: ${velNmm} velE: ${velEmm} velD: ${velDmm}\n`;
+                text += `headMot: ${headMot}\n`;
+                text += `fixType: 3\n`;
+                text += `hAcc: 800 vAcc: 900\n`;
+            }
+            ui.stream.innerText = text;
+        }
+
+        // Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateLoop();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = (window.innerWidth - 400) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 400, window.innerHeight);
+        });
+
+        updateModeInfo();
+        animate();
+
+    </script>
+</body>
+</html>

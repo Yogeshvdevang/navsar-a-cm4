@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NAVISAR Flight GUI</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+      :root {
+        --bg: #000000;
+        --panel: #050505;
+        --panel-soft: #050505;
+        --panel-border: #1a1a1a;
+        --text: #f5f5f5;
+        --muted: #b3b3b3;
+        --accent: #ff8a00;
+        --accent-2: #ff8a00;
+        --accent-3: #ff8a00;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Manrope", system-ui, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .dashboard {
+        width: min(1120px, 96vw);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        padding: 22px 24px 20px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .top-row {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .top-row .meta {
+        display: flex;
+        gap: 14px;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .top-row .center {
+        text-align: center;
+      }
+
+      .speed-value {
+        font-size: 40px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .speed-unit {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        margin-top: 4px;
+      }
+
+      .top-row .right {
+        justify-self: end;
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .mode-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .mode-buttons button {
+        border: 1px solid var(--panel-border);
+        background: #000;
+        color: var(--text);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+      }
+
+      .mode-buttons button.active {
+        background: var(--accent);
+        color: #000;
+        border-color: var(--accent);
+      }
+
+      .mode-buttons button[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .main {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: 16px;
+      }
+
+      .left-panel {
+        background: var(--panel-soft);
+        border: 1px solid var(--panel-border);
+        border-radius: 20px;
+        padding: 18px;
+        display: grid;
+        gap: 16px;
+        min-height: 420px;
+      }
+
+      .stage {
+        display: grid;
+        gap: 16px;
+        place-items: center;
+      }
+
+      .drone-box {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+
+      .drone-wrap {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      #drone-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .compass {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: #000;
+        border: 1px solid var(--panel-border);
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        box-shadow: 0 0 0 2px #0b0b0b inset;
+      }
+
+      .compass .ring {
+        position: absolute;
+        inset: 10px;
+        border-radius: 50%;
+        border: 1px dashed rgba(255, 138, 0, 0.25);
+      }
+
+      .compass .needle {
+        width: 48px;
+        height: 2px;
+        background: var(--accent);
+        transform-origin: left center;
+        position: absolute;
+      }
+
+      .compass .needle::after {
+        content: "";
+        position: absolute;
+        right: -6px;
+        top: -4px;
+        border-left: 8px solid var(--accent);
+        border-top: 5px solid transparent;
+        border-bottom: 5px solid transparent;
+      }
+
+      .compass .label {
+        position: absolute;
+        font-weight: 600;
+      }
+
+      .compass .n { top: 6px; }
+      .compass .s { bottom: 6px; }
+      .compass .e { right: 6px; }
+      .compass .w { left: 6px; }
+
+      .radar {
+        position: absolute;
+        width: 86px;
+        height: 86px;
+        border-radius: 50%;
+        background: #050505;
+        border: 1px solid var(--panel-border);
+        box-shadow: var(--shadow);
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .radar.left {
+        left: 10px;
+        bottom: 10px;
+      }
+
+      .radar.right {
+        right: 10px;
+        bottom: 10px;
+      }
+
+      .radar .needle {
+        width: 44px;
+        height: 2px;
+        background: var(--accent);
+        transform-origin: left center;
+        position: absolute;
+      }
+
+      .radar .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent-2);
+        position: absolute;
+      }
+
+      .side-stat {
+        display: grid;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .side-stat .value {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .gauges,
+      .gauge-card,
+      .gauge-title,
+      .gauge,
+      .gauge::before,
+      .gauge-needle,
+      .gauge-value {
+        display: none;
+      }
+
+      .right-panel {
+        display: grid;
+        gap: 12px;
+      }
+
+      .plot-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 16px;
+        padding: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .kv {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 6px 10px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 11px;
+      }
+
+      .kv div {
+        padding: 4px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .kv div:last-child,
+      .kv div:nth-last-child(2) {
+        border-bottom: none;
+      }
+
+      .plot-wrap {
+        margin-top: 8px;
+        background: #000;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 8px;
+      }
+
+      .plot-wrap canvas {
+        width: 100%;
+        height: 180px;
+        display: block;
+      }
+
+      .traj-wrap canvas {
+        height: 200px;
+      }
+
+      .series-list {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .series-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: #050505;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .series-item .left {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .bottom-row {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .pill {
+        background: var(--panel-soft);
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 8px 10px;
+        text-align: center;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+      }
+
+      .pill.active {
+        color: var(--panel);
+        background: var(--accent);
+        border-color: transparent;
+      }
+
+      @media (max-width: 980px) {
+        .main {
+          grid-template-columns: 1fr;
+        }
+        .bottom-row {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .plot-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="dashboard">
+      <div class="top-row">
+        <div class="meta">
+          <span>GPS <strong id="fix">--</strong></span>
+          <span>DRIFT <strong id="drift">--</strong></span>
+          <span>SRC <strong id="source">--</strong></span>
+        </div>
+        <div class="center">
+          <div class="speed-value" id="speed-big">0</div>
+          <div class="speed-unit">m/s</div>
+        </div>
+        <div class="right">
+          <span>MODE <strong id="mode">--</strong></span>
+          <span>DRIVE <strong id="drive-mode">--</strong></span>
+        </div>
+      </div>
+      <div class="mode-buttons" id="mode-buttons">
+        <button data-mode="optical_flow_gps_port">Optical GPS</button>
+        <button data-mode="optical_flow_mavlink">Optical MAV</button>
+        <button data-mode="gps_mavlink">VO GPS</button>
+        <button data-mode="odometry">VO Odom</button>
+        <button data-mode="optical_flow_then_vo">Auto 8m</button>
+      </div>
+
+      <div class="main">
+        <div class="left-panel">
+          <div class="stage">
+            <div class="drone-box">
+              <div class="compass">
+                <div class="ring"></div>
+                <div class="label n">N</div>
+                <div class="label s">S</div>
+                <div class="label e">E</div>
+                <div class="label w">W</div>
+                <div class="needle" id="compass-needle"></div>
+              </div>
+              <div class="drone-wrap">
+                <canvas id="drone-canvas"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="right-panel">
+          <div class="card">
+            <h3>Position & Nav</h3>
+            <div class="kv">
+              <div>Lat</div><div id="nav-lat">--</div>
+              <div>Lon</div><div id="nav-lon">--</div>
+              <div>Alt (m)</div><div id="nav-alt">--</div>
+              <div>Speed (m/s)</div><div id="nav-spd">--</div>
+              <div>Heading (deg)</div><div id="nav-hdg">--</div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>VO Values</h3>
+            <div class="kv">
+              <div>X (m)</div><div id="vo-x">--</div>
+              <div>Y (m)</div><div id="vo-y">--</div>
+              <div>Z (m)</div><div id="vo-z">--</div>
+              <div>Vx (m/s)</div><div id="vo-vx">--</div>
+              <div>Vy (m/s)</div><div id="vo-vy">--</div>
+              <div>Vz (m/s)</div><div id="vo-vz">--</div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Optical Flow</h3>
+            <div class="kv">
+              <div>Dist (cm)</div><div id="of-dist">--</div>
+              <div>Flow VX</div><div id="of-vx">--</div>
+              <div>Flow VY</div><div id="of-vy">--</div>
+              <div>Quality</div><div id="of-q">--</div>
+            </div>
+          </div>
+          <div class="plot-row">
+            <div class="card">
+              <h3>Optical Plot</h3>
+              <div class="plot-controls" style="margin-top:6px;">
+                <label for="of-window-seconds" style="font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);">Plot Window (s)</label>
+                <input id="of-window-seconds" type="text" value="8" style="width:90px; padding:6px 8px; border-radius:8px; border:1px solid var(--panel-border); background:#000; color:var(--text); font-family:'JetBrains Mono', ui-monospace, monospace;" />
+              </div>
+              <div class="plot-wrap">
+                <canvas id="of-plot-canvas"></canvas>
+              </div>
+              <div id="of-series-list" class="series-list" style="margin-top:10px;"></div>
+              <div class="plot-wrap" style="margin-top:10px; max-height:160px; overflow:auto;">
+                <table style="width:100%; border-collapse:collapse; font-family:'JetBrains Mono', ui-monospace, monospace; font-size:10px;">
+                  <thead>
+                    <tr>
+                      <th style="text-align:left; padding:6px 4px; border-bottom:1px solid #1a1a1a;">time_ms</th>
+                      <th style="text-align:right; padding:6px 4px; border-bottom:1px solid #1a1a1a;">dist_mm</th>
+                      <th style="text-align:right; padding:6px 4px; border-bottom:1px solid #1a1a1a;">strength</th>
+                      <th style="text-align:right; padding:6px 4px; border-bottom:1px solid #1a1a1a;">precision</th>
+                      <th style="text-align:right; padding:6px 4px; border-bottom:1px solid #1a1a1a;">flow_vx</th>
+                      <th style="text-align:right; padding:6px 4px; border-bottom:1px solid #1a1a1a;">flow_vy</th>
+                      <th style="text-align:right; padding:6px 4px; border-bottom:1px solid #1a1a1a;">flow_q</th>
+                    </tr>
+                  </thead>
+                  <tbody id="of-plot-table-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <h3>3D Trajectory</h3>
+              <div class="plot-wrap traj-wrap">
+                <canvas id="of-traj-canvas"></canvas>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="bottom-row">
+        <div class="pill active">Map</div>
+        <div class="pill">Sensor</div>
+        <div class="pill">Camera</div>
+        <div class="pill">Mode</div>
+        <div class="pill">Logs</div>
+        <div class="pill">Manual</div>
+      </div>
+    </section>
+
+    <script>
+      const fmt = (value, digits = 2) => {
+        if (value === null || value === undefined) return "--";
+        if (Number.isFinite(value)) return value.toFixed(digits);
+        return value;
+      };
+
+      const asFiniteNumber = (...values) => {
+        for (const value of values) {
+          const num = Number(value);
+          if (Number.isFinite(num)) {
+            return num;
+          }
+        }
+        return null;
+      };
+
+      const setText = (id, value, digits) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = fmt(value, digits);
+      };
+
+      const dataUrl = (() => {
+        if (window.location.protocol === "file:") {
+          return "http://127.0.0.1:8765/data";
+        }
+        return "/data";
+      })();
+
+      const droneCanvas = document.getElementById("drone-canvas");
+      const droneCtx = droneCanvas ? droneCanvas.getContext("2d") : null;
+
+      const motionState = {
+        x: 0,
+        y: 0,
+        lastTime: null,
+        trail: [],
+        maxTrail: 120,
+      };
+
+      const drawDrone = () => {
+        if (!droneCtx || !droneCanvas) return;
+        const rect = droneCanvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = window.devicePixelRatio || 1;
+        droneCanvas.width = Math.floor(rect.width * dpr);
+        droneCanvas.height = Math.floor(rect.height * dpr);
+        droneCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        droneCtx.clearRect(0, 0, rect.width, rect.height);
+
+        const cx = rect.width * 0.5;
+        const cy = rect.height * 0.55;
+        const maxAbs = Math.max(
+          1,
+          ...motionState.trail.map((pt) => Math.max(Math.abs(pt.x), Math.abs(pt.y))),
+          Math.abs(motionState.x),
+          Math.abs(motionState.y)
+        );
+        const scale = Math.min(18, (Math.min(rect.width, rect.height) * 0.32) / maxAbs);
+
+        if (motionState.trail.length > 2) {
+          droneCtx.strokeStyle = "rgba(255, 138, 0, 0.35)";
+          droneCtx.lineWidth = 2.2;
+          droneCtx.beginPath();
+          const pts = motionState.trail.map((pt) => ({
+            x: cx + pt.x * scale,
+            y: cy - pt.y * scale,
+          }));
+          droneCtx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length - 1; i += 1) {
+            const midX = (pts[i].x + pts[i + 1].x) / 2;
+            const midY = (pts[i].y + pts[i + 1].y) / 2;
+            droneCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+          }
+          droneCtx.stroke();
+        }
+
+        const x = cx + motionState.x * scale;
+        const y = cy - motionState.y * scale;
+
+        const bodyGrad = droneCtx.createRadialGradient(x, y - 6, 4, x, y, 24);
+        bodyGrad.addColorStop(0, "#ffffff");
+        bodyGrad.addColorStop(1, "#3a3a3a");
+        droneCtx.fillStyle = bodyGrad;
+        droneCtx.beginPath();
+        droneCtx.arc(x, y, 10, 0, Math.PI * 2);
+        droneCtx.fill();
+
+        droneCtx.strokeStyle = "#ff8a00";
+        droneCtx.lineWidth = 5;
+        const arm = 26;
+        droneCtx.beginPath();
+        droneCtx.moveTo(x - arm, y);
+        droneCtx.lineTo(x + arm, y);
+        droneCtx.moveTo(x, y - arm);
+        droneCtx.lineTo(x, y + arm);
+        droneCtx.stroke();
+
+        droneCtx.fillStyle = "#ffffff";
+        droneCtx.beginPath();
+        droneCtx.arc(x - arm, y, 6, 0, Math.PI * 2);
+        droneCtx.arc(x + arm, y, 6, 0, Math.PI * 2);
+        droneCtx.arc(x, y - arm, 6, 0, Math.PI * 2);
+        droneCtx.arc(x, y + arm, 6, 0, Math.PI * 2);
+        droneCtx.fill();
+        droneCtx.fillStyle = "rgba(255, 138, 0, 0.8)";
+        droneCtx.beginPath();
+        droneCtx.arc(x - arm, y, 2.6, 0, Math.PI * 2);
+        droneCtx.arc(x + arm, y, 2.6, 0, Math.PI * 2);
+        droneCtx.arc(x, y - arm, 2.6, 0, Math.PI * 2);
+        droneCtx.arc(x, y + arm, 2.6, 0, Math.PI * 2);
+        droneCtx.fill();
+      };
+
+      const ofPlotCanvas = document.getElementById("of-plot-canvas");
+      const ofPlotCtx = ofPlotCanvas ? ofPlotCanvas.getContext("2d") : null;
+      const ofSeriesList = document.getElementById("of-series-list");
+      const ofPlotTableBody = document.getElementById("of-plot-table-body");
+      const ofWindowSecondsEl = document.getElementById("of-window-seconds");
+
+      const ofPlotState = {
+        times: [],
+        records: [],
+        lastKey: null,
+        maxPoints: 900,
+        series: [
+          { key: "distance_mm", label: "DIST_MM", color: "#ff8a00", enabled: true, digits: 0, values: [] },
+          { key: "strength", label: "STRENGTH", color: "#ff8a00", enabled: true, digits: 0, values: [] },
+          { key: "precision", label: "PRECISION", color: "#ff8a00", enabled: true, digits: 0, values: [] },
+          { key: "flow_vel_x", label: "FLOW_VX", color: "#ff8a00", enabled: true, digits: 0, values: [] },
+          { key: "flow_vel_y", label: "FLOW_VY", color: "#ff8a00", enabled: true, digits: 0, values: [] },
+          { key: "flow_quality", label: "FLOW_Q", color: "#ff8a00", enabled: true, digits: 0, values: [] },
+        ],
+      };
+
+      const normalizeOpticalPlotRecord = (sample) => {
+        if (!sample || typeof sample !== "object") {
+          return null;
+        }
+        const distCm = asFiniteNumber(sample.dist_cm);
+        const time_ms = asFiniteNumber(sample.time_ms, Date.now());
+        const distance_mm = asFiniteNumber(
+          sample.dist_mm,
+          sample.distance_mm,
+          distCm === null ? 0 : distCm * 10
+        );
+        return {
+          time_ms,
+          distance_mm: distance_mm ?? 0,
+          strength: asFiniteNumber(sample.strength, 0),
+          precision: asFiniteNumber(sample.precision, 0),
+          distance_status: asFiniteNumber(sample.dist_ok, sample.distance_status, 0),
+          flow_vel_x: asFiniteNumber(sample.flow_vx, sample.flow_vel_x, 0),
+          flow_vel_y: asFiniteNumber(sample.flow_vy, sample.flow_vel_y, 0),
+          flow_quality: asFiniteNumber(sample.flow_q, sample.flow_quality, 0),
+          flow_status: asFiniteNumber(sample.flow_ok, sample.flow_status, 0),
+        };
+      };
+
+      const ingestOpticalPlotSample = (sample) => {
+        const record = normalizeOpticalPlotRecord(sample);
+        if (!record) return null;
+        const key = record.time_ms;
+        if (ofPlotState.lastKey === key) {
+          return record;
+        }
+        ofPlotState.lastKey = key;
+        ofPlotState.times.push(record.time_ms);
+        ofPlotState.records.push(record);
+        ofPlotState.series.forEach((serie) => {
+          serie.values.push(record[serie.key] ?? 0);
+        });
+        if (ofPlotState.times.length > ofPlotState.maxPoints) {
+          ofPlotState.times.shift();
+          ofPlotState.records.shift();
+          ofPlotState.series.forEach((serie) => serie.values.shift());
+        }
+        return record;
+      };
+
+      const renderOpticalSeriesList = () => {
+        if (!ofSeriesList) return;
+        ofSeriesList.innerHTML = "";
+        ofPlotState.series.forEach((serie) => {
+          const item = document.createElement("div");
+          item.className = "series-item";
+          item.innerHTML = `
+            <div class="left">
+              <span class="swatch" style="background:${serie.color}"></span>
+              <span>${serie.label}</span>
+            </div>
+            <span>${serie.enabled ? "On" : "Off"}</span>
+          `;
+          item.addEventListener("click", () => {
+            serie.enabled = !serie.enabled;
+            renderOpticalSeriesList();
+            drawOpticalPlot();
+          });
+          ofSeriesList.appendChild(item);
+        });
+      };
+
+      const renderOpticalTable = () => {
+        if (!ofPlotTableBody) return;
+        const rows = ofPlotState.records.slice(-12).reverse();
+        ofPlotTableBody.innerHTML = rows
+          .map(
+            (row) => `
+              <tr>
+                <td style="text-align:left; padding:6px 4px; border-bottom:1px solid #eef1f6;">${Math.round(row.time_ms)}</td>
+                <td style="text-align:right; padding:6px 4px; border-bottom:1px solid #eef1f6;">${fmt(row.distance_mm, 0)}</td>
+                <td style="text-align:right; padding:6px 4px; border-bottom:1px solid #eef1f6;">${fmt(row.strength, 0)}</td>
+                <td style="text-align:right; padding:6px 4px; border-bottom:1px solid #eef1f6;">${fmt(row.precision, 0)}</td>
+                <td style="text-align:right; padding:6px 4px; border-bottom:1px solid #eef1f6;">${fmt(row.flow_vel_x, 0)}</td>
+                <td style="text-align:right; padding:6px 4px; border-bottom:1px solid #eef1f6;">${fmt(row.flow_vel_y, 0)}</td>
+                <td style="text-align:right; padding:6px 4px; border-bottom:1px solid #eef1f6;">${fmt(row.flow_quality, 0)}</td>
+              </tr>
+            `
+          )
+          .join("");
+      };
+
+      const drawOpticalPlot = () => {
+        if (!ofPlotCtx || !ofPlotCanvas) return;
+        const rect = ofPlotCanvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = window.devicePixelRatio || 1;
+        ofPlotCanvas.width = Math.floor(rect.width * dpr);
+        ofPlotCanvas.height = Math.floor(rect.height * dpr);
+        ofPlotCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ofPlotCtx.clearRect(0, 0, rect.width, rect.height);
+
+        ofPlotCtx.fillStyle = "#000";
+        ofPlotCtx.fillRect(0, 0, rect.width, rect.height);
+
+        if (!ofPlotState.records.length) return;
+        const startIdx = 0;
+
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+        ofPlotState.series.forEach((serie) => {
+          if (!serie.enabled) return;
+          for (let i = startIdx; i < serie.values.length; i += 1) {
+            const v = serie.values[i];
+            if (!Number.isFinite(v)) continue;
+            minVal = Math.min(minVal, v);
+            maxVal = Math.max(maxVal, v);
+          }
+        });
+        if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || minVal === maxVal) {
+          minVal -= 1;
+          maxVal += 1;
+        }
+
+        const padding = 14;
+        const xSpan = Math.max(1, ofPlotState.times[ofPlotState.times.length - 1] - ofPlotState.times[startIdx]);
+        const ySpan = maxVal - minVal;
+
+        ofPlotCtx.strokeStyle = "rgba(255, 138, 0, 0.2)";
+        ofPlotCtx.lineWidth = 1;
+        for (let i = 0; i <= 4; i += 1) {
+          const y = padding + ((rect.height - padding * 2) / 4) * i;
+          ofPlotCtx.beginPath();
+          ofPlotCtx.moveTo(padding, y);
+          ofPlotCtx.lineTo(rect.width - padding, y);
+          ofPlotCtx.stroke();
+        }
+
+        ofPlotState.series.forEach((serie) => {
+          if (!serie.enabled) return;
+          ofPlotCtx.strokeStyle = serie.color;
+          ofPlotCtx.lineWidth = 2;
+          ofPlotCtx.beginPath();
+          for (let i = startIdx; i < serie.values.length; i += 1) {
+            const t = ofPlotState.times[i];
+            const v = serie.values[i];
+            const x = padding + ((t - ofPlotState.times[startIdx]) / xSpan) * (rect.width - padding * 2);
+            const y = rect.height - padding - ((v - minVal) / ySpan) * (rect.height - padding * 2);
+            if (i === startIdx) ofPlotCtx.moveTo(x, y);
+            else ofPlotCtx.lineTo(x, y);
+          }
+          ofPlotCtx.stroke();
+        });
+      };
+
+      const ofTrajCanvas = document.getElementById("of-traj-canvas");
+      const ofTrajCtx = ofTrajCanvas ? ofTrajCanvas.getContext("2d") : null;
+      const ofTrajectory = [];
+
+      const drawTrajectory = () => {
+        if (!ofTrajCtx || !ofTrajCanvas) return;
+        const rect = ofTrajCanvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const dpr = window.devicePixelRatio || 1;
+        ofTrajCanvas.width = Math.floor(rect.width * dpr);
+        ofTrajCanvas.height = Math.floor(rect.height * dpr);
+        ofTrajCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ofTrajCtx.clearRect(0, 0, rect.width, rect.height);
+        ofTrajCtx.fillStyle = "#0b0f1a";
+        ofTrajCtx.fillRect(0, 0, rect.width, rect.height);
+        if (ofTrajectory.length < 2) return;
+        ofTrajCtx.strokeStyle = "rgba(255, 138, 0, 0.75)";
+        ofTrajCtx.lineWidth = 2;
+        ofTrajCtx.beginPath();
+        const pts = ofTrajectory.map((pt) => ({
+          x: rect.width * 0.5 + pt.x * 0.4,
+          y: rect.height * 0.6 - pt.y * 0.4,
+        }));
+        ofTrajCtx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length - 1; i += 1) {
+          const midX = (pts[i].x + pts[i + 1].x) / 2;
+          const midY = (pts[i].y + pts[i + 1].y) / 2;
+          ofTrajCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+        }
+        ofTrajCtx.stroke();
+      };
+
+      const updateMotion = (data) => {
+        const nowSec = asFiniteNumber(
+          data?.timestamp,
+          data?.sensors?.optical_flow?.time_ms ? data.sensors.optical_flow.time_ms / 1000 : null,
+          Date.now() / 1000
+        );
+        const isOptical = data?.source === "optical_flow" || String(data?.mode || "").startsWith("optical_flow");
+        const cam = data?.camera || {};
+        const opt = data?.sensors?.optical_flow || {};
+        if (isOptical) {
+          const dt = motionState.lastTime ? Math.max(0, nowSec - motionState.lastTime) : 0;
+          const vx = asFiniteNumber(opt.speed_x, opt.flow_vx, 0) || 0;
+          const vy = asFiniteNumber(opt.speed_y, opt.flow_vy, 0) || 0;
+          const stepX = vx * dt;
+          const stepY = vy * dt;
+          if (Number.isFinite(stepX) && Number.isFinite(stepY)) {
+            motionState.x += Math.max(-5, Math.min(5, stepX));
+            motionState.y += Math.max(-5, Math.min(5, stepY));
+          }
+        } else {
+          const x = asFiniteNumber(cam.x);
+          const y = asFiniteNumber(cam.y);
+          if (x !== null && y !== null) {
+            motionState.x = x;
+            motionState.y = y;
+          }
+        }
+        motionState.lastTime = nowSec;
+        if (Number.isFinite(motionState.x) && Number.isFinite(motionState.y)) {
+          motionState.trail.push({ x: motionState.x, y: motionState.y });
+        }
+        if (motionState.trail.length > motionState.maxTrail) motionState.trail.shift();
+      };
+
+      const tick = async () => {
+        try {
+          const res = await fetch(dataUrl, { cache: "no-store" });
+          const data = await res.json();
+
+          setText("mode", data.mode, 0);
+          setText("source", data.source, 0);
+          setText("drift", data.drift_m, 2);
+          setText("fix", data.gps?.fix_type, 0);
+
+          setText("vo-x", data.camera?.x);
+          setText("vo-y", data.camera?.y);
+          setText("vo-z", data.camera?.z);
+          setText("vo-vx", data.camera?.vx);
+          setText("vo-vy", data.camera?.vy);
+          setText("vo-vz", data.camera?.vz);
+
+          const optRaw = data.sensors?.optical_flow || {};
+          const optOut = data.outputs?.optical_flow_mavlink || {};
+          const opt = (() => {
+            if (optRaw && (optRaw.dist_cm != null || optRaw.distance_mm != null)) {
+              return optRaw;
+            }
+            if (optOut && optOut.distance_m != null) {
+              return {
+                time_ms: optOut.time_ms ?? Date.now(),
+                distance_mm: optOut.distance_m * 1000,
+                dist_cm: optOut.distance_m * 100,
+                flow_vx: optOut.flow_vx ?? optOut.integrated_x ?? 0,
+                flow_vy: optOut.flow_vy ?? optOut.integrated_y ?? 0,
+                flow_q: optOut.quality ?? 0,
+                strength: 0,
+                precision: 0,
+                dist_ok: optOut.distance_m > 0,
+              };
+            }
+            return optRaw;
+          })();
+          setText("of-dist", opt?.dist_cm ?? opt?.distance_mm ? (opt.distance_mm / 10) : null, 1);
+          setText("of-vx", opt?.flow_vx, 0);
+          setText("of-vy", opt?.flow_vy, 0);
+          setText("of-q", opt?.flow_q, 0);
+
+          const speed = Math.hypot(data.camera?.vx || 0, data.camera?.vy || 0);
+          const altitude = asFiniteNumber(data.camera?.z, 0) || 0;
+          setText("speed-big", speed, 0);
+
+          const gps = data.gps_ll_from_fused || {};
+          const gpsPayload = data.outputs?.gps_mavlink?.payload || {};
+          const lat = asFiniteNumber(
+            gps?.lat,
+            gpsPayload?.lat != null ? gpsPayload.lat / 1e7 : null,
+            data.gps?.origin?.lat
+          );
+          const lon = asFiniteNumber(
+            gps?.lon,
+            gpsPayload?.lon != null ? gpsPayload.lon / 1e7 : null,
+            data.gps?.origin?.lon
+          );
+          const alt = asFiniteNumber(
+            gps?.alt_m,
+            gpsPayload?.alt_m,
+            data.gps?.origin?.alt_m
+          );
+          setText("nav-lat", lat, 6);
+          setText("nav-lon", lon, 6);
+          setText("nav-alt", alt, 2);
+          setText("nav-spd", speed, 2);
+          const heading = asFiniteNumber(
+            data.outputs?.gps_port?.heading_deg,
+            data.compass?.incoming?.heading_deg,
+            data.sensors?.attitude?.yaw ? data.sensors.attitude.yaw * 57.3 : null
+          );
+          setText("nav-hdg", heading, 1);
+
+          const driveEl = document.getElementById("drive-mode");
+          const driving = data?.source === "optical_flow" || String(data?.mode || "").startsWith("optical_flow")
+            ? "OPTICAL"
+            : "VO";
+          if (driveEl) driveEl.textContent = driving;
+
+          updateMotion(data);
+          drawDrone();
+          const compassNeedle = document.getElementById("compass-needle");
+          if (compassNeedle && Number.isFinite(heading)) {
+            compassNeedle.style.transform = `rotate(${heading}deg)`;
+          }
+
+          const record = ingestOpticalPlotSample(opt);
+          renderOpticalTable();
+          drawOpticalPlot();
+          if (!record && (opt?.flow_vx !== undefined || opt?.flow_vy !== undefined)) {
+            // Fallback if distance_mm is missing: use flow_vx for visibility
+            ofPlotState.times.push(Date.now());
+            ofPlotState.records.push({
+              time_ms: Date.now(),
+              distance_mm: 0,
+              strength: 0,
+              precision: 0,
+              flow_vel_x: asFiniteNumber(opt.flow_vx, 0),
+              flow_vel_y: asFiniteNumber(opt.flow_vy, 0),
+              flow_quality: asFiniteNumber(opt.flow_q, 0),
+            });
+            ofPlotState.series.forEach((serie) => {
+              const v = ofPlotState.records[ofPlotState.records.length - 1][serie.key] ?? 0;
+              serie.values.push(v);
+            });
+            if (ofPlotState.times.length > ofPlotState.maxPoints) {
+              ofPlotState.times.shift();
+              ofPlotState.records.shift();
+              ofPlotState.series.forEach((serie) => serie.values.shift());
+            }
+            renderOpticalTable();
+            drawOpticalPlot();
+          }
+
+          ofTrajectory.push({ x: motionState.x * 10, y: motionState.y * 10 });
+          if (ofTrajectory.length > 200) ofTrajectory.shift();
+          drawTrajectory();
+        } catch (err) {
+          setText("mode", "offline", 0);
+        }
+      };
+
+      const setGauge = () => {};
+
+      const modeButtons = Array.from(document.querySelectorAll("#mode-buttons button"));
+      const setMode = async (mode) => {
+        try {
+          await fetch("/mode", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode }),
+          });
+        } catch (_) {
+          // ignore
+        }
+      };
+      modeButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setMode(btn.dataset.mode);
+        });
+      });
+
+      const updateModeButtons = (mode, allowed = null) => {
+        modeButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.mode === mode);
+          if (Array.isArray(allowed)) {
+            btn.disabled = !allowed.includes(btn.dataset.mode);
+          }
+        });
+      };
+
+      const refreshModeState = async () => {
+        try {
+          const res = await fetch("/mode", { cache: "no-store" });
+          const payload = await res.json();
+          if (payload?.mode) {
+            updateModeButtons(payload.mode, payload.allowed);
+          }
+        } catch (_) {
+          // ignore
+        }
+      };
+
+      if (ofWindowSecondsEl) {
+        ofWindowSecondsEl.addEventListener("input", drawOpticalPlot);
+      }
+      renderOpticalSeriesList();
+      tick();
+      refreshModeState();
+      setInterval(() => {
+        tick().then(() => {
+          const modeEl = document.getElementById("mode");
+          if (modeEl) updateModeButtons(modeEl.textContent.trim());
+        });
+      }, 250);
+      setInterval(refreshModeState, 2000);
+      window.addEventListener("resize", () => {
+        drawDrone();
+        drawOpticalPlot();
+        drawTrajectory();
+      });
+    </script>
+  </body>
+</html>

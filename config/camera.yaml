@@ -1,0 +1,19 @@
+# Camera and exposure profiles
+# model can be: opencv, ov9281
+model: ov9281 #opencv
+#index: 0
+width: 640
+height: 400 # 16:10 downscale for lower compute
+format: YUV420
+rate_hz: 5.0
+yaw_offset_deg: -45.0
+intrinsics:
+  # Approximate intrinsics scaled to 640x400 from HFOV/VFOV specs.
+  fx: 163.0
+  fy: 196.5
+  cx: 320.0
+  cy: 200.0
+  # Provide real calibration values to remove lens distortion.
+  # Example format: [k1, k2, p1, p2, k3]
+  # Use: python tools/camera_calibration.py --width 640 --height 400
+  dist_coeffs: null

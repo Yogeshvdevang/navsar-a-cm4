@@ -1,0 +1,62 @@
+# VIO parameters
+algorithm: median_flow_exact  # options: median_flow (aka lk_median, median), ransac_affine, median_flow_exact
+motion_gate_enabled: false
+min_features: 60
+max_features: 400
+redetect_interval: 8
+ransac_reproj_thresh: 2.0
+grid_rows: 6
+grid_cols: 8
+per_cell_max_features: 30
+texture_threshold: 16.0
+corner_quality_level: 0.3
+metric_threshold_m: 0.02
+min_inliers: 80
+min_inlier_ratio: 0.7
+max_flow_mad_px: 0.6
+min_flow_px: 1.2
+min_height_m: 0.1
+exposure_min_mean: 10.0
+exposure_max_mean: 245.0
+motion_confirm_frames: 5
+motion_smooth_window: 7
+zero_motion_window: 12
+zero_motion_mean_m: 0.01
+zero_motion_std_m: 0.005
+motion_deadband_m: 0.003
+median_flow_exact:
+  focal_length_px: 350.0
+  height_m: 1.0
+  max_corners: 300
+  quality_level: 0.01
+  min_distance: 7
+  fb_err_thresh: 1.0
+  min_features: 30
+  use_undistort: true
+  show_window: true
+  window_name: "OV9281 Odometry Feed"
+slam:
+  enabled: true
+  backend: opencv
+  model: opencv
+  camera_index: 8
+  share_camera: false
+  run_in_process: true
+  max_features: 800
+  draw_matches: 120
+  motion_scale: 1.0
+  trajectory_size: 600
+  trajectory_scale: 50.0
+  frame_delay_s: 0.01
+  window_name: "Visual SLAM"
+  trajectory_window: "SLAM Trajectory"
+  # ORB-SLAM3 mono-inertial launcher (external process).
+  orbslam3:
+    command: null
+    bin_path: null
+    vocab_path: null
+    settings_path: null
+    dataset_path: null
+    timestamps_path: null
+    extra_args: null
+    cwd: null

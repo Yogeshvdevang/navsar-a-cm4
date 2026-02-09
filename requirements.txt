@@ -1,0 +1,6 @@
+numpy
+opencv-python
+pymavlink
+pyserial
+PyYAML
+#source venv/bin/activate
