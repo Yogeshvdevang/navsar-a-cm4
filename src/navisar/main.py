@@ -218,6 +218,18 @@ def _vo_speed_accuracy(inlier_ratio, flow_mad_px):
     return max(0.2, min(3.0, base + ratio_penalty + mad_penalty))
 
 
+def _heading_from_velocity(vx_e, vy_n, min_speed_mps=0.03):
+    """Return ENU course heading degrees when speed exceeds threshold."""
+    vx = _safe_float(vx_e)
+    vy = _safe_float(vy_n)
+    if vx is None or vy is None:
+        return None
+    speed = math.hypot(vx, vy)
+    if speed < float(min_speed_mps):
+        return None
+    return (math.degrees(math.atan2(vx, vy)) + 360.0) % 360.0
+
+
 def _smooth_heading_deg(prev_deg, new_deg, alpha, max_delta_deg=None):
     """Smooth heading with wrap-around handling."""
     if prev_deg is None:
@@ -1316,6 +1328,12 @@ def main():
     last_baro = {"time": None, "height_m": None, "vz_mps": None}
     last_runtime_mode = {"requested": None, "active": None, "drive": None}
     last_runtime_gps_format = {"requested": None, "active": None}
+    heading_state = {"deg": None, "source": "none"}
+    heading_velocity_min_mps = float(
+        pixhawk_cfg.get("heading_velocity_min_mps", 0.03)
+    )
+    heading_runtime_alpha = pixhawk_cfg.get("heading_runtime_alpha", 0.35)
+    heading_runtime_max_delta = pixhawk_cfg.get("heading_runtime_max_delta_deg", 45.0)
 
     odom_send_interval_s = pixhawk_cfg.get(
         "odometry_send_interval_s", ODOMETRY_SEND_INTERVAL_S
@@ -1368,6 +1386,51 @@ def main():
         return requested, active
 
     apply_gps_format_selection()
+
+    def select_runtime_heading(active_mode, vx_enu=None, vy_enu=None):
+        """Select heading source: optical flow > VO > compass."""
+        compass_heading = _safe_float(last_compass_in.get("heading_deg"))
+        vo_heading = _heading_from_velocity(
+            vx_enu,
+            vy_enu,
+            min_speed_mps=heading_velocity_min_mps,
+        )
+        optical_heading = None
+        sample = last_optical_flow.get("value")
+        if (
+            sample is not None
+            and getattr(sample, "flow_ok", False)
+            and getattr(sample, "dist_ok", False)
+        ):
+            optical_heading = _heading_from_velocity(
+                getattr(sample, "speed_x", None),
+                getattr(sample, "speed_y", None),
+                min_speed_mps=heading_velocity_min_mps,
+            )
+
+        selected = None
+        source = "none"
+        if active_mode in optical_modes and optical_heading is not None:
+            selected = optical_heading
+            source = "optical_flow"
+        elif vo_heading is not None:
+            selected = vo_heading
+            source = "vo"
+        elif compass_heading is not None:
+            selected = compass_heading
+            source = "compass"
+
+        if selected is not None and heading_runtime_alpha is not None:
+            selected = _smooth_heading_deg(
+                heading_state.get("deg"),
+                selected,
+                heading_runtime_alpha,
+                heading_runtime_max_delta,
+            )
+        if selected is not None:
+            heading_state["deg"] = selected
+            heading_state["source"] = source
+        return heading_state.get("deg"), heading_state.get("source", "none")
     optical_flow_mav_cfg = pixhawk_cfg.get("optical_flow_mavlink", {})
     optical_flow_gps_port_mode = OpticalFlowGpsPortMode(
         gps_port_mode=gps_port_mode,
@@ -1689,6 +1752,11 @@ def main():
                 optical_flow_output_mode if use_optical_flow else vo_output_mode
             )
         drive_source = "optical" if active_output_mode in optical_modes else "vo"
+        runtime_heading_deg, runtime_heading_source = select_runtime_heading(
+            active_output_mode,
+            vx_enu=vx_cam,
+            vy_enu=vy_cam,
+        )
         if (
             current_mode != last_runtime_mode["requested"]
             or active_output_mode != last_runtime_mode["active"]
@@ -1720,7 +1788,6 @@ def main():
                 yaw_deg=compass_yaw_deg,
             )
         elif active_output_mode == "gps_port":
-            compass_yaw_deg = last_compass_in.get("heading_deg")
             gps_port_mode.handle(
                 now,
                 x_f,
@@ -1728,8 +1795,8 @@ def main():
                 z_f,
                 selector.gps_origin(),
                 alt_override_m=alt_override_m,
-                heading_deg=compass_yaw_deg,
-                heading_only=True,
+                heading_deg=runtime_heading_deg,
+                heading_only=False,
             )
         elif active_output_mode == "odometry":
             odometry_mode.handle(
@@ -1747,14 +1814,13 @@ def main():
                 mavlink_interface,
             )
         elif active_output_mode == "optical_flow_gps_port":
-            compass_yaw_deg = last_compass_in.get("heading_deg")
             optical_flow_gps_port_mode.handle(
                 now,
                 last_optical_flow["value"],
                 selector.gps_origin(),
                 alt_override_m=alt_override_m,
-                heading_deg=compass_yaw_deg,
-                heading_only=True,
+                heading_deg=runtime_heading_deg,
+                heading_only=False,
             )
 
         if dashboard_state is not None:
@@ -1780,6 +1846,10 @@ def main():
                     "timestamp": _safe_float(now),
                     "mode": active_output_mode,
                     "gps_output_format": gps_format_active,
+                    "heading": {
+                        "deg": _safe_float(runtime_heading_deg),
+                        "source": runtime_heading_source,
+                    },
                     "vio_mode": vio_mode,
                     "source": source,
                     "drift_m": _safe_float(drift_m),
@@ -1963,6 +2033,11 @@ def main():
                 current_mode = mode_state.get()
                 if current_mode not in optical_modes:
                     current_mode = output_mode
+                runtime_heading_deg, runtime_heading_source = select_runtime_heading(
+                    current_mode,
+                    vx_enu=None,
+                    vy_enu=None,
+                )
                 drive_source = "optical"
                 if (
                     current_mode != last_runtime_mode["requested"]
@@ -2031,14 +2106,13 @@ def main():
                         mavlink_interface,
                     )
                 else:
-                    compass_yaw_deg = last_compass_in.get("heading_deg")
                     optical_flow_gps_port_mode.handle(
                         now,
                         sample,
                         selector.gps_origin(),
                         alt_override_m=alt_override_m,
-                        heading_deg=compass_yaw_deg,
-                        heading_only=True,
+                        heading_deg=runtime_heading_deg,
+                        heading_only=False,
                     )
 
                 if dashboard_state is not None:
@@ -2050,6 +2124,10 @@ def main():
                             "timestamp": _safe_float(now),
                             "mode": current_mode if current_mode in optical_modes else output_mode,
                             "gps_output_format": gps_format_active,
+                            "heading": {
+                                "deg": _safe_float(runtime_heading_deg),
+                                "source": runtime_heading_source,
+                            },
                             "vio_mode": "vo",
                             "source": "optical_flow",
                             "drift_m": _safe_float(drift_m),

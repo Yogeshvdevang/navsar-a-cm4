@@ -72,7 +72,7 @@ compass:
   rate_hz: 10
   print: false
   send_mavlink: true
-  heading_offset_deg: 112.75
+  heading_offset_deg: 0
   heading_smoothing_alpha: 0.1
   heading_max_delta_deg: 5.0
   heading_jump_reject_deg: 20.0
