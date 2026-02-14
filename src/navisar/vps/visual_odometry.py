@@ -165,7 +165,13 @@ class VisualOdometry:
             x = int(col * width / cols)
             cv2.line(frame, (x, 0), (x, height), (60, 60, 60), 1)
 
-    def run(self, window_name="VO + Barometer", on_update=None, frame_callback=None):
+    def run(
+        self,
+        window_name="VO + Barometer",
+        on_update=None,
+        frame_callback=None,
+        show_window=True,
+    ):
         """Run the VO loop, optionally emitting updates via callback."""
         ret, prev_frame = self.camera_driver.read()
         if not ret:
@@ -208,7 +214,7 @@ class VisualOdometry:
                 mask = np.zeros_like(display_frame)
 
             if good_old is None or good_new is None:
-                if cv2.waitKey(1) & 0xFF == 27:
+                if show_window and (cv2.waitKey(1) & 0xFF == 27):
                     break
                 time.sleep(self.frame_delay_s)
                 continue
@@ -401,14 +407,16 @@ class VisualOdometry:
             )
 
             img = cv2.add(display_frame, mask)
-            cv2.imshow(window_name, img)
+            if show_window:
+                cv2.imshow(window_name, img)
             if frame_callback is not None:
                 frame_callback(img)
 
-            if cv2.waitKey(1) & 0xFF == 27:
+            if show_window and (cv2.waitKey(1) & 0xFF == 27):
                 break
 
             time.sleep(self.frame_delay_s)
 
         self.camera_driver.release()
-        cv2.destroyAllWindows()
+        if show_window:
+            cv2.destroyAllWindows()

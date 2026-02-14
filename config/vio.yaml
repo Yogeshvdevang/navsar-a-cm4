@@ -36,12 +36,12 @@ median_flow_exact:
   show_window: true
   window_name: "OV9281 Odometry Feed"
 slam:
-  enabled: true
+  enabled: false
   backend: opencv
   model: opencv
   camera_index: 8
-  share_camera: false
-  run_in_process: true
+  share_camera: true
+  run_in_process: false
   max_features: 800
   draw_matches: 120
   motion_scale: 1.0

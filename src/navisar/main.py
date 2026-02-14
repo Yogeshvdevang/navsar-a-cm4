@@ -2517,7 +2517,7 @@ def main():
                 except Exception:
                     return
 
-            vo.run(on_update=on_update, frame_callback=frame_callback)
+            vo.run(on_update=on_update, frame_callback=frame_callback, show_window=False)
         finally:
             if optical_reader is not None:
                 optical_reader.stop()

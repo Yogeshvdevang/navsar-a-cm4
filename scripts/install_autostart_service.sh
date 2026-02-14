@@ -19,7 +19,7 @@ tmpfile="$(mktemp)"
 cat >"$tmpfile" <<EOF
 [Unit]
 Description=NAVISAR Autostart Service
-After=network-online.target
+After=network-online.target graphical.target display-manager.service systemd-user-sessions.service
 Wants=network-online.target
 
 [Service]
@@ -29,12 +29,17 @@ WorkingDirectory=$ROOT_DIR
 Environment=PYTHONUNBUFFERED=1
 Environment=NAVISAR_DASHBOARD_OPEN=0
 Environment=NAVISAR_DASHBOARD_HOST=0.0.0.0
+Environment=NAVISAR_REQUIRE_DISPLAY=1
+Environment=NAVISAR_DISPLAY_WAIT_SECONDS=180
+Environment=QT_QPA_PLATFORM=xcb
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/$RUN_USER/.Xauthority
 ExecStart=/usr/bin/env bash $RUNNER
 Restart=always
 RestartSec=8
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
 EOF
 
 echo "Installing $SERVICE_PATH ..."

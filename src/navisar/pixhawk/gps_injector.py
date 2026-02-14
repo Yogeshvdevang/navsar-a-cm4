@@ -222,7 +222,7 @@ class NmeaGpsInjector:
 
         self._open()
         print(f"Sending NMEA on {self.port} @ {self.baud} ({self.rate_hz} Hz)")
-        vo.run(on_update=on_update)
+        vo.run(on_update=on_update, show_window=False)
 
 
 def _build_arg_parser():

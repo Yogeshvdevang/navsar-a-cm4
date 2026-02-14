@@ -18,6 +18,7 @@ gps_input:
   enabled: true
   port: /dev/ttyAMA5
   baud: 9600
+  # modes: auto, nmea
   format: auto
   init_wait_s: 3
   min_fix_type: 3
@@ -25,8 +26,13 @@ odom_gps_send_interval_s: 0.2
 odom_gps_fix_type: 3
 odom_gps_sats: 10
 odometry_send_interval_s: 0.04
+
+# modes: odometry, gps_mavlink, gps_port, optical_flow_mavlink, optical_flow_gps_port, optical_flow_then_vo
 output_mode: optical_flow_gps_port
+
+# modes: vo, vio_imu
 vio_mode: vo
+
 vio_imu:
   print: true
   print_interval_s: 0.5
@@ -34,10 +40,14 @@ gps_serial:
   enabled: false
   port: /dev/serial0
   baud: 9600
+  # modes: auto, nmea
   format: auto
 optical_flow:
   enabled: true
+
+  # modes: stable, raw_tool
   data_mode: stable
+
   port: /dev/ttyAMA3
   baud: 115200
   rate_hz: 60.0
@@ -65,7 +75,11 @@ optical_flow_mavlink:
   speed_scale: 0.01
 optical_flow_vo:
   switch_m: 8.0
+
+  # modes: optical_flow_mavlink, optical_flow_gps_port (used when output_mode=optical_flow_then_vo)
   optical_flow_output_mode: optical_flow_gps_port
+
+  # modes: gps_mavlink, gps_port, odometry (used when output_mode=optical_flow_then_vo)
   vo_output_mode: gps_mavlink
 compass:
   enabled: true
@@ -79,6 +93,7 @@ compass:
   heading_jump_reject_deg: 20.0
 gps_output:
   enabled: true
+  # modes: ubx, nmea, ubx_nmea (alias accepted: ubx+nmea)
   format: ubx
   port: /dev/ttyAMA0
   baud: 230400
@@ -111,6 +126,7 @@ gnss_monitor:
   spoof_reporter:
     enabled: false
     log_path: data/spoof_events.jsonl
+    # modes: debug, info, notice, warning, error, critical, alert, emergency
     gcs_severity: warning
     min_interval_s: 2.0
 gps_origin:
@@ -120,6 +136,7 @@ gps_origin:
 flight_functions:
   go_initial_to_final:
     enabled: false
+    # modes: gps
     mode: gps
     hold_before_takeoff_s: 10
     initial_point:

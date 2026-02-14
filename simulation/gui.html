@@ -495,9 +495,6 @@
       <div class="access-label">
         Phone URL: <a id="access-url" href="#" target="_blank" rel="noopener noreferrer">--</a>
       </div>
-      <div class="access-label">
-        Start/Stop Control: <a id="control-url" href="#" target="_blank" rel="noopener noreferrer">--</a>
-      </div>
       <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Output Mode</div>
       <div class="mode-buttons" id="mode-buttons">
         <button data-mode="optical_flow_gps_port">Optical GPS</button>
@@ -517,8 +514,6 @@
         <button data-action="read">Read</button>
         <button data-action="write">Write</button>
         <button data-action="zero-alt">Auto Zero Altitude</button>
-        <button data-action="start-script">Start Script</button>
-        <button data-action="stop-script">Stop Script</button>
       </div>
 
       <div class="main">
@@ -711,13 +706,6 @@
         }
         el.textContent = url;
         el.setAttribute("href", url);
-
-        const controlEl = document.getElementById("control-url");
-        if (controlEl) {
-          const controlUrl = `${window.location.protocol}//${window.location.hostname}:8770/`;
-          controlEl.textContent = controlUrl;
-          controlEl.setAttribute("href", controlUrl);
-        }
       };
 
       const updateCompassWidget = (prefix, heading) => {
@@ -816,7 +804,7 @@
       const camSim = document.getElementById("cam-sim");
       const camSimCtx = camSim ? camSim.getContext("2d") : null;
       const streamState = {
-        lastOkMs: 0,
+        useSim: true,
         running: false,
       };
 
@@ -885,9 +873,8 @@
 
       const cameraLoop = (tMs) => {
         if (!streamState.running) return;
-        const stale = Date.now() - streamState.lastOkMs > 1500;
-        setCameraMode(stale);
-        if (stale) {
+        setCameraMode(streamState.useSim);
+        if (streamState.useSim) {
           drawCamSimulation(tMs);
         }
         requestAnimationFrame(cameraLoop);
@@ -1508,44 +1495,6 @@
           }
         }
       };
-      const handleServiceAction = async (action) => {
-        const controlUrl = `${window.location.protocol}//${window.location.hostname}:8770/service`;
-        try {
-          const res = await fetch(controlUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action }),
-          });
-          const payload = await res.json();
-          const nowStr = new Date().toLocaleTimeString();
-          const logEl = document.getElementById("output-log");
-          if (logEl) {
-            if (payload?.ok) {
-              logState.lines.push(
-                `[${nowStr}] service ${action} ok (${payload?.service || "navisar.service"})`
-              );
-            } else {
-              logState.lines.push(
-                `[${nowStr}] service ${action} failed: ${payload?.message || payload?.error || "unknown error"}`
-              );
-            }
-            if (logState.lines.length > logState.max) {
-              logState.lines.splice(0, logState.lines.length - logState.max);
-            }
-            logEl.textContent = logState.lines.join("\n");
-          }
-        } catch (_) {
-          const logEl = document.getElementById("output-log");
-          if (logEl) {
-            const nowStr = new Date().toLocaleTimeString();
-            logState.lines.push(`[${nowStr}] service ${action} failed: request error`);
-            if (logState.lines.length > logState.max) {
-              logState.lines.splice(0, logState.lines.length - logState.max);
-            }
-            logEl.textContent = logState.lines.join("\n");
-          }
-        }
-      };
       modeButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           setMode(btn.dataset.mode);
@@ -1564,10 +1513,6 @@
             handleWrite();
           } else if (btn.dataset.action === "zero-alt") {
             handleAutoZeroAltitude();
-          } else if (btn.dataset.action === "start-script") {
-            handleServiceAction("start");
-          } else if (btn.dataset.action === "stop-script") {
-            handleServiceAction("stop");
           }
         });
       });
@@ -1612,16 +1557,20 @@
       refreshModeState();
       refreshGpsFormatState();
       if (voStream) {
-        const markStreamOk = () => {
-          streamState.lastOkMs = Date.now();
+        streamState.useSim = true;
+        setCameraMode(true);
+        voStream.addEventListener("load", () => {
+          streamState.useSim = false;
           setCameraMode(false);
-        };
-        voStream.addEventListener("load", markStreamOk);
+        });
         voStream.addEventListener("error", () => {
-          streamState.lastOkMs = 0;
+          streamState.useSim = true;
           setCameraMode(true);
         });
-        markStreamOk();
+        voStream.addEventListener("abort", () => {
+          streamState.useSim = true;
+          setCameraMode(true);
+        });
       }
       streamState.running = true;
       requestAnimationFrame(cameraLoop);
