@@ -389,75 +389,6 @@ def _normalize_gps_format(value):
     return "nmea"
 
 
-def _gps_point(point):
-    """Parse a GPS point config into (lat_deg, lon_deg, rel_alt_m)."""
-    point = point or {}
-    lat = _safe_float(point.get("lat"))
-    lon = _safe_float(point.get("lon"))
-    rel_alt = _safe_float(point.get("alt_m"))
-    if lat is None or lon is None:
-        raise ValueError("gps point requires numeric lat and lon")
-    if rel_alt is None:
-        rel_alt = 1.0
-    return float(lat), float(lon), float(rel_alt)
-
-
-def _run_go_initial_to_final(mavlink_interface, pixhawk_cfg):
-    """Execute configured GPS flight function: hold -> takeoff -> initial -> final."""
-    flight_cfg = pixhawk_cfg.get("flight_functions", {})
-    mission_cfg = flight_cfg.get("go_initial_to_final", {})
-    if not isinstance(mission_cfg, dict):
-        return
-    if not bool(mission_cfg.get("enabled", False)):
-        return
-
-    hold_s = _safe_float(mission_cfg.get("hold_before_takeoff_s"))
-    if hold_s is None:
-        hold_s = 10.0
-    hold_s = max(0.0, hold_s)
-
-    initial_point = mission_cfg.get("initial_point", {})
-    final_point = mission_cfg.get("final_point", {})
-    mode = str(mission_cfg.get("mode", "gps")).strip().lower()
-    if mode != "gps":
-        print("flight_functions.go_initial_to_final is GPS-only; forcing mode='gps'.")
-    initial_lat, initial_lon, initial_alt = _gps_point(initial_point)
-    final_lat, final_lon, final_alt = _gps_point(final_point)
-    takeoff_alt_m = max(1.0, initial_alt, final_alt)
-
-    print(
-        "Flight function go_initial_to_final: "
-        f"mode=gps hold={hold_s:.1f}s takeoff_alt={takeoff_alt_m:.1f}m"
-    )
-    if hold_s > 0.0:
-        time.sleep(hold_s)
-
-    try:
-        if not mavlink_interface.set_mode("GUIDED"):
-            print("Warning: unable to set GUIDED mode (mode mapping missing).")
-        time.sleep(0.5)
-        mavlink_interface.arm(True)
-        time.sleep(2.0)
-        mavlink_interface.takeoff(takeoff_alt_m)
-        time.sleep(3.0)
-
-        def _stream_global_target(lat_deg, lon_deg, rel_alt_m, duration_s):
-            end_t = time.time() + duration_s
-            while time.time() < end_t:
-                mavlink_interface.goto_global_relative_alt(lat_deg, lon_deg, rel_alt_m)
-                time.sleep(0.2)
-
-        _stream_global_target(initial_lat, initial_lon, initial_alt, duration_s=4.0)
-        _stream_global_target(final_lat, final_lon, final_alt, duration_s=8.0)
-        print(
-            "Flight function go_initial_to_final completed: "
-            f"initial_gps=({initial_lat:.7f},{initial_lon:.7f},{initial_alt:.2f}) "
-            f"final_gps=({final_lat:.7f},{final_lon:.7f},{final_alt:.2f})"
-        )
-    except Exception as exc:
-        print(f"Flight function go_initial_to_final failed: {exc}")
-
-
 def _make_dashboard_handler(
     state,
     mode_state,
@@ -616,7 +547,25 @@ def _make_dashboard_handler(
                 requested = str(payload.get("mode", "")).strip().lower()
                 if requested in allowed_modes:
                     mode_state.set(requested)
-                    data = json.dumps({"ok": True, "mode": requested}).encode("utf-8")
+                    persisted = None
+                    persist_error = None
+                    try:
+                        persisted = _persist_pixhawk_runtime_settings(
+                            pixhawk_config_path=pixhawk_config_path,
+                            mode_state=mode_state,
+                            gps_format_state=gps_format_state,
+                            altitude_offset_state=altitude_offset_state,
+                        )
+                    except Exception as exc:
+                        persist_error = str(exc)
+                    data = json.dumps(
+                        {
+                            "ok": True,
+                            "mode": requested,
+                            "persisted": persisted,
+                            "persist_error": persist_error,
+                        }
+                    ).encode("utf-8")
                     self.send_response(200)
                 else:
                     data = json.dumps(
@@ -1615,13 +1564,6 @@ def main():
             print(f"Warning: GPS input not available ({exc})")
     elif cfg_lat is not None and cfg_lon is not None:
         selector.set_gps_origin(float(cfg_lat), float(cfg_lon), float(cfg_alt) if cfg_alt else None)
-
-    if mavlink_interface is not None:
-        threading.Thread(
-            target=_run_go_initial_to_final,
-            args=(mavlink_interface, pixhawk_cfg),
-            daemon=True,
-        ).start()
 
     if gps_serial_enabled:
         try:
