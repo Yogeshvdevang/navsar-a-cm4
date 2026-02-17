@@ -291,6 +291,20 @@
         display: block;
       }
 
+      .baro-plot {
+        margin-top: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 10px;
+      }
+
+      .baro-plot canvas {
+        width: 100%;
+        height: 180px;
+        display: block;
+      }
+
       .of-plot-controls {
         margin-top: 12px;
         display: flex;
@@ -648,6 +662,9 @@
           <div>Pressure (hPa)</div><div class="value" id="baro-press">--</div>
           <div>Raw Alt (m)</div><div class="value" id="baro-alt">--</div>
         </div>
+        <div class="baro-plot">
+          <canvas id="baro-plot-canvas"></canvas>
+        </div>
       </section>
 
       <section class="card" style="animation-delay: 0.45s">
@@ -663,8 +680,8 @@
       </section>
 
       <section class="card" style="animation-delay: 0.46s">
-        <h3>Optical Flow 3D <span class="tag accent">MTF-01</span></h3>
-        <p>Flow vector projected onto a 3D ground plane.</p>
+        <h3>Optical Flow Graph <span class="tag accent">MTF-01</span></h3>
+        <p>Flow velocity history rendered like the original GUI plot.</p>
         <div class="source-line">Source: Optical flow sensor</div>
         <div class="kv">
           <div>Distance (cm)</div><div class="value" id="of-dist">--</div>
@@ -912,76 +929,17 @@
 
       const optflowCanvas = document.getElementById("optflow-canvas");
       const optflowCtx = optflowCanvas ? optflowCanvas.getContext("2d") : null;
-      const projectPoint = (x, y, z) => {
-        const scale = 6;
-        const isoX = (x - y) * 0.9;
-        const isoY = (x + y) * 0.5 - z;
-        return {
-          x: optflowCanvas.width * 0.5 + isoX * scale,
-          y: optflowCanvas.height * 0.65 - isoY * scale,
-        };
+      const optflowPlotState = {
+        maxPoints: 180,
+        vx: [],
+        vy: [],
       };
 
-      const drawOpticalFlow3D = (sample) => {
-        if (!optflowCtx || !optflowCanvas) return;
-        const ctx = optflowCtx;
-        ctx.clearRect(0, 0, optflowCanvas.width, optflowCanvas.height);
-
-        ctx.fillStyle = "rgba(11, 18, 33, 0.6)";
-        ctx.fillRect(0, 0, optflowCanvas.width, optflowCanvas.height);
-
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-        ctx.lineWidth = 1;
-        for (let i = -4; i <= 4; i++) {
-          const a = projectPoint(-10, i * 2, 0);
-          const b = projectPoint(10, i * 2, 0);
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
-        for (let i = -4; i <= 4; i++) {
-          const a = projectPoint(i * 2, -10, 0);
-          const b = projectPoint(i * 2, 10, 0);
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
-
-        if (!sample) {
-          ctx.fillStyle = "rgba(255,255,255,0.6)";
-          ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
-          ctx.fillText("No optical flow data yet.", 16, 24);
-          return;
-        }
-
-        const vx = sample.flow_vx || 0;
-        const vy = sample.flow_vy || 0;
-        const height = Math.max(0, (sample.dist_cm || 0) / 10);
-        const arrowScale = 0.12;
-        const tip = projectPoint(vx * arrowScale, vy * arrowScale, 0);
-        const origin = projectPoint(0, 0, 0);
-
-        ctx.beginPath();
-        ctx.moveTo(origin.x, origin.y);
-        ctx.lineTo(tip.x, tip.y);
-        ctx.strokeStyle = "rgba(61, 213, 243, 0.9)";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        ctx.fillStyle = "rgba(242, 157, 80, 0.9)";
-        const top = projectPoint(0, 0, height);
-        ctx.beginPath();
-        ctx.arc(top.x, top.y, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = "rgba(242, 157, 80, 0.5)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(origin.x, origin.y);
-        ctx.lineTo(top.x, top.y);
-        ctx.stroke();
+      const baroPlotCanvas = document.getElementById("baro-plot-canvas");
+      const baroPlotCtx = baroPlotCanvas ? baroPlotCanvas.getContext("2d") : null;
+      const baroPlotState = {
+        barometer: 0,
+        optical: 0,
       };
 
       const ofPlotCanvas = document.getElementById("of-plot-canvas");
@@ -1026,6 +984,165 @@
           }
         }
         return null;
+      };
+
+      const pushSeries = (arr, value, maxPoints) => {
+        arr.push(value);
+        if (arr.length > maxPoints) arr.shift();
+      };
+
+      const smoothSeries = (values, windowSize = 11) => {
+        if (values.length <= 2 || windowSize <= 1) return values;
+        const out = [];
+        let sum = 0;
+        const w = Math.min(windowSize, values.length);
+        for (let i = 0; i < values.length; i += 1) {
+          sum += values[i];
+          if (i >= w) sum -= values[i - w];
+          out.push(sum / Math.min(i + 1, w));
+        }
+        return out;
+      };
+
+      const resizeCanvas = (canvas, ctx) => {
+        if (!canvas || !ctx) return null;
+        const rect = canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return null;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, rect.width, rect.height);
+        return rect;
+      };
+
+      const drawAxes = (ctx, rect, padding = 28) => {
+        ctx.strokeStyle = "rgba(0,0,0,0.12)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(padding, padding, rect.width - padding * 2, rect.height - padding * 2);
+        for (let i = 1; i <= 4; i += 1) {
+          const x = padding + ((rect.width - padding * 2) / 5) * i;
+          const y = padding + ((rect.height - padding * 2) / 5) * i;
+          ctx.beginPath();
+          ctx.moveTo(x, padding);
+          ctx.lineTo(x, rect.height - padding);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(padding, y);
+          ctx.lineTo(rect.width - padding, y);
+          ctx.stroke();
+        }
+      };
+
+      const drawLineSeries = (ctx, rect, values, color, minVal, maxVal) => {
+        if (!values.length) return;
+        const padding = 14;
+        const span = Math.max(1e-6, maxVal - minVal);
+        const points = values.map((v, i) => ({
+          x: padding + (i / (values.length - 1 || 1)) * (rect.width - padding * 2),
+          y: rect.height - padding - ((v - minVal) / span) * (rect.height - padding * 2),
+        }));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i += 1) {
+          const midX = (points[i].x + points[i + 1].x) / 2;
+          const midY = (points[i].y + points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, midX, midY);
+        }
+        if (points.length > 1) {
+          ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+        }
+        ctx.stroke();
+      };
+
+      const drawStatLabel = (ctx, x, y, text, color = "#111") => {
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        const width = Math.max(48, ctx.measureText(text).width + 10);
+        ctx.fillRect(x, y - 10, width, 16);
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.strokeRect(x, y - 10, width, 16);
+        ctx.fillStyle = color;
+        ctx.fillText(text, x + 5, y + 2);
+      };
+
+      const drawOpticalFlowPlot = () => {
+        const rect = resizeCanvas(optflowCanvas, optflowCtx);
+        if (!rect) return;
+        const vx = smoothSeries(optflowPlotState.vx, 9);
+        const vy = smoothSeries(optflowPlotState.vy, 9);
+        if (!vx.length || !vy.length) {
+          optflowCtx.fillStyle = "#111";
+          optflowCtx.font = "12px sans-serif";
+          optflowCtx.fillText("Waiting for optical flow samples...", 10, 22);
+          return;
+        }
+        const minVal = Math.min(0, ...vx, ...vy);
+        const maxVal = Math.max(0, ...vx, ...vy);
+        drawAxes(optflowCtx, rect, 28);
+        drawLineSeries(optflowCtx, rect, vx, "#1d4ed8", minVal, maxVal);
+        drawLineSeries(optflowCtx, rect, vy, "#dc2626", minVal, maxVal);
+        optflowCtx.fillStyle = "#111";
+        optflowCtx.font = "11px sans-serif";
+        optflowCtx.fillText("FLOW_VX", rect.width - 78, 20);
+        optflowCtx.fillStyle = "#1d4ed8";
+        optflowCtx.fillRect(rect.width - 104, 12, 14, 4);
+        optflowCtx.fillStyle = "#111";
+        optflowCtx.fillText("FLOW_VY", rect.width - 78, 36);
+        optflowCtx.fillStyle = "#dc2626";
+        optflowCtx.fillRect(rect.width - 104, 28, 14, 4);
+        const vxLast = vx[vx.length - 1] ?? 0;
+        const vyLast = vy[vy.length - 1] ?? 0;
+        drawStatLabel(optflowCtx, 8, 14, `vx ${vxLast.toFixed(2)}`, "#1d4ed8");
+        drawStatLabel(optflowCtx, 8, 34, `vy ${vyLast.toFixed(2)}`, "#dc2626");
+      };
+
+      const drawBarometerPlot = () => {
+        const rect = resizeCanvas(baroPlotCanvas, baroPlotCtx);
+        if (!rect) return;
+        const baro = Number.isFinite(baroPlotState.barometer) ? baroPlotState.barometer : 0;
+        const optical = Number.isFinite(baroPlotState.optical) ? baroPlotState.optical : 0;
+        const maxVal = 10;
+        const padX = 26;
+        const padTop = 20;
+        const padBottom = 30;
+        const plotW = rect.width - padX * 2;
+        const plotH = rect.height - padTop - padBottom;
+        const bars = [
+          { label: "Barometer", value: baro, color: "#16a34a" },
+          { label: "Optical", value: optical, color: "#2563eb" },
+        ];
+
+        baroPlotCtx.strokeStyle = "rgba(0,0,0,0.12)";
+        baroPlotCtx.lineWidth = 1;
+        baroPlotCtx.strokeRect(padX, padTop, plotW, plotH);
+
+        const slotW = plotW / bars.length;
+        const barW = Math.min(52, slotW * 0.55);
+        baroPlotCtx.font = "11px sans-serif";
+        baroPlotCtx.textAlign = "center";
+        bars.forEach((entry, i) => {
+          const clampedValue = Math.max(0, Math.min(maxVal, entry.value));
+          let h = (clampedValue / maxVal) * plotH;
+          if (clampedValue > 0) {
+            h = Math.max(4, h);
+          }
+          const x = padX + slotW * i + (slotW - barW) / 2;
+          const y = padTop + (plotH - h);
+          baroPlotCtx.fillStyle = entry.color;
+          baroPlotCtx.fillRect(x, y, barW, h);
+
+          baroPlotCtx.fillStyle = "#111";
+          const suffix = entry.value > maxVal ? "+" : "";
+          baroPlotCtx.fillText(`${entry.value.toFixed(2)}m${suffix}`, x + barW / 2, Math.max(padTop + 12, y - 6));
+          baroPlotCtx.fillText(entry.label, x + barW / 2, rect.height - 10);
+        });
+        baroPlotCtx.textAlign = "left";
+
+        drawStatLabel(baroPlotCtx, 8, 14, "scale 0..10.00 m", "#333");
       };
 
       const normalizeOpticalPlotRecord = (sample) => {
@@ -1656,7 +1773,30 @@
           setText("of-sx", opt?.speed_x, 2);
           setText("of-sy", opt?.speed_y, 2);
           setText("of-q", opt?.flow_q, 0);
-          drawOpticalFlow3D(opt);
+          const opticalHeightM = asFiniteNumber(
+            opt?.dist_mm != null ? opt.dist_mm / 1000 : null,
+            opt?.distance_mm != null ? opt.distance_mm / 1000 : null,
+            opt?.dist_cm != null ? opt.dist_cm / 100 : null
+          );
+          const barometerHeight = asFiniteNumber(
+            data.sensors?.barometer?.height_m,
+            data.sensors?.barometer?.raw_alt_m
+          );
+          if (Number.isFinite(barometerHeight)) {
+            baroPlotState.barometer = barometerHeight;
+          }
+          if (Number.isFinite(opticalHeightM)) {
+            baroPlotState.optical = opticalHeightM;
+          }
+          drawBarometerPlot();
+
+          const flowVx = asFiniteNumber(opt?.flow_vx);
+          const flowVy = asFiniteNumber(opt?.flow_vy);
+          if (flowVx !== null || flowVy !== null) {
+            pushSeries(optflowPlotState.vx, flowVx ?? 0, optflowPlotState.maxPoints);
+            pushSeries(optflowPlotState.vy, flowVy ?? 0, optflowPlotState.maxPoints);
+          }
+          drawOpticalFlowPlot();
 
           setText("compass-bus", data.compass?.bus, 0);
           setHex("compass-addr", data.compass?.addr);
@@ -1905,11 +2045,15 @@
       window.addEventListener("resize", () => {
         drawOpticalPlot();
         drawOpticalTrajectory();
+        drawBarometerPlot();
+        drawOpticalFlowPlot();
       });
       renderOpticalSeriesList();
       renderOpticalTable();
       drawOpticalPlot();
       drawOpticalTrajectory();
+      drawBarometerPlot();
+      drawOpticalFlowPlot();
       tick();
       setInterval(tick, 250);
     </script>

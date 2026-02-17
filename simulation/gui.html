@@ -415,6 +415,10 @@
         gap: 12px;
       }
 
+      .plot-row .span-2 {
+        grid-column: 1 / -1;
+      }
+
       .card {
         background: var(--panel);
         border: 1px solid var(--panel-border);
@@ -461,6 +465,19 @@
         width: 100%;
         height: 180px;
         display: block;
+      }
+
+      .plot-wrap.tall canvas {
+        height: 240px;
+      }
+
+      .barometer-card {
+        width: min(240px, 100%);
+        justify-self: center;
+      }
+
+      .plot-wrap.baro-portrait canvas {
+        height: 280px;
       }
 
       .traj-wrap canvas {
@@ -653,21 +670,27 @@
             </div>
           </div>
           <div class="card">
-            <h3>Integrated Position</h3>
+            <h3>Integrated Position (m)</h3>
             <div class="plot-wrap">
               <canvas id="pos-plot"></canvas>
             </div>
           </div>
           <div class="card">
-            <h3>Control Corrections</h3>
+            <h3>Control Corrections (m/s)</h3>
             <div class="plot-wrap">
               <canvas id="corr-plot"></canvas>
             </div>
           </div>
           <div class="card">
-            <h3>Barometer vs Optical Flow (m)</h3>
-            <div class="plot-wrap">
-              <canvas id="height-plot"></canvas>
+            <h3>Optical Flow Height (m)</h3>
+            <div class="plot-wrap tall">
+              <canvas id="optical-height-plot"></canvas>
+            </div>
+          </div>
+          <div class="card barometer-card">
+            <h3>Barometer Height (m)</h3>
+            <div class="plot-wrap baro-portrait">
+              <canvas id="barometer-height-plot"></canvas>
             </div>
           </div>
         </div>
@@ -795,11 +818,14 @@
         vy: [],
         x: [],
         y: [],
+        gpsX: [],
+        gpsY: [],
         height: [],
         barometerHeight: [],
         opticalHeight: [],
         corrVx: [],
         corrVy: [],
+        opticalHeightTarget: null,
       };
 
       const filterState = {
@@ -847,8 +873,10 @@
       const posCtx = posPlot ? posPlot.getContext("2d") : null;
       const corrPlot = document.getElementById("corr-plot");
       const corrCtx = corrPlot ? corrPlot.getContext("2d") : null;
-      const heightPlot = document.getElementById("height-plot");
-      const heightCtx = heightPlot ? heightPlot.getContext("2d") : null;
+      const opticalHeightPlot = document.getElementById("optical-height-plot");
+      const opticalHeightCtx = opticalHeightPlot ? opticalHeightPlot.getContext("2d") : null;
+      const barometerHeightPlot = document.getElementById("barometer-height-plot");
+      const barometerHeightCtx = barometerHeightPlot ? barometerHeightPlot.getContext("2d") : null;
       const voStream = document.getElementById("vo-stream");
       const camSim = document.getElementById("cam-sim");
       const camSimCtx = camSim ? camSim.getContext("2d") : null;
@@ -968,6 +996,34 @@
         }
       };
 
+      const drawYScaleLabels = (ctx, rect, left, top, right, bottom, minVal, maxVal, digits = 3, suffix = "") => {
+        ctx.fillStyle = "#111";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "left";
+        const h = rect.height - top - bottom;
+        const span = Math.max(1e-9, maxVal - minVal);
+        for (let i = 0; i <= 4; i += 1) {
+          const v = maxVal - (span / 4) * i;
+          const y = top + (h / 4) * i;
+          ctx.fillText(`${v.toFixed(digits)}${suffix}`, 6, y + 3);
+        }
+      };
+
+      const drawXScaleLabels = (ctx, rect, left, top, right, bottom, minVal, maxVal, digits = 1, suffix = "") => {
+        ctx.fillStyle = "#111";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "center";
+        const w = rect.width - left - right;
+        const y = rect.height - 6;
+        const span = Math.max(1e-9, maxVal - minVal);
+        for (let i = 0; i <= 4; i += 1) {
+          const v = minVal + (span / 4) * i;
+          const x = left + (w / 4) * i;
+          ctx.fillText(`${v.toFixed(digits)}${suffix}`, x, y);
+        }
+        ctx.textAlign = "left";
+      };
+
       const drawLineSeries = (ctx, rect, values, color, minVal, maxVal) => {
         if (!values.length) return;
         const padding = 14;
@@ -1009,6 +1065,11 @@
         const minVal = Math.min(0, ...vx, ...vy);
         const maxVal = Math.max(0, ...vx, ...vy);
         drawAxes(velCtx, rect, 28);
+        drawYScaleLabels(velCtx, rect, 28, 28, 28, 28, minVal, maxVal, 3, " m/s");
+        const velDurationSec = plotState.times.length > 1
+          ? (plotState.times[plotState.times.length - 1] - plotState.times[0]) / 1000
+          : 1;
+        drawXScaleLabels(velCtx, rect, 28, 28, 28, 28, -velDurationSec, 0, 1, " s");
         drawLineSeries(velCtx, rect, vx, "#1d4ed8", minVal, maxVal);
         drawLineSeries(velCtx, rect, vy, "#dc2626", minVal, maxVal);
         velCtx.fillStyle = "#111";
@@ -1022,9 +1083,9 @@
         velCtx.fillRect(rect.width - 68, 28, 14, 4);
         const vxLast = vx[vx.length - 1] ?? 0;
         const vyLast = vy[vy.length - 1] ?? 0;
-        drawStatLabel(velCtx, 8, 14, `vx ${vxLast.toFixed(3)}`, "#1d4ed8");
-        drawStatLabel(velCtx, 8, 34, `vy ${vyLast.toFixed(3)}`, "#dc2626");
-        drawStatLabel(velCtx, 8, rect.height - 12, `min ${minVal.toFixed(3)} max ${maxVal.toFixed(3)}`, "#333");
+        drawStatLabel(velCtx, 8, 14, `vx ${vxLast.toFixed(3)} m/s`, "#1d4ed8");
+        drawStatLabel(velCtx, 8, 34, `vy ${vyLast.toFixed(3)} m/s`, "#dc2626");
+        drawStatLabel(velCtx, 8, rect.height - 12, `min ${minVal.toFixed(3)} m/s max ${maxVal.toFixed(3)} m/s`, "#333");
       };
 
       const drawPosPlot = () => {
@@ -1032,20 +1093,46 @@
         if (!rect) return;
         if (plotState.x.length < 2) return;
         const pad = 32;
-        const minX = Math.min(...plotState.x);
-        const maxX = Math.max(...plotState.x);
-        const minY = Math.min(...plotState.y);
-        const maxY = Math.max(...plotState.y);
+        const topPad = 72;
+        const gpsXFinite = plotState.gpsX.filter(Number.isFinite);
+        const gpsYFinite = plotState.gpsY.filter(Number.isFinite);
+        const minX = Math.min(...plotState.x, ...(gpsXFinite.length ? gpsXFinite : [0]));
+        const maxX = Math.max(...plotState.x, ...(gpsXFinite.length ? gpsXFinite : [0]));
+        const minY = Math.min(...plotState.y, ...(gpsYFinite.length ? gpsYFinite : [0]));
+        const maxY = Math.max(...plotState.y, ...(gpsYFinite.length ? gpsYFinite : [0]));
         const spanX = Math.max(Math.abs(minX), Math.abs(maxX));
         const spanY = Math.max(Math.abs(minY), Math.abs(maxY));
         const span = Math.max(spanX, spanY, 0.01);
-        drawAxes(posCtx, rect, pad);
+        posCtx.strokeStyle = "rgba(0,0,0,0.12)";
+        posCtx.lineWidth = 1;
+        posCtx.strokeRect(pad, topPad, rect.width - pad * 2, rect.height - topPad - pad);
+        for (let i = 1; i <= 4; i += 1) {
+          const x = pad + ((rect.width - pad * 2) / 5) * i;
+          const y = topPad + ((rect.height - topPad - pad) / 5) * i;
+          posCtx.beginPath();
+          posCtx.moveTo(x, topPad);
+          posCtx.lineTo(x, rect.height - pad);
+          posCtx.stroke();
+          posCtx.beginPath();
+          posCtx.moveTo(pad, y);
+          posCtx.lineTo(rect.width - pad, y);
+          posCtx.stroke();
+        }
+        drawYScaleLabels(posCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
+        drawXScaleLabels(posCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
         const pts = plotState.x.map((xv, i) => {
           const yv = plotState.y[i];
           const x = pad + ((xv + span) / (2 * span)) * (rect.width - pad * 2);
-          const y = rect.height - pad - ((yv + span) / (2 * span)) * (rect.height - pad * 2);
+          const y = rect.height - pad - ((yv + span) / (2 * span)) * (rect.height - topPad - pad);
           return { x, y };
         });
+        const gpsPts = plotState.gpsX
+          .map((xv, i) => ({ xv, yv: plotState.gpsY[i] }))
+          .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv))
+          .map((p) => ({
+            x: pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2),
+            y: rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad),
+          }));
         posCtx.strokeStyle = "rgba(147,51,234,0.6)";
         posCtx.lineWidth = 2.4;
         posCtx.beginPath();
@@ -1057,10 +1144,26 @@
         }
         posCtx.stroke();
 
+        if (gpsPts.length >= 2) {
+          posCtx.strokeStyle = "rgba(37,99,235,0.75)";
+          posCtx.lineWidth = 2.2;
+          posCtx.beginPath();
+          posCtx.moveTo(gpsPts[0].x, gpsPts[0].y);
+          for (let i = 1; i < gpsPts.length; i += 1) {
+            posCtx.lineTo(gpsPts[i].x, gpsPts[i].y);
+          }
+          posCtx.stroke();
+          const gpsLast = gpsPts[gpsPts.length - 1];
+          posCtx.fillStyle = "#2563eb";
+          posCtx.beginPath();
+          posCtx.arc(gpsLast.x, gpsLast.y, 5, 0, Math.PI * 2);
+          posCtx.fill();
+        }
+
         const last = pts[pts.length - 1];
         // origin marker
         const originX = pad + (0.5 * (rect.width - pad * 2));
-        const originY = rect.height - pad - (0.5 * (rect.height - pad * 2));
+        const originY = rect.height - pad - (0.5 * (rect.height - topPad - pad));
         posCtx.fillStyle = "#facc15";
         posCtx.beginPath();
         posCtx.arc(originX, originY, 5, 0, Math.PI * 2);
@@ -1078,20 +1181,40 @@
 
         posCtx.fillStyle = "#111";
         posCtx.font = "11px sans-serif";
-        posCtx.fillText("Trajectory", rect.width - 110, 20);
+        posCtx.fillText("Trajectory", rect.width - 128, 16);
         posCtx.fillStyle = "#9333ea";
-        posCtx.fillRect(rect.width - 130, 12, 14, 4);
+        posCtx.fillRect(rect.width - 148, 8, 14, 4);
         posCtx.fillStyle = "#111";
-        posCtx.fillText("Current", rect.width - 110, 36);
+        posCtx.fillText("Current", rect.width - 128, 30);
         posCtx.fillStyle = "#dc2626";
-        posCtx.fillRect(rect.width - 130, 28, 10, 10);
+        posCtx.fillRect(rect.width - 148, 24, 10, 10);
         posCtx.fillStyle = "#111";
-        posCtx.fillText("Origin", rect.width - 110, 52);
+        posCtx.fillText("Origin", rect.width - 128, 44);
         posCtx.fillStyle = "#facc15";
-        posCtx.fillRect(rect.width - 130, 44, 10, 10);
+        posCtx.fillRect(rect.width - 148, 38, 10, 10);
+        posCtx.fillStyle = "#111";
+        posCtx.fillText("GPS", rect.width - 128, 58);
+        posCtx.fillStyle = "#2563eb";
+        posCtx.fillRect(rect.width - 148, 52, 14, 4);
         const currX = plotState.x[plotState.x.length - 1] ?? 0;
         const currY = plotState.y[plotState.y.length - 1] ?? 0;
-        drawStatLabel(posCtx, 8, 14, `x ${currX.toFixed(3)} y ${currY.toFixed(3)}`, "#333");
+        drawStatLabel(posCtx, 8, 10, `x ${currX.toFixed(3)} m y ${currY.toFixed(3)} m`, "#333");
+        const lastData = window.__lastData || {};
+        const gpsFused = lastData.gps_ll_from_fused || {};
+        const gpsPayload = lastData.outputs?.gps_mavlink?.payload || {};
+        const gpsLat = asFiniteNumber(
+          gpsFused?.lat,
+          gpsPayload?.lat != null ? gpsPayload.lat / 1e7 : null,
+          lastData.gps?.origin?.lat
+        );
+        const gpsLon = asFiniteNumber(
+          gpsFused?.lon,
+          gpsPayload?.lon != null ? gpsPayload.lon / 1e7 : null,
+          lastData.gps?.origin?.lon
+        );
+        if (Number.isFinite(gpsLat) && Number.isFinite(gpsLon)) {
+          drawStatLabel(posCtx, 8, 28, `gps ${gpsLat.toFixed(6)}, ${gpsLon.toFixed(6)}`, "#2563eb");
+        }
       };
 
       const drawCorrPlot = () => {
@@ -1102,6 +1225,11 @@
         const minVal = Math.min(0, ...corrVx, ...corrVy);
         const maxVal = Math.max(0, ...corrVx, ...corrVy);
         drawAxes(corrCtx, rect, 28);
+        drawYScaleLabels(corrCtx, rect, 28, 28, 28, 28, minVal, maxVal, 3, " m/s");
+        const corrDurationSec = plotState.times.length > 1
+          ? (plotState.times[plotState.times.length - 1] - plotState.times[0]) / 1000
+          : 1;
+        drawXScaleLabels(corrCtx, rect, 28, 28, 28, 28, -corrDurationSec, 0, 1, " s");
         drawLineSeries(corrCtx, rect, corrVx, "#16a34a", minVal, maxVal);
         drawLineSeries(corrCtx, rect, corrVy, "#7c3aed", minVal, maxVal);
         corrCtx.fillStyle = "#111";
@@ -1115,53 +1243,156 @@
         corrCtx.fillRect(rect.width - 104, 28, 14, 4);
         const cvx = corrVx[corrVx.length - 1] ?? 0;
         const cvy = corrVy[corrVy.length - 1] ?? 0;
-        drawStatLabel(corrCtx, 8, 14, `corr x ${cvx.toFixed(3)}`, "#16a34a");
-        drawStatLabel(corrCtx, 8, 34, `corr y ${cvy.toFixed(3)}`, "#7c3aed");
+        drawStatLabel(corrCtx, 8, 14, `corr x ${cvx.toFixed(3)} m/s`, "#16a34a");
+        drawStatLabel(corrCtx, 8, 34, `corr y ${cvy.toFixed(3)} m/s`, "#7c3aed");
       };
 
-      const drawHeightPlot = () => {
-        const rect = resizeCanvas(heightPlot, heightCtx);
+      const drawOpticalHeightPlot = () => {
+        const rect = resizeCanvas(opticalHeightPlot, opticalHeightCtx);
         if (!rect) return;
-        const baro = plotState.barometerHeight[plotState.barometerHeight.length - 1] ?? 0;
-        const optical = plotState.opticalHeight[plotState.opticalHeight.length - 1] ?? 0;
-        const maxVal = 10;
-        const padX = 26;
-        const padTop = 20;
-        const padBottom = 30;
-        const plotW = rect.width - padX * 2;
-        const plotH = rect.height - padTop - padBottom;
-        const bars = [
-          { label: "Barometer", value: Number.isFinite(baro) ? baro : 0, color: "#16a34a" },
-          { label: "Optical", value: Number.isFinite(optical) ? optical : 0, color: "#2563eb" },
-        ];
+        const values = smoothSeries(plotState.opticalHeight, 7);
+        if (!values.length) return;
+        const target = Number.isFinite(plotState.opticalHeightTarget)
+          ? plotState.opticalHeightTarget
+          : values[values.length - 1];
+        const padLeft = 44;
+        const padRight = 14;
+        const padTop = 24;
+        const padBottom = 28;
+        const chartW = rect.width - padLeft - padRight;
+        const chartH = rect.height - padTop - padBottom;
+        const rawMin = Math.min(...values, target);
+        const rawMax = Math.max(...values, target);
+        const span = Math.max(0.02, rawMax - rawMin);
+        const minVal = Math.max(0, rawMin - span * 0.35);
+        const maxVal = rawMax + span * 0.35;
+        const toY = (v) =>
+          padTop + ((maxVal - v) / Math.max(1e-6, maxVal - minVal)) * chartH;
 
-        heightCtx.strokeStyle = "rgba(0,0,0,0.12)";
-        heightCtx.lineWidth = 1;
-        heightCtx.strokeRect(padX, padTop, plotW, plotH);
+        opticalHeightCtx.strokeStyle = "rgba(0,0,0,0.14)";
+        opticalHeightCtx.lineWidth = 1;
+        opticalHeightCtx.strokeRect(padLeft, padTop, chartW, chartH);
+        for (let i = 1; i < 5; i += 1) {
+          const x = padLeft + (chartW / 5) * i;
+          const y = padTop + (chartH / 5) * i;
+          opticalHeightCtx.beginPath();
+          opticalHeightCtx.moveTo(x, padTop);
+          opticalHeightCtx.lineTo(x, padTop + chartH);
+          opticalHeightCtx.stroke();
+          opticalHeightCtx.beginPath();
+          opticalHeightCtx.moveTo(padLeft, y);
+          opticalHeightCtx.lineTo(padLeft + chartW, y);
+          opticalHeightCtx.stroke();
+        }
 
-        const slotW = plotW / bars.length;
-        const barW = Math.min(52, slotW * 0.5);
-        heightCtx.font = "11px sans-serif";
-        heightCtx.textAlign = "center";
-        bars.forEach((entry, i) => {
-          const clampedValue = Math.max(0, Math.min(maxVal, entry.value));
-          let h = (clampedValue / maxVal) * plotH;
-          if (clampedValue > 0) {
-            h = Math.max(4, h);
+        opticalHeightCtx.fillStyle = "#111";
+        opticalHeightCtx.font = "11px sans-serif";
+        for (let i = 0; i <= 4; i += 1) {
+          const v = maxVal - ((maxVal - minVal) / 4) * i;
+          const y = padTop + (chartH / 4) * i;
+          opticalHeightCtx.fillText(`${v.toFixed(3)} m`, 6, y + 4);
+        }
+        const opticalDurationSec = plotState.times.length > 1
+          ? (plotState.times[plotState.times.length - 1] - plotState.times[0]) / 1000
+          : 1;
+        drawXScaleLabels(opticalHeightCtx, rect, padLeft, padTop, padRight, padBottom, -opticalDurationSec, 0, 1, " s");
+
+        opticalHeightCtx.strokeStyle = "#c9971b";
+        opticalHeightCtx.lineWidth = 2.5;
+        opticalHeightCtx.beginPath();
+        values.forEach((v, i) => {
+          const x = padLeft + (i / (values.length - 1 || 1)) * chartW;
+          const y = toY(v);
+          if (i === 0) {
+            opticalHeightCtx.moveTo(x, y);
+          } else {
+            opticalHeightCtx.lineTo(x, y);
           }
-          const x = padX + slotW * i + (slotW - barW) / 2;
-          const y = padTop + (plotH - h);
-          heightCtx.fillStyle = entry.color;
-          heightCtx.fillRect(x, y, barW, h);
-
-          heightCtx.fillStyle = "#111";
-          const suffix = entry.value > maxVal ? "+" : "";
-          heightCtx.fillText(`${entry.value.toFixed(3)}m${suffix}`, x + barW / 2, Math.max(padTop + 12, y - 6));
-          heightCtx.fillText(entry.label, x + barW / 2, rect.height - 10);
         });
-        heightCtx.textAlign = "left";
+        opticalHeightCtx.stroke();
 
-        drawStatLabel(heightCtx, 8, 14, "scale 0..10.000 m", "#333");
+        opticalHeightCtx.setLineDash([6, 4]);
+        opticalHeightCtx.strokeStyle = "#cf4c45";
+        opticalHeightCtx.lineWidth = 1.8;
+        opticalHeightCtx.beginPath();
+        opticalHeightCtx.moveTo(padLeft, toY(target));
+        opticalHeightCtx.lineTo(padLeft + chartW, toY(target));
+        opticalHeightCtx.stroke();
+        opticalHeightCtx.setLineDash([]);
+
+        opticalHeightCtx.fillStyle = "#111";
+        opticalHeightCtx.font = "bold 15px sans-serif";
+        opticalHeightCtx.textAlign = "center";
+        opticalHeightCtx.fillText("Height", rect.width / 2, 18);
+
+        opticalHeightCtx.textAlign = "left";
+        opticalHeightCtx.font = "11px sans-serif";
+        opticalHeightCtx.strokeStyle = "#c9971b";
+        opticalHeightCtx.lineWidth = 2.5;
+        opticalHeightCtx.beginPath();
+        opticalHeightCtx.moveTo(rect.width - 134, 22);
+        opticalHeightCtx.lineTo(rect.width - 114, 22);
+        opticalHeightCtx.stroke();
+        opticalHeightCtx.fillStyle = "#111";
+        opticalHeightCtx.fillText("Height (m)", rect.width - 108, 25);
+        opticalHeightCtx.setLineDash([6, 4]);
+        opticalHeightCtx.strokeStyle = "#cf4c45";
+        opticalHeightCtx.lineWidth = 1.8;
+        opticalHeightCtx.beginPath();
+        opticalHeightCtx.moveTo(rect.width - 134, 38);
+        opticalHeightCtx.lineTo(rect.width - 114, 38);
+        opticalHeightCtx.stroke();
+        opticalHeightCtx.setLineDash([]);
+        opticalHeightCtx.fillText("Target (m)", rect.width - 108, 41);
+      };
+
+      const drawBarometerHeightBar = () => {
+        const rect = resizeCanvas(barometerHeightPlot, barometerHeightCtx);
+        if (!rect) return;
+        const value = plotState.barometerHeight[plotState.barometerHeight.length - 1] ?? 0;
+        const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
+        const maxHist = Math.max(0, ...plotState.barometerHeight.filter(Number.isFinite));
+        const maxVal = Math.max(0.1, maxHist * 1.15, safeValue * 1.15);
+        const padLeft = 44;
+        const padRight = 16;
+        const padTop = 20;
+        const padBottom = 34;
+        const chartW = rect.width - padLeft - padRight;
+        const chartH = rect.height - padTop - padBottom;
+
+        barometerHeightCtx.strokeStyle = "rgba(0,0,0,0.14)";
+        barometerHeightCtx.lineWidth = 1;
+        barometerHeightCtx.strokeRect(padLeft, padTop, chartW, chartH);
+        for (let i = 1; i < 5; i += 1) {
+          const y = padTop + (chartH / 5) * i;
+          barometerHeightCtx.beginPath();
+          barometerHeightCtx.moveTo(padLeft, y);
+          barometerHeightCtx.lineTo(padLeft + chartW, y);
+          barometerHeightCtx.stroke();
+        }
+
+        barometerHeightCtx.fillStyle = "#111";
+        barometerHeightCtx.font = "11px sans-serif";
+        for (let i = 0; i <= 4; i += 1) {
+          const v = maxVal - (maxVal / 4) * i;
+          const y = padTop + (chartH / 4) * i;
+          barometerHeightCtx.fillText(`${v.toFixed(3)} m`, 6, y + 4);
+        }
+
+        const barW = Math.min(26, chartW * 0.18);
+        const barX = padLeft + (chartW - barW) / 2;
+        const barH = (safeValue / Math.max(1e-6, maxVal)) * chartH;
+        const barY = padTop + chartH - barH;
+        barometerHeightCtx.fillStyle = "#16a34a";
+        barometerHeightCtx.fillRect(barX, barY, barW, Math.max(2, barH));
+
+        barometerHeightCtx.fillStyle = "#111";
+        barometerHeightCtx.textAlign = "center";
+        barometerHeightCtx.font = "bold 12px sans-serif";
+        barometerHeightCtx.fillText(`${safeValue.toFixed(3)} m`, rect.width / 2, Math.max(14, barY - 8));
+        barometerHeightCtx.font = "11px sans-serif";
+        barometerHeightCtx.fillText("Barometer", rect.width / 2, rect.height - 10);
+        barometerHeightCtx.textAlign = "left";
       };
 
       // Removed 3D trajectory + motion drawing for this layout.
@@ -1432,16 +1663,24 @@
           pushSeries(plotState.vy, vy);
           pushSeries(plotState.x, posX);
           pushSeries(plotState.y, posY);
+          const gpsLocalX = asFiniteNumber(data.gps?.local?.x);
+          const gpsLocalY = asFiniteNumber(data.gps?.local?.y);
+          pushSeries(plotState.gpsX, Number.isFinite(gpsLocalX) ? gpsLocalX : NaN);
+          pushSeries(plotState.gpsY, Number.isFinite(gpsLocalY) ? gpsLocalY : NaN);
           pushSeries(plotState.height, altitude);
           pushSeries(plotState.barometerHeight, originalBarometerHeightForPlot);
           pushSeries(plotState.opticalHeight, opticalHeightForPlot);
+          if (!Number.isFinite(plotState.opticalHeightTarget) && Number.isFinite(opticalHeightForPlot)) {
+            plotState.opticalHeightTarget = opticalHeightForPlot;
+          }
           pushSeries(plotState.corrVx, 0);
           pushSeries(plotState.corrVy, 0);
 
           drawVelPlot();
           drawPosPlot();
           drawCorrPlot();
-          drawHeightPlot();
+          drawOpticalHeightPlot();
+          drawBarometerHeightBar();
           updateCompassWidget("real", realCompassHeading);
           updateCompassWidget("vo", voCompassHeading);
           updateCompassWidget("opt", opticalCompassHeading);
@@ -1869,7 +2108,8 @@
         drawVelPlot();
         drawPosPlot();
         drawCorrPlot();
-        drawHeightPlot();
+        drawOpticalHeightPlot();
+        drawBarometerHeightBar();
       });
     </script>
   </body>
