@@ -11,7 +11,10 @@ import threading
 import multiprocessing
 import http.server
 import webbrowser
+import tempfile
+import zipfile
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 import cv2
@@ -403,6 +406,167 @@ class FrameState:
             return self._jpg, self._timestamp
 
 
+class BlackBoxRecorder:
+    """Thread-safe black-box recorder for dashboard data and JPEG frames."""
+
+    def __init__(self, root_dir):
+        self._lock = threading.Lock()
+        self._root_dir = Path(root_dir)
+        self._root_dir.mkdir(parents=True, exist_ok=True)
+        self._recording = False
+        self._session_id = None
+        self._session_dir = None
+        self._data_path = None
+        self._video_path = None
+        self._meta_path = None
+        self._data_file = None
+        self._video_file = None
+        self._started_at = None
+        self._stopped_at = None
+        self._data_count = 0
+        self._frame_count = 0
+        self._last_session_dir = None
+
+    def _session_status_locked(self):
+        return {
+            "recording": self._recording,
+            "session_id": self._session_id,
+            "started_at": self._started_at,
+            "stopped_at": self._stopped_at,
+            "data_points": self._data_count,
+            "frames": self._frame_count,
+            "data_file": str(self._data_path) if self._data_path else None,
+            "video_file": str(self._video_path) if self._video_path else None,
+        }
+
+    def _write_meta_locked(self):
+        if not self._meta_path:
+            return
+        payload = self._session_status_locked()
+        try:
+            self._meta_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+        except Exception:
+            return
+
+    def start(self):
+        with self._lock:
+            if self._recording:
+                return self._session_status_locked()
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            base_id = f"flight_{stamp}"
+            session_id = base_id
+            idx = 1
+            session_dir = self._root_dir / session_id
+            while session_dir.exists():
+                idx += 1
+                session_id = f"{base_id}_{idx}"
+                session_dir = self._root_dir / session_id
+            session_dir.mkdir(parents=True, exist_ok=False)
+            self._session_id = session_id
+            self._session_dir = session_dir
+            self._data_path = session_dir / "flight_data.txt"
+            self._video_path = session_dir / "flight_video.mjpg"
+            self._meta_path = session_dir / "session_meta.json"
+            self._data_file = self._data_path.open("w", encoding="utf-8")
+            self._video_file = self._video_path.open("wb")
+            self._recording = True
+            self._started_at = time.time()
+            self._stopped_at = None
+            self._data_count = 0
+            self._frame_count = 0
+            self._last_session_dir = session_dir
+            self._write_meta_locked()
+            return self._session_status_locked()
+
+    def stop(self):
+        with self._lock:
+            if not self._recording:
+                return self._session_status_locked()
+            self._recording = False
+            self._stopped_at = time.time()
+            try:
+                if self._data_file:
+                    self._data_file.flush()
+                    self._data_file.close()
+            finally:
+                self._data_file = None
+            try:
+                if self._video_file:
+                    self._video_file.flush()
+                    self._video_file.close()
+            finally:
+                self._video_file = None
+            self._write_meta_locked()
+            return self._session_status_locked()
+
+    def status(self):
+        with self._lock:
+            return self._session_status_locked()
+
+    def log_data(self, payload):
+        with self._lock:
+            if not self._recording or self._data_file is None:
+                return
+            row = {
+                "server_ts": time.time(),
+                "payload": payload,
+            }
+            try:
+                self._data_file.write(json.dumps(row, separators=(",", ":")) + "\n")
+                self._data_file.flush()
+                self._data_count += 1
+            except Exception:
+                return
+            self._write_meta_locked()
+
+    def log_frame(self, jpg_bytes):
+        if not jpg_bytes:
+            return
+        with self._lock:
+            if not self._recording or self._video_file is None:
+                return
+            try:
+                # MJPEG byte stream: concatenated JPEG frames.
+                self._video_file.write(jpg_bytes)
+                self._video_file.flush()
+                self._frame_count += 1
+            except Exception:
+                return
+            self._write_meta_locked()
+
+    def build_download_zip(self):
+        with self._lock:
+            session_dir = self._session_dir if self._session_dir is not None else self._last_session_dir
+            if session_dir is None or not session_dir.exists():
+                return None, None
+            data_path = session_dir / "flight_data.txt"
+            video_path = session_dir / "flight_video.mjpg"
+            meta_path = session_dir / "session_meta.json"
+            if not data_path.exists() and not video_path.exists():
+                return None, None
+            session_id = self._session_id or session_dir.name
+            tmp = tempfile.NamedTemporaryFile(
+                prefix=f"{session_id}_",
+                suffix=".zip",
+                dir=str(self._root_dir),
+                delete=False,
+            )
+            tmp_path = Path(tmp.name)
+            tmp.close()
+            with zipfile.ZipFile(tmp_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                if data_path.exists():
+                    zf.write(data_path, arcname=f"{session_dir.name}/flight_data.txt")
+                if video_path.exists():
+                    zf.write(video_path, arcname=f"{session_dir.name}/flight_video.mjpg")
+                if meta_path.exists():
+                    zf.write(meta_path, arcname=f"{session_dir.name}/session_meta.json")
+            download_name = f"{session_dir.name}_blackbox.zip"
+            return tmp_path, download_name
+
+
 def _normalize_gps_format(value):
     fmt = str(value or "").strip().lower().replace("+", "_")
     if fmt == "nmea_ubx":
@@ -420,6 +584,7 @@ def _make_dashboard_handler(
     get_gps_origin,
     set_gps_origin,
     frame_state,
+    blackbox_recorder,
     root_dir,
     allowed_modes,
     allowed_gps_formats,
@@ -431,9 +596,12 @@ def _make_dashboard_handler(
             super().__init__(*args, directory=str(root_dir), **kwargs)
 
         def do_GET(self):
+            parsed = urlparse(self.path)
+            req_path = parsed.path
+            query = parse_qs(parsed.query or "")
             if self.path in ("/", "/index.html"):
                 self.path = "/gui.html"
-            if self.path.startswith("/calibration-data"):
+            if req_path.startswith("/calibration-data"):
                 if not calibration_enabled:
                     data = json.dumps(
                         {
@@ -482,7 +650,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/data"):
+            if req_path.startswith("/data"):
                 payload = state.snapshot()
                 data = json.dumps(payload).encode("utf-8")
                 self.send_response(200)
@@ -492,7 +660,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/mode"):
+            if req_path.startswith("/mode"):
                 payload = {
                     "mode": mode_state.get(),
                     "allowed": sorted(allowed_modes),
@@ -505,7 +673,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/gps-format"):
+            if req_path.startswith("/gps-format"):
                 payload = {
                     "format": gps_format_state.get(),
                     "allowed": list(allowed_gps_formats),
@@ -518,7 +686,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/altitude-offset"):
+            if req_path.startswith("/altitude-offset"):
                 payload = {
                     "offset_m": float(altitude_offset_state.get()),
                 }
@@ -530,7 +698,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/gps-origin"):
+            if req_path.startswith("/gps-origin"):
                 current_origin = get_gps_origin()
                 snap = state.snapshot()
                 gps_input = (
@@ -559,7 +727,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/persist"):
+            if req_path.startswith("/persist"):
                 persisted_cfg = _load_yaml(Path(pixhawk_config_path))
                 gps_output_cfg = (
                     persisted_cfg.get("gps_output")
@@ -593,7 +761,7 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/service"):
+            if req_path.startswith("/service"):
                 active_ok, active_msg = _run_service_command(
                     "is-active", NAVISAR_SERVICE_NAME
                 )
@@ -610,7 +778,48 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(data)
                 return
-            if self.path.startswith("/video"):
+            if req_path.startswith("/blackbox/status"):
+                payload = blackbox_recorder.status()
+                data = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if req_path.startswith("/blackbox/download"):
+                zip_path, download_name = blackbox_recorder.build_download_zip()
+                if zip_path is None:
+                    data = json.dumps(
+                        {"ok": False, "error": "no blackbox session available"}
+                    ).encode("utf-8")
+                    self.send_response(404)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                try:
+                    blob = zip_path.read_bytes()
+                finally:
+                    try:
+                        zip_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header(
+                    "Content-Disposition",
+                    f'attachment; filename="{download_name}"',
+                )
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(blob)))
+                self.end_headers()
+                self.wfile.write(blob)
+                return
+            if req_path.startswith("/video"):
                 self.send_response(200)
                 self.send_header("Age", "0")
                 self.send_header("Cache-Control", "no-cache, private")
@@ -629,7 +838,7 @@ def _make_dashboard_handler(
                         time.sleep(0.1)
                 except (BrokenPipeError, ConnectionResetError):
                     return
-            if self.path.startswith("/frame.jpg"):
+            if req_path.startswith("/frame.jpg"):
                 jpg, _ts = frame_state.snapshot()
                 if not jpg:
                     self.send_response(503)
@@ -655,15 +864,18 @@ def _make_dashboard_handler(
                 and not self.path.startswith("/gps-origin")
                 and not self.path.startswith("/persist")
                 and not self.path.startswith("/service")
+                and not self.path.startswith("/blackbox")
             ):
                 return super().do_POST()
+            parsed = urlparse(self.path)
+            req_path = parsed.path
             length = int(self.headers.get("Content-Length", "0") or 0)
             raw = self.rfile.read(length) if length > 0 else b"{}"
             try:
                 payload = json.loads(raw.decode("utf-8"))
             except json.JSONDecodeError:
                 payload = {}
-            if self.path.startswith("/mode"):
+            if req_path.startswith("/mode"):
                 requested = str(payload.get("mode", "")).strip().lower()
                 if requested in allowed_modes:
                     mode_state.set(requested)
@@ -692,7 +904,7 @@ def _make_dashboard_handler(
                         {"ok": False, "mode": mode_state.get(), "allowed": sorted(allowed_modes)}
                     ).encode("utf-8")
                     self.send_response(400)
-            elif self.path.startswith("/gps-format"):
+            elif req_path.startswith("/gps-format"):
                 requested = _normalize_gps_format(payload.get("format"))
                 if requested in {"ubx", "nmea", "ubx_nmea"}:
                     gps_format_state.set(requested)
@@ -713,7 +925,7 @@ def _make_dashboard_handler(
                         }
                     ).encode("utf-8")
                     self.send_response(400)
-            elif self.path.startswith("/altitude-offset"):
+            elif req_path.startswith("/altitude-offset"):
                 requested = payload.get("offset_m")
                 try:
                     offset_m = float(requested)
@@ -726,7 +938,7 @@ def _make_dashboard_handler(
                     altitude_offset_state.set(offset_m)
                     data = json.dumps({"ok": True, "offset_m": offset_m}).encode("utf-8")
                     self.send_response(200)
-            elif self.path.startswith("/gps-origin"):
+            elif req_path.startswith("/gps-origin"):
                 mode = str(payload.get("mode", "variable")).strip().lower()
                 source = "variable"
                 lat = lon = alt_m = None
@@ -806,7 +1018,7 @@ def _make_dashboard_handler(
                     }
                 ).encode("utf-8")
                 self.send_response(200)
-            elif self.path.startswith("/persist"):
+            elif req_path.startswith("/persist"):
                 requested_mode = str(payload.get("mode", "")).strip().lower()
                 if requested_mode:
                     if requested_mode not in allowed_modes:
@@ -884,7 +1096,7 @@ def _make_dashboard_handler(
                     }
                 ).encode("utf-8")
                 self.send_response(200)
-            elif self.path.startswith("/service"):
+            elif req_path.startswith("/service"):
                 action = str(payload.get("action", "")).strip().lower()
                 if action not in {"start", "stop"}:
                     data = json.dumps(
@@ -919,6 +1131,14 @@ def _make_dashboard_handler(
                         }
                     ).encode("utf-8")
                     self.send_response(200 if ok else 500)
+            elif req_path.startswith("/blackbox/start"):
+                status = blackbox_recorder.start()
+                data = json.dumps({"ok": True, "status": status}).encode("utf-8")
+                self.send_response(200)
+            elif req_path.startswith("/blackbox/stop"):
+                status = blackbox_recorder.stop()
+                data = json.dumps({"ok": True, "status": status}).encode("utf-8")
+                self.send_response(200)
             else:
                 snap = state.snapshot()
                 current_alt = None
@@ -974,6 +1194,7 @@ def start_dashboard_server(
     get_gps_origin,
     set_gps_origin,
     frame_state,
+    blackbox_recorder,
     root_dir,
     host,
     port,
@@ -991,6 +1212,7 @@ def start_dashboard_server(
         get_gps_origin,
         set_gps_origin,
         frame_state,
+        blackbox_recorder,
         root_dir,
         allowed_modes,
         allowed_gps_formats,
@@ -1372,6 +1594,7 @@ def main():
         vio_mode = "vo"
     mode_state = ModeState(output_mode)
     frame_state = FrameState()
+    blackbox_recorder = BlackBoxRecorder(_repo_root() / "blackbox_logs")
     gps_input_cfg = pixhawk_cfg.get("gps_input", {})
     gps_input_enabled = bool(gps_input_cfg.get("enabled", True))
     gps_input_port = gps_input_cfg.get("port")
@@ -1676,6 +1899,7 @@ def main():
                 selector.gps_origin,
                 selector.set_gps_origin,
                 frame_state,
+                blackbox_recorder,
                 dashboard_root,
                 DASHBOARD_HOST,
                 DASHBOARD_PORT,
@@ -2573,8 +2797,7 @@ def main():
                     "lon": _safe_float(lon),
                     "alt_m": _safe_float(alt_base + (0.0 if z_f is None else z_f)),
                 }
-            dashboard_state.update(
-                {
+            dashboard_payload = {
                     "timestamp": _safe_float(now),
                     "mode": active_output_mode,
                     "gps_output_format": gps_format_active,
@@ -2712,7 +2935,8 @@ def main():
                         "optical_flow_gps_port": optical_flow_gps_port_mode.last_payload,
                     },
                 }
-            )
+            dashboard_state.update(dashboard_payload)
+            blackbox_recorder.log_data(dashboard_payload)
 
         if now - last_report["time"] >= 1.0:
             position = selector.get_position(now)
@@ -2733,7 +2957,9 @@ def main():
                 try:
                     ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
                     if ok:
-                        frame_state.update(buf.tobytes())
+                        jpg_bytes = buf.tobytes()
+                        frame_state.update(jpg_bytes)
+                        blackbox_recorder.log_frame(jpg_bytes)
                 except Exception:
                     return
 

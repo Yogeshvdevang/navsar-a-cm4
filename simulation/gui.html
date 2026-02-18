@@ -563,6 +563,13 @@
         <button data-action="read">Read</button>
         <button data-action="write">Write</button>
       </div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Black Box</div>
+      <div class="mode-buttons" id="blackbox-buttons">
+        <button id="blackbox-start-btn">Start Log</button>
+        <button id="blackbox-stop-btn">Stop Log</button>
+        <button id="blackbox-download-btn">Download TXT+Video</button>
+      </div>
+      <div class="gps-origin-note" id="blackbox-status">Black box: idle</div>
       <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">GPS Mode</div>
       <div class="gps-origin-controls">
         <div class="mode-buttons" id="gps-origin-buttons">
@@ -863,6 +870,36 @@
         return out;
       };
 
+      const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+      const autoRange = (seriesList, options = {}) => {
+        const minSpan = Number.isFinite(options.minSpan) ? options.minSpan : 1e-3;
+        const padRatio = Number.isFinite(options.padRatio) ? options.padRatio : 0.1;
+        const padMin = Number.isFinite(options.padMin) ? options.padMin : 0;
+        const values = [];
+        for (const series of seriesList) {
+          if (Array.isArray(series)) {
+            for (const value of series) {
+              if (Number.isFinite(value)) values.push(value);
+            }
+          } else if (Number.isFinite(series)) {
+            values.push(series);
+          }
+        }
+        if (!values.length) return [0, 1];
+        let minVal = Math.min(...values);
+        let maxVal = Math.max(...values);
+        if (minVal === maxVal) {
+          const pad = Math.max(minSpan, Math.abs(minVal) * 0.1, padMin);
+          minVal -= pad;
+          maxVal += pad;
+          return [minVal, maxVal];
+        }
+        const span = maxVal - minVal;
+        const pad = Math.max(minSpan, span * padRatio, padMin);
+        return [minVal - pad, maxVal + pad];
+      };
+
       const logState = {
         lines: [],
         max: 12,
@@ -1062,13 +1099,14 @@
         ctx.textAlign = "left";
       };
 
-      const drawLineSeries = (ctx, rect, values, color, minVal, maxVal) => {
+      const drawLineSeries = (ctx, rect, values, color, minVal, maxVal, left = 28, top = 28, right = 28, bottom = 28) => {
         if (!values.length) return;
-        const padding = 14;
+        const chartW = Math.max(1, rect.width - left - right);
+        const chartH = Math.max(1, rect.height - top - bottom);
         const span = Math.max(1e-6, maxVal - minVal);
         const points = values.map((v, i) => ({
-          x: padding + (i / (values.length - 1 || 1)) * (rect.width - padding * 2),
-          y: rect.height - padding - ((v - minVal) / span) * (rect.height - padding * 2),
+          x: clamp(left + (i / (values.length - 1 || 1)) * chartW, left, left + chartW),
+          y: clamp(top + ((maxVal - v) / span) * chartH, top, top + chartH),
         }));
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
@@ -1100,8 +1138,7 @@
         if (!rect) return;
         const vx = smoothSeries(plotState.vx, 11);
         const vy = smoothSeries(plotState.vy, 11);
-        const minVal = Math.min(0, ...vx, ...vy);
-        const maxVal = Math.max(0, ...vx, ...vy);
+        const [minVal, maxVal] = autoRange([vx, vy], { minSpan: 0.02, padRatio: 0.12 });
         drawAxes(velCtx, rect, 28);
         drawYScaleLabels(velCtx, rect, 28, 28, 28, 28, minVal, maxVal, 3, " m/s");
         const velDurationSec = plotState.times.length > 1
@@ -1140,7 +1177,7 @@
         const maxY = Math.max(...plotState.y, ...(gpsYFinite.length ? gpsYFinite : [0]));
         const spanX = Math.max(Math.abs(minX), Math.abs(maxX));
         const spanY = Math.max(Math.abs(minY), Math.abs(maxY));
-        const span = Math.max(spanX, spanY, 0.01);
+        const span = Math.max(spanX, spanY, 0.01) * 1.1;
         posCtx.strokeStyle = "rgba(0,0,0,0.12)";
         posCtx.lineWidth = 1;
         posCtx.strokeRect(pad, topPad, rect.width - pad * 2, rect.height - topPad - pad);
@@ -1160,16 +1197,16 @@
         drawXScaleLabels(posCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
         const pts = plotState.x.map((xv, i) => {
           const yv = plotState.y[i];
-          const x = pad + ((xv + span) / (2 * span)) * (rect.width - pad * 2);
-          const y = rect.height - pad - ((yv + span) / (2 * span)) * (rect.height - topPad - pad);
+          const x = clamp(pad + ((xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad);
+          const y = clamp(rect.height - pad - ((yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad);
           return { x, y };
         });
         const gpsPts = plotState.gpsX
           .map((xv, i) => ({ xv, yv: plotState.gpsY[i] }))
           .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv))
           .map((p) => ({
-            x: pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2),
-            y: rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad),
+            x: clamp(pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad),
+            y: clamp(rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad),
           }));
         posCtx.strokeStyle = "rgba(147,51,234,0.6)";
         posCtx.lineWidth = 2.4;
@@ -1260,8 +1297,7 @@
         if (!rect) return;
         const corrVx = smoothSeries(plotState.corrVx, 11);
         const corrVy = smoothSeries(plotState.corrVy, 11);
-        const minVal = Math.min(0, ...corrVx, ...corrVy);
-        const maxVal = Math.max(0, ...corrVx, ...corrVy);
+        const [minVal, maxVal] = autoRange([corrVx, corrVy], { minSpan: 0.02, padRatio: 0.12 });
         drawAxes(corrCtx, rect, 28);
         drawYScaleLabels(corrCtx, rect, 28, 28, 28, 28, minVal, maxVal, 3, " m/s");
         const corrDurationSec = plotState.times.length > 1
@@ -1289,8 +1325,7 @@
         const rect = resizeCanvas(heightPlot, heightCtx);
         if (!rect) return;
         const height = smoothSeries(plotState.height, 11);
-        const minVal = Math.min(...height, 0);
-        const maxVal = Math.max(...height, 1);
+        const [minVal, maxVal] = autoRange([height], { minSpan: 0.02, padRatio: 0.15, padMin: 0.02 });
         drawAxes(heightCtx, rect, 28);
         drawLineSeries(heightCtx, rect, height, "#f59e0b", minVal, maxVal);
         heightCtx.fillStyle = "#111";
@@ -1317,13 +1352,17 @@
         const padBottom = 28;
         const chartW = rect.width - padLeft - padRight;
         const chartH = rect.height - padTop - padBottom;
-        const rawMin = Math.min(...values, target);
-        const rawMax = Math.max(...values, target);
-        const span = Math.max(0.02, rawMax - rawMin);
-        const minVal = Math.max(0, rawMin - span * 0.35);
-        const maxVal = rawMax + span * 0.35;
+        const [minVal, maxVal] = autoRange([values, [target]], {
+          minSpan: 0.02,
+          padRatio: 0.2,
+          padMin: 0.02,
+        });
         const toY = (v) =>
-          padTop + ((maxVal - v) / Math.max(1e-6, maxVal - minVal)) * chartH;
+          clamp(
+            padTop + ((maxVal - v) / Math.max(1e-6, maxVal - minVal)) * chartH,
+            padTop,
+            padTop + chartH
+          );
 
         opticalHeightCtx.strokeStyle = "rgba(0,0,0,0.14)";
         opticalHeightCtx.lineWidth = 1;
@@ -1406,9 +1445,12 @@
         const rect = resizeCanvas(barometerHeightPlot, barometerHeightCtx);
         if (!rect) return;
         const value = plotState.barometerHeight[plotState.barometerHeight.length - 1] ?? 0;
-        const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0;
-        const maxHist = Math.max(0, ...plotState.barometerHeight.filter(Number.isFinite));
-        const maxVal = Math.max(0.1, maxHist * 1.15, safeValue * 1.15);
+        const safeValue = Number.isFinite(value) ? value : 0;
+        const [minVal, maxVal] = autoRange([plotState.barometerHeight, [safeValue]], {
+          minSpan: 0.05,
+          padRatio: 0.15,
+          padMin: 0.05,
+        });
         const padLeft = 44;
         const padRight = 16;
         const padTop = 20;
@@ -1430,15 +1472,16 @@
         barometerHeightCtx.fillStyle = "#111";
         barometerHeightCtx.font = "11px sans-serif";
         for (let i = 0; i <= 4; i += 1) {
-          const v = maxVal - (maxVal / 4) * i;
+          const v = maxVal - ((maxVal - minVal) / 4) * i;
           const y = padTop + (chartH / 4) * i;
           barometerHeightCtx.fillText(`${v.toFixed(3)} m`, 6, y + 4);
         }
 
         const barW = Math.min(26, chartW * 0.18);
         const barX = padLeft + (chartW - barW) / 2;
-        const barH = (safeValue / Math.max(1e-6, maxVal)) * chartH;
-        const barY = padTop + chartH - barH;
+        const barRatio = (safeValue - minVal) / Math.max(1e-6, maxVal - minVal);
+        const barH = clamp(barRatio * chartH, 0, chartH);
+        const barY = clamp(padTop + chartH - barH, padTop, padTop + chartH);
         barometerHeightCtx.fillStyle = "#16a34a";
         barometerHeightCtx.fillRect(barX, barY, barW, Math.max(2, barH));
 
@@ -1746,6 +1789,10 @@
       const modeButtons = Array.from(document.querySelectorAll("#mode-buttons button"));
       const gpsFormatButtons = Array.from(document.querySelectorAll("#gps-format-buttons button"));
       const rwButtons = Array.from(document.querySelectorAll("#rw-buttons button"));
+      const blackboxStartBtn = document.getElementById("blackbox-start-btn");
+      const blackboxStopBtn = document.getElementById("blackbox-stop-btn");
+      const blackboxDownloadBtn = document.getElementById("blackbox-download-btn");
+      const blackboxStatusEl = document.getElementById("blackbox-status");
       const gpsAutoBtn = document.getElementById("gps-auto-btn");
       const gpsVariableBtn = document.getElementById("gps-variable-btn");
       const gpsOriginFields = document.getElementById("gps-origin-fields");
@@ -1770,6 +1817,79 @@
         }
         logEl.textContent = logState.lines.join("\n");
       };
+
+      const setBlackboxStatus = (text) => {
+        if (blackboxStatusEl) blackboxStatusEl.textContent = text;
+      };
+
+      const refreshBlackboxState = async () => {
+        try {
+          const res = await fetch("/blackbox/status", { cache: "no-store" });
+          const payload = await res.json();
+          const recording = Boolean(payload?.recording);
+          const sessionId = payload?.session_id || "--";
+          const points = Number.isFinite(Number(payload?.data_points)) ? Number(payload.data_points) : 0;
+          const frames = Number.isFinite(Number(payload?.frames)) ? Number(payload.frames) : 0;
+          setBlackboxStatus(
+            `Black box: ${recording ? "recording" : "idle"} | session=${sessionId} | points=${points} | frames=${frames}`
+          );
+          if (blackboxStartBtn) blackboxStartBtn.disabled = recording;
+          if (blackboxStopBtn) blackboxStopBtn.disabled = !recording;
+          if (blackboxDownloadBtn) blackboxDownloadBtn.disabled = !payload?.session_id;
+        } catch (_) {
+          setBlackboxStatus("Black box: unavailable");
+        }
+      };
+
+      const startBlackbox = async () => {
+        try {
+          const res = await fetch("/blackbox/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const payload = await res.json();
+          if (payload?.ok) {
+            appendLog("blackbox recording started");
+            await refreshBlackboxState();
+          }
+        } catch (_) {
+          appendLog("blackbox start failed");
+        }
+      };
+
+      const stopBlackbox = async () => {
+        try {
+          const res = await fetch("/blackbox/stop", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const payload = await res.json();
+          if (payload?.ok) {
+            appendLog("blackbox recording stopped");
+            await refreshBlackboxState();
+          }
+        } catch (_) {
+          appendLog("blackbox stop failed");
+        }
+      };
+
+      const downloadBlackbox = () => {
+        const link = document.createElement("a");
+        link.href = `/blackbox/download?t=${Date.now()}`;
+        link.click();
+      };
+
+      if (blackboxStartBtn) {
+        blackboxStartBtn.addEventListener("click", startBlackbox);
+      }
+      if (blackboxStopBtn) {
+        blackboxStopBtn.addEventListener("click", stopBlackbox);
+      }
+      if (blackboxDownloadBtn) {
+        blackboxDownloadBtn.addEventListener("click", downloadBlackbox);
+      }
 
       const updateGpsOriginUi = () => {
         const isAuto = gpsOriginMode.value === "auto";
@@ -2124,6 +2244,7 @@
       refreshGpsFormatState();
       updateGpsOriginUi();
       refreshGpsOriginState();
+      refreshBlackboxState();
       if (voStream) {
         streamState.useSim = true;
         setCameraMode(true);
@@ -2173,6 +2294,7 @@
       setInterval(refreshModeState, 2000);
       setInterval(refreshGpsFormatState, 2000);
       setInterval(refreshGpsOriginState, 2000);
+      setInterval(refreshBlackboxState, 2000);
       window.addEventListener("resize", () => {
         fitCamCanvas();
         drawVelPlot();
