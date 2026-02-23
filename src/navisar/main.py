@@ -620,6 +620,8 @@ def _make_dashboard_handler(
     allowed_gps_formats,
     pixhawk_config_path,
     calibration_enabled,
+    calibration_gps_graph_enabled,
+    calibration_tuning_state,
 ):
     class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -651,8 +653,17 @@ def _make_dashboard_handler(
                 sensors = snap.get("sensors", {}) if isinstance(snap, dict) else {}
                 gps_input = sensors.get("gps_input", {}) if isinstance(sensors, dict) else {}
                 optical = sensors.get("optical_flow", {}) if isinstance(sensors, dict) else {}
+                gps_fused = snap.get("gps_ll_from_fused", {}) if isinstance(snap, dict) else {}
+                gps_root = snap.get("gps", {}) if isinstance(snap, dict) else {}
+                gps_origin = gps_root.get("origin", {}) if isinstance(gps_root, dict) else {}
                 payload = {
                     "enabled": True,
+                    "gps_graph_enabled": bool(calibration_gps_graph_enabled),
+                    "gps_tuning": {
+                        "lat_scale": float(calibration_tuning_state["lat_scale"].get()),
+                        "lon_scale": float(calibration_tuning_state["lon_scale"].get()),
+                        "alt_offset_m": float(calibration_tuning_state["alt_offset_m"].get()),
+                    },
                     "timestamp": snap.get("timestamp") if isinstance(snap, dict) else None,
                     "url": snap.get("url") if isinstance(snap, dict) else None,
                     "urls": snap.get("urls") if isinstance(snap, dict) else [],
@@ -662,6 +673,16 @@ def _make_dashboard_handler(
                         "alt_m": _safe_float(gps_input.get("alt_m")),
                         "fix_type": _safe_float(gps_input.get("fix_type")),
                     },
+                    "gps_fused": {
+                        "lat": _safe_float(gps_fused.get("lat")),
+                        "lon": _safe_float(gps_fused.get("lon")),
+                        "alt_m": _safe_float(gps_fused.get("alt_m")),
+                    },
+                    "gps_origin": {
+                        "lat": _safe_float(gps_origin.get("lat")),
+                        "lon": _safe_float(gps_origin.get("lon")),
+                        "alt_m": _safe_float(gps_origin.get("alt_m")),
+                    },
                     "optical_flow": {
                         "speed_x_mps": _safe_float(optical.get("speed_x")),
                         "speed_y_mps": _safe_float(optical.get("speed_y")),
@@ -670,6 +691,23 @@ def _make_dashboard_handler(
                         "flow_ok": _safe_float(optical.get("flow_ok")),
                         "dist_ok": _safe_float(optical.get("dist_ok")),
                         "ts": optical.get("ts"),
+                    },
+                }
+                data = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if req_path.startswith("/calibration-tuning"):
+                payload = {
+                    "ok": True,
+                    "tuning": {
+                        "lat_scale": float(calibration_tuning_state["lat_scale"].get()),
+                        "lon_scale": float(calibration_tuning_state["lon_scale"].get()),
+                        "alt_offset_m": float(calibration_tuning_state["alt_offset_m"].get()),
                     },
                 }
                 data = json.dumps(payload).encode("utf-8")
@@ -893,6 +931,7 @@ def _make_dashboard_handler(
                 and not self.path.startswith("/altitude-offset")
                 and not self.path.startswith("/gps-origin")
                 and not self.path.startswith("/persist")
+                and not self.path.startswith("/calibration-tuning")
                 and not self.path.startswith("/service")
                 and not self.path.startswith("/blackbox")
             ):
@@ -1126,6 +1165,45 @@ def _make_dashboard_handler(
                     }
                 ).encode("utf-8")
                 self.send_response(200)
+            elif req_path.startswith("/calibration-tuning"):
+                lat_scale_raw = payload.get("lat_scale")
+                lon_scale_raw = payload.get("lon_scale")
+                alt_offset_raw = payload.get("alt_offset_m")
+                try:
+                    lat_scale = float(lat_scale_raw)
+                    lon_scale = float(lon_scale_raw)
+                    alt_offset_m = float(alt_offset_raw)
+                except (TypeError, ValueError):
+                    data = json.dumps(
+                        {
+                            "ok": False,
+                            "error": "lat_scale, lon_scale and alt_offset_m must be numeric",
+                        }
+                    ).encode("utf-8")
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                lat_scale = max(0.1, min(5.0, lat_scale))
+                lon_scale = max(0.1, min(5.0, lon_scale))
+                alt_offset_m = max(-20.0, min(20.0, alt_offset_m))
+                calibration_tuning_state["lat_scale"].set(lat_scale)
+                calibration_tuning_state["lon_scale"].set(lon_scale)
+                calibration_tuning_state["alt_offset_m"].set(alt_offset_m)
+                data = json.dumps(
+                    {
+                        "ok": True,
+                        "tuning": {
+                            "lat_scale": lat_scale,
+                            "lon_scale": lon_scale,
+                            "alt_offset_m": alt_offset_m,
+                        },
+                    }
+                ).encode("utf-8")
+                self.send_response(200)
             elif req_path.startswith("/service"):
                 action = str(payload.get("action", "")).strip().lower()
                 if action not in {"start", "stop"}:
@@ -1232,6 +1310,8 @@ def start_dashboard_server(
     allowed_gps_formats,
     pixhawk_config_path,
     calibration_enabled,
+    calibration_gps_graph_enabled,
+    calibration_tuning_state,
     open_browser=True,
 ):
     handler = _make_dashboard_handler(
@@ -1248,6 +1328,8 @@ def start_dashboard_server(
         allowed_gps_formats,
         pixhawk_config_path,
         calibration_enabled,
+        calibration_gps_graph_enabled,
+        calibration_tuning_state,
     )
     server = http.server.ThreadingHTTPServer((host, port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -1605,6 +1687,15 @@ def main():
     pixhawk_cfg = configs["pixhawk"]
     calibration_cfg = pixhawk_cfg.get("calibration", {})
     calibration_enabled = bool(calibration_cfg.get("enabled", False))
+    calibration_gps_graph_enabled = bool(
+        calibration_cfg.get("gps_live_graph", calibration_enabled)
+    )
+    tuning_cfg = calibration_cfg.get("optical_gps_tuning", {})
+    if not isinstance(tuning_cfg, dict):
+        tuning_cfg = {}
+    lat_scale_state = ModeState(float(tuning_cfg.get("lat_scale", 1.0)))
+    lon_scale_state = ModeState(float(tuning_cfg.get("lon_scale", 1.0)))
+    alt_offset_state = ModeState(float(tuning_cfg.get("alt_offset_m", 0.0)))
     altitude_offset_m = float(pixhawk_cfg.get("altitude_offset_m", 0.0))
     altitude_offset_state = ModeState(altitude_offset_m)
     use_imu_fusion = pixhawk_cfg.get("use_imu_fusion", True)
@@ -1962,6 +2053,12 @@ def main():
                 allowed_gps_formats,
                 _repo_root() / "config" / "pixhawk.yaml",
                 calibration_enabled,
+                calibration_gps_graph_enabled,
+                {
+                    "lat_scale": lat_scale_state,
+                    "lon_scale": lon_scale_state,
+                    "alt_offset_m": alt_offset_state,
+                },
                 open_browser=_can_auto_open_browser(),
             )
             server_urls = getattr(dashboard_server, "navisar_urls", None) or [
@@ -1973,6 +2070,12 @@ def main():
                     "url": server_urls[0],
                     "urls": server_urls,
                     "calibration_enabled": calibration_enabled,
+                    "calibration_gps_graph_enabled": calibration_gps_graph_enabled,
+                    "calibration_tuning": {
+                        "lat_scale": float(lat_scale_state.get()),
+                        "lon_scale": float(lon_scale_state.get()),
+                        "alt_offset_m": float(alt_offset_state.get()),
+                    },
                 }
             )
         except Exception as exc:
@@ -2546,6 +2649,9 @@ def main():
         altitude_deadband_m=alt_deadband_m,
         altitude_min_m=alt_min_m,
         altitude_max_m=alt_max_m,
+        lat_scale=float(lat_scale_state.get()),
+        lon_scale=float(lon_scale_state.get()),
+        alt_offset_m=float(alt_offset_state.get()),
     )
     odometry_mode = OdometryMode(
         send_interval_s=odom_send_interval_s,
@@ -2924,6 +3030,11 @@ def main():
                 mavlink_interface,
             )
         elif active_output_mode == "optical_flow_gps_port":
+            optical_flow_gps_port_mode.set_gps_calibration(
+                lat_scale=float(lat_scale_state.get()),
+                lon_scale=float(lon_scale_state.get()),
+                alt_offset_m=float(alt_offset_state.get()),
+            )
             optical_alt_override_m = None
             optical_sample = last_optical_flow["value"]
             if optical_sample is not None and optical_sample.dist_ok:
@@ -2962,6 +3073,11 @@ def main():
                     "timestamp": _safe_float(now),
                     "mode": active_output_mode,
                     "gps_output_format": gps_format_active,
+                    "calibration_tuning": {
+                        "lat_scale": float(lat_scale_state.get()),
+                        "lon_scale": float(lon_scale_state.get()),
+                        "alt_offset_m": float(alt_offset_state.get()),
+                    },
                     "altitude_offset_m": current_altitude_offset_m,
                     "optical_altitude_offset_m": _safe_float(optical_altitude_offset_m),
                     "final_altitude_offset_m": _safe_float(
@@ -3245,6 +3361,11 @@ def main():
                         mavlink_interface,
                     )
                 else:
+                    optical_flow_gps_port_mode.set_gps_calibration(
+                        lat_scale=float(lat_scale_state.get()),
+                        lon_scale=float(lon_scale_state.get()),
+                        alt_offset_m=float(alt_offset_state.get()),
+                    )
                     optical_flow_gps_port_mode.handle(
                         now,
                         sample,
@@ -3263,6 +3384,11 @@ def main():
                             "timestamp": _safe_float(now),
                             "mode": current_mode if current_mode in optical_modes else output_mode,
                             "gps_output_format": gps_format_active,
+                            "calibration_tuning": {
+                                "lat_scale": float(lat_scale_state.get()),
+                                "lon_scale": float(lon_scale_state.get()),
+                                "alt_offset_m": float(alt_offset_state.get()),
+                            },
                             "altitude_offset_m": current_altitude_offset_m,
                             "optical_altitude_offset_m": _safe_float(optical_altitude_offset_m),
                             "final_altitude_offset_m": _safe_float(

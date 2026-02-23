@@ -25,7 +25,7 @@ gps_min_fix_type: 3
 gps_input:
   enabled: true
   port: /dev/ttyAMA5
-  baud: 115200 # 9600
+  baud: 115200
   format: auto
   init_wait_s: 3
   min_fix_type: 3
@@ -33,7 +33,7 @@ odom_gps_send_interval_s: 0.2
 odom_gps_fix_type: 3
 odom_gps_sats: 10
 odometry_send_interval_s: 0.04
-output_mode: gps_passthrough
+output_mode: optical_flow_gps_port
 vio_mode: vo
 vio_imu:
   print: true
@@ -104,7 +104,7 @@ gps_passthrough:
   input_port: /dev/ttyAMA5
   input_baud: 115200
   output_port: /dev/ttyAMA0
-  output_baud: 115200 #9600
+  output_baud: 115200
   log_dir: data/gps_passthrough_logs
   print: true
 vps_gps:
@@ -117,6 +117,11 @@ vps_gps:
   ignore_flags: 28
 calibration:
   enabled: true
+  gps_live_graph: true
+  optical_gps_tuning:
+    lat_scale: 1.0
+    lon_scale: 1.0
+    alt_offset_m: 0.0
 print_gps_values: false
 print_baro_values: false
 print_sensor_values: true

@@ -33,6 +33,9 @@ class OpticalFlowGpsPortMode:
         warn_interval_s: float = 2.0,
         max_gap_s: float = 1.0,
         print_enabled: bool = True,
+        lat_scale: float = 1.0,
+        lon_scale: float = 1.0,
+        alt_offset_m: float = 0.0,
     ):
         self.gps_port_mode = gps_port_mode
         self.min_quality = int(min_quality)
@@ -51,6 +54,9 @@ class OpticalFlowGpsPortMode:
         self.warn_interval_s = float(warn_interval_s)
         self.max_gap_s = float(max_gap_s)
         self.print_enabled = bool(print_enabled)
+        self.lat_scale = float(lat_scale)
+        self.lon_scale = float(lon_scale)
+        self.alt_offset_m = float(alt_offset_m)
         self._last_warn = 0.0
         self._last_time_s = None
         self._last_time_ms = None
@@ -63,6 +69,15 @@ class OpticalFlowGpsPortMode:
         self._origin = None
         self._alt_filtered_m = None
         self.last_payload = None
+
+    def set_gps_calibration(self, lat_scale=None, lon_scale=None, alt_offset_m=None):
+        """Update runtime calibration used for GPS output mapping."""
+        if lat_scale is not None:
+            self.lat_scale = float(lat_scale)
+        if lon_scale is not None:
+            self.lon_scale = float(lon_scale)
+        if alt_offset_m is not None:
+            self.alt_offset_m = float(alt_offset_m)
 
     def _warn(self, now, message):
         if now - self._last_warn >= self.warn_interval_s:
@@ -197,13 +212,19 @@ class OpticalFlowGpsPortMode:
 
         alt_m = self._z_m if _finite(self._z_m) else None
 
+        # Calibrate optical ENU before converting to GPS.
+        x_out_m = self._x_m * self.lon_scale
+        y_out_m = self._y_m * self.lat_scale
+        z_out_m = self._z_m + self.alt_offset_m
+        alt_out_m = alt_m + self.alt_offset_m if alt_m is not None else None
+
         self.gps_port_mode.handle(
             now,
-            self._x_m,
-            self._y_m,
-            self._z_m,
+            x_out_m,
+            y_out_m,
+            z_out_m,
             (origin[0], origin[1], None),
-            alt_override_m=alt_m,
+            alt_override_m=alt_out_m,
             nav_pvt_alt_mm_override=raw_dist_mm,
             heading_deg=heading_deg,
             heading_only=heading_only,
@@ -234,6 +255,14 @@ class OpticalFlowGpsPortMode:
 
         payload = dict(port_payload)
         payload["optical_flow"] = flow_payload
+        payload["calibration"] = {
+            "lat_scale": float(self.lat_scale),
+            "lon_scale": float(self.lon_scale),
+            "alt_offset_m": float(self.alt_offset_m),
+            "x_out_m": float(x_out_m),
+            "y_out_m": float(y_out_m),
+            "z_out_m": float(z_out_m),
+        }
         self.last_payload = payload
 
         ubx_payload = payload.get("ubx") or {}

@@ -481,6 +481,66 @@
         height: 280px;
       }
 
+      .gps-calibration-plot {
+        margin-top: 8px;
+        min-height: 300px;
+        height: 300px;
+        background: #fff;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+      }
+      .gps-calibration-grid {
+        margin-top: 8px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .gps-tuning-panel {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .gps-tuning-item {
+        background: #070707;
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .gps-tuning-item .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+      .gps-tuning-item .row strong {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .gps-tuning-value-input {
+        width: 84px;
+        background: #000;
+        color: var(--text);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 3px 6px;
+        font-size: 11px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      .gps-tuning-item input[type="range"] {
+        width: 100%;
+        accent-color: #2563eb;
+      }
+      .gps-calibration-grid .gps-calibration-plot {
+        min-height: 280px;
+        height: 280px;
+        margin-top: 0;
+      }
+
       .traj-wrap canvas {
         height: 200px;
       }
@@ -520,6 +580,12 @@
 
       @media (max-width: 980px) {
         .plot-row {
+          grid-template-columns: 1fr;
+        }
+        .gps-calibration-grid {
+          grid-template-columns: 1fr;
+        }
+        .gps-tuning-panel {
           grid-template-columns: 1fr;
         }
       }
@@ -680,6 +746,30 @@
         </div>
 
         <div class="plot-row">
+          <div class="card span-2" id="gps-calibration-card">
+            <h3>Calibration GPS Raw Data (2D)</h3>
+            <div class="gps-origin-note" id="gps-calibration-status">
+              Calibration GPS graph: waiting for data...
+            </div>
+            <div class="gps-tuning-panel">
+              <div class="gps-tuning-item">
+                <div class="row"><span>Lat Scale</span><strong><span id="lat-scale-value">1.000</span><input id="lat-scale-input" class="gps-tuning-value-input" type="number" step="0.001" min="0.50" max="2.00" value="1.000" /></strong></div>
+                <input id="lat-scale-slider" type="range" min="0.50" max="2.00" step="0.001" value="1.000" />
+              </div>
+              <div class="gps-tuning-item">
+                <div class="row"><span>Lon Scale</span><strong><span id="lon-scale-value">1.000</span><input id="lon-scale-input" class="gps-tuning-value-input" type="number" step="0.001" min="0.50" max="2.00" value="1.000" /></strong></div>
+                <input id="lon-scale-slider" type="range" min="0.50" max="2.00" step="0.001" value="1.000" />
+              </div>
+              <div class="gps-tuning-item">
+                <div class="row"><span>Alt Offset (m)</span><strong><span id="alt-offset-value">0.000</span><input id="alt-offset-input" class="gps-tuning-value-input" type="number" step="0.001" min="-5.000" max="5.000" value="0.000" /></strong></div>
+                <input id="alt-offset-slider" type="range" min="-5.000" max="5.000" step="0.001" value="0.000" />
+              </div>
+            </div>
+            <div class="gps-calibration-grid">
+              <div id="gps-calibration-latlon-plot" class="gps-calibration-plot"></div>
+              <div id="gps-calibration-alt-plot" class="gps-calibration-plot"></div>
+            </div>
+          </div>
           <div class="card">
             <h3>Velocities (m/s)</h3>
             <div class="plot-wrap">
@@ -718,6 +808,7 @@
 
     </section>
 
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script>
       const fmt = (value, digits = 2) => {
         if (value === null || value === undefined) return "--";
@@ -826,6 +917,18 @@
         }
         return "/data";
       })();
+      const calibrationDataUrl = (() => {
+        if (window.location.protocol === "file:") {
+          return "http://127.0.0.1:8765/calibration-data";
+        }
+        return "/calibration-data";
+      })();
+      const calibrationTuningUrl = (() => {
+        if (window.location.protocol === "file:") {
+          return "http://127.0.0.1:8765/calibration-tuning";
+        }
+        return "/calibration-tuning";
+      })();
 
       // VO stream image replaces previous canvas drawing.
 
@@ -849,6 +952,23 @@
         corrVx: [],
         corrVy: [],
         opticalHeightTarget: null,
+      };
+      const calibrationGpsState = {
+        maxPoints: 1200,
+        raw: {
+          lats: [],
+          lons: [],
+          alts: [],
+          idx: [],
+        },
+        sent: {
+          lats: [],
+          lons: [],
+          alts: [],
+          idx: [],
+        },
+        lastRenderedAtMs: 0,
+        disabledReason: "",
       };
 
       const filterState = {
@@ -941,6 +1061,25 @@
         mode: "mjpeg",
         snapshotTimer: null,
         streamRetryTimer: null,
+      };
+      const gpsCalibrationStatusEl = document.getElementById("gps-calibration-status");
+      const gpsCalibrationLatLonPlotEl = document.getElementById("gps-calibration-latlon-plot");
+      const gpsCalibrationAltPlotEl = document.getElementById("gps-calibration-alt-plot");
+      const latScaleSlider = document.getElementById("lat-scale-slider");
+      const lonScaleSlider = document.getElementById("lon-scale-slider");
+      const altOffsetSlider = document.getElementById("alt-offset-slider");
+      const latScaleInput = document.getElementById("lat-scale-input");
+      const lonScaleInput = document.getElementById("lon-scale-input");
+      const altOffsetInput = document.getElementById("alt-offset-input");
+      const latScaleValueEl = document.getElementById("lat-scale-value");
+      const lonScaleValueEl = document.getElementById("lon-scale-value");
+      const altOffsetValueEl = document.getElementById("alt-offset-value");
+      const gpsTuningState = {
+        lat_scale: 1.0,
+        lon_scale: 1.0,
+        alt_offset_m: 0.0,
+        syncing: false,
+        pendingTimer: null,
       };
       const clientRecorderState = {
         recording: false,
@@ -1113,6 +1252,355 @@
       const pushSeries = (arr, value) => {
         arr.push(value);
         if (arr.length > plotState.maxPoints) arr.shift();
+      };
+
+      const pushCalibrationSeries = (arr, value) => {
+        arr.push(value);
+        if (arr.length > calibrationGpsState.maxPoints) arr.shift();
+      };
+
+      const setCalibrationStatus = (text) => {
+        if (gpsCalibrationStatusEl) gpsCalibrationStatusEl.textContent = text;
+      };
+
+      const clampNumber = (v, min, max) => Math.min(max, Math.max(min, v));
+
+      const setTuningUi = (latScale, lonScale, altOffsetM) => {
+        if (latScaleSlider) latScaleSlider.value = Number(latScale).toFixed(3);
+        if (lonScaleSlider) lonScaleSlider.value = Number(lonScale).toFixed(3);
+        if (altOffsetSlider) altOffsetSlider.value = Number(altOffsetM).toFixed(3);
+        if (latScaleInput) latScaleInput.value = Number(latScale).toFixed(3);
+        if (lonScaleInput) lonScaleInput.value = Number(lonScale).toFixed(3);
+        if (altOffsetInput) altOffsetInput.value = Number(altOffsetM).toFixed(3);
+        if (latScaleValueEl) latScaleValueEl.textContent = Number(latScale).toFixed(3);
+        if (lonScaleValueEl) lonScaleValueEl.textContent = Number(lonScale).toFixed(3);
+        if (altOffsetValueEl) altOffsetValueEl.textContent = Number(altOffsetM).toFixed(3);
+      };
+
+      const readTuningFromSliders = () => ({
+        lat_scale: clampNumber(Number(latScaleSlider ? latScaleSlider.value : gpsTuningState.lat_scale), 0.5, 2.0),
+        lon_scale: clampNumber(Number(lonScaleSlider ? lonScaleSlider.value : gpsTuningState.lon_scale), 0.5, 2.0),
+        alt_offset_m: clampNumber(Number(altOffsetSlider ? altOffsetSlider.value : gpsTuningState.alt_offset_m), -5.0, 5.0),
+      });
+
+      const syncSliderFromInput = () => {
+        if (latScaleInput && latScaleSlider) {
+          const v = clampNumber(Number(latScaleInput.value), 0.5, 2.0);
+          if (Number.isFinite(v)) latScaleSlider.value = v.toFixed(3);
+        }
+        if (lonScaleInput && lonScaleSlider) {
+          const v = clampNumber(Number(lonScaleInput.value), 0.5, 2.0);
+          if (Number.isFinite(v)) lonScaleSlider.value = v.toFixed(3);
+        }
+        if (altOffsetInput && altOffsetSlider) {
+          const v = clampNumber(Number(altOffsetInput.value), -5.0, 5.0);
+          if (Number.isFinite(v)) altOffsetSlider.value = v.toFixed(3);
+        }
+      };
+
+      const applyTuningLocal = (tuning) => {
+        const lat = Number.isFinite(Number(tuning?.lat_scale)) ? Number(tuning.lat_scale) : gpsTuningState.lat_scale;
+        const lon = Number.isFinite(Number(tuning?.lon_scale)) ? Number(tuning.lon_scale) : gpsTuningState.lon_scale;
+        const alt = Number.isFinite(Number(tuning?.alt_offset_m)) ? Number(tuning.alt_offset_m) : gpsTuningState.alt_offset_m;
+        gpsTuningState.lat_scale = lat;
+        gpsTuningState.lon_scale = lon;
+        gpsTuningState.alt_offset_m = alt;
+        setTuningUi(lat, lon, alt);
+      };
+
+      const pushCalibrationTuning = async (tuning) => {
+        if (gpsTuningState.syncing) return;
+        gpsTuningState.syncing = true;
+        try {
+          const res = await fetch(calibrationTuningUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              lat_scale: tuning.lat_scale,
+              lon_scale: tuning.lon_scale,
+              alt_offset_m: tuning.alt_offset_m,
+            }),
+          });
+          const payload = await res.json();
+          if (res.ok && payload?.ok && payload?.tuning) {
+            applyTuningLocal(payload.tuning);
+          }
+        } catch (_) {
+          // ignore transient network errors
+        } finally {
+          gpsTuningState.syncing = false;
+        }
+      };
+
+      const scheduleCalibrationTuningPush = () => {
+        const next = readTuningFromSliders();
+        applyTuningLocal(next);
+        if (gpsTuningState.pendingTimer) {
+          clearTimeout(gpsTuningState.pendingTimer);
+          gpsTuningState.pendingTimer = null;
+        }
+        gpsTuningState.pendingTimer = setTimeout(() => {
+          pushCalibrationTuning(next);
+        }, 80);
+      };
+
+      const refreshCalibrationTuning = async () => {
+        try {
+          const res = await fetch(calibrationTuningUrl, { cache: "no-store" });
+          const payload = await res.json();
+          if (res.ok && payload?.ok && payload?.tuning) {
+            applyTuningLocal(payload.tuning);
+          }
+        } catch (_) {
+          // ignore transient network errors
+        }
+      };
+
+      const tightRange = (values, minSpan, padRatio = 0.2) => {
+        const finite = values.filter((v) => Number.isFinite(v));
+        if (!finite.length) return [-1, 1];
+        let minV = Math.min(...finite);
+        let maxV = Math.max(...finite);
+        if (minV === maxV) {
+          const half = Math.max(minSpan * 0.5, Math.abs(minV) * 1e-9);
+          return [minV - half, maxV + half];
+        }
+        const span = Math.max(minSpan, maxV - minV);
+        const mid = (minV + maxV) * 0.5;
+        const half = span * 0.5 * (1 + padRatio);
+        return [mid - half, mid + half];
+      };
+
+      const toLocalCmPoints = (lats, lons, refLat, refLon) => {
+        const lat0 = Number(refLat);
+        const lon0 = Number(refLon);
+        const outX = [];
+        const outY = [];
+        if (!Number.isFinite(lat0) || !Number.isFinite(lon0)) {
+          return { xCm: outX, yCm: outY };
+        }
+        const cosLat = Math.cos((lat0 * Math.PI) / 180);
+        for (let i = 0; i < lats.length; i += 1) {
+          const lat = Number(lats[i]);
+          const lon = Number(lons[i]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            outX.push(null);
+            outY.push(null);
+            continue;
+          }
+          const dxM = (lon - lon0) * 111320 * cosLat;
+          const dyM = (lat - lat0) * 110540;
+          outX.push(dxM * 100.0);
+          outY.push(dyM * 100.0);
+        }
+        return { xCm: outX, yCm: outY };
+      };
+
+      const getRawCalibrationFixFromPayload = (payload) => {
+        const gpsInput = payload?.gps_input || {};
+        const lat = asFiniteNumber(gpsInput?.lat);
+        const lon = asFiniteNumber(gpsInput?.lon);
+        const altM = asFiniteNumber(gpsInput?.alt_m);
+        const fixType = asFiniteNumber(gpsInput?.fix_type);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        return { lat, lon, altM, fixType, raw: gpsInput };
+      };
+
+      const getSentCalibrationFixFromRuntimeData = (runtimeData) => {
+        const sent =
+          runtimeData?.outputs?.optical_flow_gps_port
+          || runtimeData?.outputs?.gps_port
+          || {};
+        const lat = asFiniteNumber(sent?.lat);
+        const lon = asFiniteNumber(sent?.lon);
+        const altM = asFiniteNumber(sent?.alt_m);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        return { lat, lon, altM };
+      };
+
+      const renderCalibrationGpsPlot = (force = false) => {
+        if (!window.Plotly || !gpsCalibrationLatLonPlotEl || !gpsCalibrationAltPlotEl) return;
+        const now = Date.now();
+        if (!force && now - calibrationGpsState.lastRenderedAtMs < 200) return;
+        calibrationGpsState.lastRenderedAtMs = now;
+        const raw = calibrationGpsState.raw;
+        const sent = calibrationGpsState.sent;
+        if (!sent.lats.length) {
+          setCalibrationStatus("Calibration GPS graph: waiting for final GPS port data...");
+          return;
+        }
+        const latLonSentTrace = {
+          type: "scatter",
+          mode: "lines+markers",
+          name: "Final GPS (to Pixhawk)",
+          x: sent.lons,
+          y: sent.lats,
+          line: { color: "#2563eb", width: 2.5 },
+          marker: { color: "#2563eb", size: 5, opacity: 0.95 },
+        };
+        const refLat = sent.lats[0];
+        const refLon = sent.lons[0];
+        const sentLocal = toLocalCmPoints(sent.lats, sent.lons, refLat, refLon);
+        latLonSentTrace.x = sentLocal.xCm;
+        latLonSentTrace.y = sentLocal.yCm;
+        const xRange = tightRange(
+          sentLocal.xCm.filter((v) => Number.isFinite(v)),
+          0.02,
+          0.25
+        );
+        const yRange = tightRange(
+          sentLocal.yCm.filter((v) => Number.isFinite(v)),
+          0.02,
+          0.25
+        );
+        const latLonLayout = {
+          margin: { l: 52, r: 14, t: 28, b: 46 },
+          template: "plotly_white",
+          xaxis: { title: "Delta East (cm)", range: xRange, fixedrange: false },
+          yaxis: { title: "Delta North (cm)", range: yRange, fixedrange: false },
+          title: { text: "Final GPS Port Lat-Lon Change (cm)", font: { size: 13 } },
+          legend: { orientation: "h", x: 0.01, y: 1.15 },
+        };
+        Plotly.react(
+          gpsCalibrationLatLonPlotEl,
+          [latLonSentTrace],
+          latLonLayout,
+          { displayModeBar: false, responsive: true }
+        );
+
+        const altSentTrace = {
+          type: "scatter",
+          mode: "lines",
+          name: "Final GPS Altitude",
+          x: sent.idx,
+          y: sent.alts.map((v) => (Number.isFinite(v) ? v : null)),
+          line: { color: "#2563eb", width: 2.5 },
+        };
+        const allAltValues = sent.alts.filter((v) => Number.isFinite(v));
+        const altRange = tightRange(allAltValues, 0.005, 0.2);
+        const altLayout = {
+          margin: { l: 52, r: 14, t: 28, b: 46 },
+          template: "plotly_white",
+          xaxis: { title: "Sample", autorange: true, fixedrange: false },
+          yaxis: { title: "Altitude (m)", range: altRange, fixedrange: false },
+          title: { text: "Final GPS Port Altitude", font: { size: 13 } },
+          legend: { orientation: "h", x: 0.01, y: 1.15 },
+        };
+        Plotly.react(
+          gpsCalibrationAltPlotEl,
+          [altSentTrace],
+          altLayout,
+          { displayModeBar: false, responsive: true }
+        );
+      };
+
+      const resetCalibrationGpsPlot = (reason = "") => {
+        calibrationGpsState.raw.lats = [];
+        calibrationGpsState.raw.lons = [];
+        calibrationGpsState.raw.alts = [];
+        calibrationGpsState.raw.idx = [];
+        calibrationGpsState.sent.lats = [];
+        calibrationGpsState.sent.lons = [];
+        calibrationGpsState.sent.alts = [];
+        calibrationGpsState.sent.idx = [];
+        calibrationGpsState.lastRenderedAtMs = 0;
+        calibrationGpsState.disabledReason = reason || "";
+        if (window.Plotly) {
+          if (gpsCalibrationLatLonPlotEl) Plotly.purge(gpsCalibrationLatLonPlotEl);
+          if (gpsCalibrationAltPlotEl) Plotly.purge(gpsCalibrationAltPlotEl);
+        }
+      };
+
+      const addCalibrationGpsFix = (fix) => {
+        const lat = Number(fix?.lat);
+        const lon = Number(fix?.lon);
+        const altM = Number(fix?.altM);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const rawState = calibrationGpsState.raw;
+        const count = rawState.lats.length;
+        if (
+          count > 0
+          && rawState.lats[count - 1] === lat
+          && rawState.lons[count - 1] === lon
+          && rawState.alts[count - 1] === (Number.isFinite(altM) ? altM : null)
+        ) {
+          return;
+        }
+        pushCalibrationSeries(rawState.lats, lat);
+        pushCalibrationSeries(rawState.lons, lon);
+        pushCalibrationSeries(rawState.alts, Number.isFinite(altM) ? altM : null);
+        pushCalibrationSeries(
+          rawState.idx,
+          (rawState.idx[rawState.idx.length - 1] || 0) + 1
+        );
+      };
+
+      const addSentCalibrationGpsFix = (fix) => {
+        const lat = Number(fix?.lat);
+        const lon = Number(fix?.lon);
+        const altM = Number(fix?.altM);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        const sentState = calibrationGpsState.sent;
+        const count = sentState.lats.length;
+        if (
+          count > 0
+          && sentState.lats[count - 1] === lat
+          && sentState.lons[count - 1] === lon
+          && sentState.alts[count - 1] === (Number.isFinite(altM) ? altM : null)
+        ) {
+          return;
+        }
+        pushCalibrationSeries(sentState.lats, lat);
+        pushCalibrationSeries(sentState.lons, lon);
+        pushCalibrationSeries(sentState.alts, Number.isFinite(altM) ? altM : null);
+        pushCalibrationSeries(
+          sentState.idx,
+          (sentState.idx[sentState.idx.length - 1] || 0) + 1
+        );
+      };
+
+      const pollCalibrationData = async () => {
+        try {
+          const res = await fetch(calibrationDataUrl, { cache: "no-store" });
+          const payload = await res.json();
+          if (!res.ok || !payload?.enabled) {
+            const reason = payload?.error || "calibration disabled";
+            if (calibrationGpsState.disabledReason !== reason) {
+              resetCalibrationGpsPlot(reason);
+            }
+            setCalibrationStatus(`Calibration GPS graph: ${reason}`);
+            return;
+          }
+          if (!payload?.gps_graph_enabled) {
+            const reason = "calibration.gps_live_graph is disabled in pixhawk.yaml";
+            if (calibrationGpsState.disabledReason !== reason) {
+              resetCalibrationGpsPlot(reason);
+            }
+            setCalibrationStatus(`Calibration GPS graph: ${reason}`);
+            return;
+          }
+          calibrationGpsState.disabledReason = "";
+          const finalFix = getSentCalibrationFixFromRuntimeData(window.__lastData || {});
+          const fix = getRawCalibrationFixFromPayload(payload);
+          if (finalFix) addSentCalibrationGpsFix(finalFix);
+          if (payload?.gps_tuning) {
+            applyTuningLocal(payload.gps_tuning);
+          } else if (window.__lastData?.calibration_tuning) {
+            applyTuningLocal(window.__lastData.calibration_tuning);
+          }
+          renderCalibrationGpsPlot();
+          const finalPoints = calibrationGpsState.sent.lats.length;
+          if (finalFix) {
+            const altText = Number.isFinite(finalFix.altM) ? finalFix.altM.toFixed(3) : "n/a";
+            setCalibrationStatus(
+              `Final GPS->Pixhawk (blue): points=${finalPoints} lat=${finalFix.lat.toFixed(7)} lon=${finalFix.lon.toFixed(7)} alt=${altText} m`
+            );
+          } else {
+            setCalibrationStatus("Final GPS->Pixhawk (blue): waiting for port output payload...");
+          }
+        } catch (_) {
+          setCalibrationStatus("Calibration GPS graph: endpoint unavailable");
+        }
       };
 
       const resizeCanvas = (canvas, ctx) => {
@@ -2565,6 +3053,22 @@
           handleSelectVariable();
         });
       }
+      [latScaleSlider, lonScaleSlider, altOffsetSlider].forEach((slider) => {
+        if (!slider) return;
+        slider.addEventListener("input", scheduleCalibrationTuningPush);
+        slider.addEventListener("change", scheduleCalibrationTuningPush);
+      });
+      [latScaleInput, lonScaleInput, altOffsetInput].forEach((input) => {
+        if (!input) return;
+        input.addEventListener("input", () => {
+          syncSliderFromInput();
+          scheduleCalibrationTuningPush();
+        });
+        input.addEventListener("change", () => {
+          syncSliderFromInput();
+          scheduleCalibrationTuningPush();
+        });
+      });
 
       const updateModeButtons = (mode, allowed = null) => {
         modeButtons.forEach((btn) => {
@@ -2603,6 +3107,8 @@
       };
 
       tick();
+      pollCalibrationData();
+      refreshCalibrationTuning();
       refreshModeState();
       refreshGpsFormatState();
       updateGpsOriginUi();
@@ -2654,6 +3160,8 @@
         }
       };
       setInterval(fastTick, 100);
+      setInterval(pollCalibrationData, 100);
+      setInterval(refreshCalibrationTuning, 2000);
       setInterval(refreshModeState, 2000);
       setInterval(refreshGpsFormatState, 2000);
       setInterval(refreshGpsOriginState, 2000);
@@ -2666,6 +3174,7 @@
         drawHeightPlot();
         drawOpticalHeightPlot();
         drawBarometerHeightBar();
+        renderCalibrationGpsPlot(true);
       });
     </script>
   </body>
