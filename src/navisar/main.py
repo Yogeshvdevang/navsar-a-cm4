@@ -51,6 +51,25 @@ from navisar.vps.visual_slam import VisualSlam, SlamConfig
 from navisar.vps.orbslam3_runner import OrbSlam3Runner, OrbSlam3Config
 
 _CONFIG_WRITE_LOCK = threading.Lock()
+_PLOTLY_JS_CACHE = {"bytes": None, "loaded": False}
+
+
+def _get_plotly_js_bytes():
+    """Return vendored Plotly JS bytes from the local Python environment."""
+    if _PLOTLY_JS_CACHE["loaded"]:
+        return _PLOTLY_JS_CACHE["bytes"]
+    data = None
+    try:
+        import plotly  # local dependency, not network
+
+        js_path = Path(plotly.__file__).resolve().parent / "package_data" / "plotly.min.js"
+        if js_path.exists():
+            data = js_path.read_bytes()
+    except Exception:
+        data = None
+    _PLOTLY_JS_CACHE["bytes"] = data
+    _PLOTLY_JS_CACHE["loaded"] = True
+    return data
 
 # ================= CONFIG =================
 CAMERA_INDEX = 0
@@ -631,6 +650,18 @@ def _make_dashboard_handler(
             parsed = urlparse(self.path)
             req_path = parsed.path
             query = parse_qs(parsed.query or "")
+            if req_path in {"/plotly.min.js", "/plotly-2.35.2.min.js"}:
+                js_data = _get_plotly_js_bytes()
+                if js_data is None:
+                    self.send_error(404, "Local Plotly bundle unavailable")
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/javascript")
+                self.send_header("Cache-Control", "public, max-age=3600")
+                self.send_header("Content-Length", str(len(js_data)))
+                self.end_headers()
+                self.wfile.write(js_data)
+                return
             if self.path in ("/", "/index.html"):
                 self.path = "/gui.html"
             if req_path.startswith("/calibration-data"):
