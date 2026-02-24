@@ -534,6 +534,11 @@
         width: 100%;
         accent-color: #2563eb;
       }
+      .gps-tuning-actions {
+        margin-top: 8px;
+        display: flex;
+        justify-content: flex-end;
+      }
       .gps-calibration-grid .gps-calibration-plot {
         min-height: 280px;
         height: 280px;
@@ -763,6 +768,9 @@
                 <div class="row"><span>Alt Offset (m)</span><strong><span id="alt-offset-value">0.000</span><input id="alt-offset-input" class="gps-tuning-value-input" type="number" step="0.001" min="-5.000" max="5.000" value="0.000" /></strong></div>
                 <input id="alt-offset-slider" type="range" min="-5.000" max="5.000" step="0.001" value="0.000" />
               </div>
+            </div>
+            <div class="gps-tuning-actions mode-buttons">
+              <button id="gps-tuning-default-btn" type="button">Default Settings</button>
             </div>
             <div class="gps-calibration-grid">
               <div id="gps-calibration-latlon-plot" class="gps-calibration-plot"></div>
@@ -1074,12 +1082,18 @@
       const latScaleValueEl = document.getElementById("lat-scale-value");
       const lonScaleValueEl = document.getElementById("lon-scale-value");
       const altOffsetValueEl = document.getElementById("alt-offset-value");
+      const gpsTuningDefaultBtn = document.getElementById("gps-tuning-default-btn");
       const gpsTuningState = {
         lat_scale: 1.0,
         lon_scale: 1.0,
         alt_offset_m: 0.0,
         syncing: false,
         pendingTimer: null,
+      };
+      const gpsTuningDefaults = {
+        lat_scale: 1.0,
+        lon_scale: 1.0,
+        alt_offset_m: 0.0,
       };
       const clientRecorderState = {
         recording: false,
@@ -1308,6 +1322,15 @@
         setTuningUi(lat, lon, alt);
       };
 
+      const applyTuningDefaultsLocal = (defaults) => {
+        const lat = Number.isFinite(Number(defaults?.lat_scale)) ? Number(defaults.lat_scale) : gpsTuningDefaults.lat_scale;
+        const lon = Number.isFinite(Number(defaults?.lon_scale)) ? Number(defaults.lon_scale) : gpsTuningDefaults.lon_scale;
+        const alt = Number.isFinite(Number(defaults?.alt_offset_m)) ? Number(defaults.alt_offset_m) : gpsTuningDefaults.alt_offset_m;
+        gpsTuningDefaults.lat_scale = lat;
+        gpsTuningDefaults.lon_scale = lon;
+        gpsTuningDefaults.alt_offset_m = alt;
+      };
+
       const pushCalibrationTuning = async (tuning) => {
         if (gpsTuningState.syncing) return;
         gpsTuningState.syncing = true;
@@ -1324,6 +1347,9 @@
           const payload = await res.json();
           if (res.ok && payload?.ok && payload?.tuning) {
             applyTuningLocal(payload.tuning);
+            if (payload?.defaults) {
+              applyTuningDefaultsLocal(payload.defaults);
+            }
           }
         } catch (_) {
           // ignore transient network errors
@@ -1350,6 +1376,9 @@
           const payload = await res.json();
           if (res.ok && payload?.ok && payload?.tuning) {
             applyTuningLocal(payload.tuning);
+            if (payload?.defaults) {
+              applyTuningDefaultsLocal(payload.defaults);
+            }
           }
         } catch (_) {
           // ignore transient network errors
@@ -3069,6 +3098,24 @@
           scheduleCalibrationTuningPush();
         });
       });
+      if (gpsTuningDefaultBtn) {
+        gpsTuningDefaultBtn.addEventListener("click", async () => {
+          const defaults = {
+            lat_scale: gpsTuningDefaults.lat_scale,
+            lon_scale: gpsTuningDefaults.lon_scale,
+            alt_offset_m: gpsTuningDefaults.alt_offset_m,
+          };
+          if (gpsTuningState.pendingTimer) {
+            clearTimeout(gpsTuningState.pendingTimer);
+            gpsTuningState.pendingTimer = null;
+          }
+          applyTuningLocal(defaults);
+          await pushCalibrationTuning(defaults);
+          appendLog(
+            `tuning default applied: lat_scale=${defaults.lat_scale.toFixed(3)} lon_scale=${defaults.lon_scale.toFixed(3)} alt_offset_m=${defaults.alt_offset_m.toFixed(3)}`
+          );
+        });
+      }
 
       const updateModeButtons = (mode, allowed = null) => {
         modeButtons.forEach((btn) => {
