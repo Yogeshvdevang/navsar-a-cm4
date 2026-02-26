@@ -1,5 +1,7 @@
 """Mode for sending optical flow data as GPS over serial."""
 
+import math
+
 from navisar.modes.gps_port import GpsPortMode
 
 
@@ -84,6 +86,14 @@ class OpticalFlowGpsPortMode:
             print(message)
             self._last_warn = now
 
+    @staticmethod
+    def _body_to_enu(vx_body_mps, vy_body_mps, heading_deg):
+        """Rotate body-frame XY speed into ENU (east, north) using heading."""
+        psi = math.radians(float(heading_deg) % 360.0)
+        v_north = vx_body_mps * math.cos(psi) - vy_body_mps * math.sin(psi)
+        v_east = vx_body_mps * math.sin(psi) + vy_body_mps * math.cos(psi)
+        return v_east, v_north
+
     def _reset(self, origin):
         self._last_time_s = None
         self._last_time_ms = None
@@ -138,8 +148,17 @@ class OpticalFlowGpsPortMode:
                 vx_mps, vy_mps = 0.0, 0.0
             else:
                 scale = self.speed_scale
-                vx_mps = float(sample.speed_x) * scale
-                vy_mps = float(sample.speed_y) * scale
+                vx_body_mps = float(sample.speed_x) * scale
+                vy_body_mps = float(sample.speed_y) * scale
+                if _finite(heading_deg):
+                    vx_mps, vy_mps = self._body_to_enu(
+                        vx_body_mps,
+                        vy_body_mps,
+                        float(heading_deg),
+                    )
+                else:
+                    # Optical-flow-only fallback: treat sensor XY as ENU directly.
+                    vx_mps, vy_mps = vx_body_mps, vy_body_mps
             if _finite(vx_mps) and _finite(vy_mps):
                 if (
                     quality >= self.stationary_quality_min
