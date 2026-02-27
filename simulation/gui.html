@@ -642,13 +642,11 @@
         <button id="blackbox-download-btn">Download TXT+Video</button>
       </div>
       <div class="gps-origin-note" id="blackbox-status">Black box: idle</div>
-      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Client-Side Recorder</div>
-      <div class="mode-buttons" id="client-recorder-buttons">
-        <button id="client-rec-start-btn">Start Client Rec</button>
-        <button id="client-rec-stop-btn">Stop Client Rec</button>
-        <button id="client-rec-download-btn">Download (Fallback)</button>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">GPS CSV Logger</div>
+      <div class="mode-buttons" id="gps-log-buttons">
+        <button id="gps-log-toggle-btn">Start GPS Log</button>
       </div>
-      <div class="gps-origin-note" id="client-rec-status">Client recorder: idle</div>
+      <div class="gps-origin-note" id="gps-log-status">GPS logger: idle</div>
       <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">GPS Mode</div>
       <div class="gps-origin-controls">
         <div class="mode-buttons" id="gps-origin-buttons">
@@ -1112,6 +1110,23 @@
         videoWritable: null,
         writeChain: Promise.resolve(),
       };
+      const gpsCsvLoggerState = {
+        recording: false,
+        startedAt: null,
+        sensorRows: [],
+        pixhawkRows: [],
+      };
+      const gpsCsvColumns = [
+        "timestamp_iso",
+        "timestamp_unix_s",
+        "lat",
+        "lon",
+        "alt_m",
+        "fix_type",
+        "speed_mps",
+        "heading_deg",
+        "sats",
+      ];
 
       const setCameraMode = (useSim) => {
         if (!voStream || !camSim) return;
@@ -2165,6 +2180,18 @@
               clientRecorderState.dataLines.push(row);
             }
           }
+          if (gpsCsvLoggerState.recording) {
+            const sensorFix = data?.sensors?.gps_input || null;
+            const pixhawkFix = getPixhawkGpsPortFix(data);
+            const payloadTsS = asFiniteNumber(data?.timestamp);
+            const sensorTsMs = Number.isFinite(payloadTsS) ? payloadTsS * 1000 : Date.now();
+            const pixhawkTsS = asFiniteNumber(pixhawkFix?.time_s, payloadTsS);
+            const pixhawkTsMs = Number.isFinite(pixhawkTsS) ? pixhawkTsS * 1000 : sensorTsMs;
+            const sensorRow = buildGpsCsvRow(sensorTsMs, sensorFix);
+            const pixhawkRow = buildGpsCsvRow(pixhawkTsMs, pixhawkFix);
+            if (sensorRow) gpsCsvLoggerState.sensorRows.push(sensorRow);
+            if (pixhawkRow) gpsCsvLoggerState.pixhawkRows.push(pixhawkRow);
+          }
           updateAccessUrl(data);
 
           setText("mode", data.mode, 0);
@@ -2490,6 +2517,8 @@
       const clientRecStopBtn = document.getElementById("client-rec-stop-btn");
       const clientRecDownloadBtn = document.getElementById("client-rec-download-btn");
       const clientRecStatusEl = document.getElementById("client-rec-status");
+      const gpsLogToggleBtn = document.getElementById("gps-log-toggle-btn");
+      const gpsLogStatusEl = document.getElementById("gps-log-status");
       const gpsAutoBtn = document.getElementById("gps-auto-btn");
       const gpsVariableBtn = document.getElementById("gps-variable-btn");
       const gpsOriginFields = document.getElementById("gps-origin-fields");
@@ -2521,6 +2550,91 @@
 
       const setClientRecStatus = (text) => {
         if (clientRecStatusEl) clientRecStatusEl.textContent = text;
+      };
+      const setGpsLogStatus = (text) => {
+        if (gpsLogStatusEl) gpsLogStatusEl.textContent = text;
+      };
+
+      const setGpsLogButton = () => {
+        if (!gpsLogToggleBtn) return;
+        gpsLogToggleBtn.textContent = gpsCsvLoggerState.recording ? "Stop GPS Log" : "Start GPS Log";
+      };
+
+      const formatCsvCell = (value) => {
+        if (value == null) return "";
+        const text = String(value);
+        if (text.includes(",") || text.includes("\"") || text.includes("\n")) {
+          return `"${text.replace(/"/g, "\"\"")}"`;
+        }
+        return text;
+      };
+
+      const toCsv = (rows) => {
+        const header = gpsCsvColumns.join(",");
+        const body = rows.map((row) => gpsCsvColumns.map((key) => formatCsvCell(row[key])).join(",")).join("\n");
+        return body ? `${header}\n${body}\n` : `${header}\n`;
+      };
+
+      const getSats = (obj) => {
+        if (!obj) return "";
+        const sats = asFiniteNumber(obj.sats, obj.satellites, obj.sat_count, obj.satCount);
+        return Number.isFinite(sats) ? sats : "";
+      };
+
+      const buildGpsCsvRow = (tsMs, fix) => {
+        if (!fix) return null;
+        const lat = asFiniteNumber(fix.lat);
+        const lon = asFiniteNumber(fix.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        const ts = Number.isFinite(tsMs) ? tsMs : Date.now();
+        const unixS = ts / 1000;
+        return {
+          timestamp_iso: new Date(ts).toISOString(),
+          timestamp_unix_s: unixS.toFixed(3),
+          lat: lat.toFixed(7),
+          lon: lon.toFixed(7),
+          alt_m: Number.isFinite(asFiniteNumber(fix.alt_m)) ? asFiniteNumber(fix.alt_m).toFixed(3) : "",
+          fix_type: Number.isFinite(asFiniteNumber(fix.fix_type)) ? String(asFiniteNumber(fix.fix_type)) : "",
+          speed_mps: Number.isFinite(asFiniteNumber(fix.speed_mps, fix.speed)) ? asFiniteNumber(fix.speed_mps, fix.speed).toFixed(3) : "",
+          heading_deg: Number.isFinite(asFiniteNumber(fix.heading_deg, fix.heading, fix.cog_deg)) ? asFiniteNumber(fix.heading_deg, fix.heading, fix.cog_deg).toFixed(3) : "",
+          sats: getSats(fix),
+        };
+      };
+
+      const getPixhawkGpsPortFix = (data) => {
+        return data?.outputs?.optical_flow_gps_port || data?.outputs?.gps_port || null;
+      };
+
+      const startGpsCsvLogger = () => {
+        gpsCsvLoggerState.recording = true;
+        gpsCsvLoggerState.startedAt = Date.now();
+        gpsCsvLoggerState.sensorRows = [];
+        gpsCsvLoggerState.pixhawkRows = [];
+        setGpsLogButton();
+        setGpsLogStatus("GPS logger: recording...");
+        appendLog("gps csv logger started");
+      };
+
+      const stopGpsCsvLogger = () => {
+        gpsCsvLoggerState.recording = false;
+        setGpsLogButton();
+        const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const sensorCsv = toCsv(gpsCsvLoggerState.sensorRows);
+        const pixhawkCsv = toCsv(gpsCsvLoggerState.pixhawkRows);
+        downloadBlob(
+          new Blob([sensorCsv], { type: "text/csv;charset=utf-8" }),
+          `gps_sensor_${stamp}.csv`
+        );
+        downloadBlob(
+          new Blob([pixhawkCsv], { type: "text/csv;charset=utf-8" }),
+          `pixhawk_gps_port_${stamp}.csv`
+        );
+        setGpsLogStatus(
+          `GPS logger: saved sensor=${gpsCsvLoggerState.sensorRows.length}, pixhawk=${gpsCsvLoggerState.pixhawkRows.length}`
+        );
+        appendLog(
+          `gps csv logger stopped | sensor=${gpsCsvLoggerState.sensorRows.length} pixhawk=${gpsCsvLoggerState.pixhawkRows.length}`
+        );
       };
 
       const queueClientWrite = (op) => {
@@ -2770,6 +2884,17 @@
         clientRecDownloadBtn.addEventListener("click", downloadClientRecorder);
       }
       updateClientRecButtons();
+      if (gpsLogToggleBtn) {
+        gpsLogToggleBtn.addEventListener("click", () => {
+          if (gpsCsvLoggerState.recording) {
+            stopGpsCsvLogger();
+          } else {
+            startGpsCsvLogger();
+          }
+        });
+      }
+      setGpsLogButton();
+      setGpsLogStatus("GPS logger: idle");
 
       const updateGpsOriginUi = () => {
         const isAuto = gpsOriginMode.value === "auto";
