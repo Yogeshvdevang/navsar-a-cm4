@@ -1,7 +1,8 @@
-"""Compass (HMC5883L/QMC5883L) utilities for NAVISAR."""
+"""Compass (HMC5883L/QMC5883L/M10) utilities for NAVISAR."""
 
 import glob
 import math
+import time
 
 try:
     from smbus2 import SMBus
@@ -10,6 +11,7 @@ except ImportError:  # pragma: no cover - depends on platform packages
 
 HMC5883L_ADDR = 0x1E
 QMC5883L_ADDR = 0x0D
+M10_ADDR = 0x0C
 
 
 def list_i2c_bus_indices(preferred=None):
@@ -35,7 +37,7 @@ def get_i2c_bus_index(preferred=1):
 
 def detect_compass(bus):
     """Return the detected compass I2C address, if any."""
-    for addr in (HMC5883L_ADDR, QMC5883L_ADDR):
+    for addr in (M10_ADDR, HMC5883L_ADDR, QMC5883L_ADDR):
         try:
             bus.read_byte(addr)
             return addr
@@ -57,13 +59,16 @@ def init_compass(bus, addr):
         # 200 Hz, 8G, continuous
         bus.write_byte_data(addr, 0x0B, 0x01)
         bus.write_byte_data(addr, 0x09, 0x1D)
+    elif addr == M10_ADDR:
+        # Trigger one conversion in single-measurement mode.
+        bus.write_byte_data(addr, 0x0A, 0x01)
 
 
 def _signed_16(value):
     return value - 65536 if value > 32767 else value
 
 
-def read_compass_raw(bus, addr):
+def read_compass_raw(bus, addr, retries=3):
     """Read raw (x, y, z) magnetometer values."""
     if addr == HMC5883L_ADDR:
         data = bus.read_i2c_block_data(addr, 0x03, 6)
@@ -77,6 +82,22 @@ def read_compass_raw(bus, addr):
         y = _signed_16((data[3] << 8) | data[2])
         z = _signed_16((data[5] << 8) | data[4])
         return x, y, z
+    if addr == M10_ADDR:
+        last_error = None
+        for _ in range(max(1, int(retries))):
+            try:
+                # M10: trigger single conversion, then read XYZ from 0x03.
+                bus.write_byte_data(addr, 0x0A, 0x01)
+                time.sleep(0.02)
+                data = bus.read_i2c_block_data(addr, 0x03, 6)
+                x = _signed_16((data[1] << 8) | data[0])
+                y = _signed_16((data[3] << 8) | data[2])
+                z = _signed_16((data[5] << 8) | data[4])
+                return x, y, z
+            except OSError as exc:
+                last_error = exc
+                time.sleep(0.02)
+        raise RuntimeError(f"I2C read failed for M10 after {retries} retries: {last_error}")
     raise ValueError("Unsupported compass address")
 
 
@@ -142,7 +163,7 @@ def _apply_calibration(vec, calibration):
 
 
 class CompassReader:
-    """Simple compass reader that auto-detects HMC5883L/QMC5883L."""
+    """Simple compass reader that auto-detects HMC5883L/QMC5883L/M10."""
 
     def __init__(self, preferred_bus=1, calibration=None):
         self.bus_index = None

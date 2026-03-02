@@ -3076,10 +3076,11 @@ def main():
             last_runtime_mode["active"] = active_output_mode
             last_runtime_mode["drive"] = drive_source
 
+        compass_heading_deg = None
+        if vps_gps_use_compass_yaw:
+            compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
+
         if active_output_mode == "gps_mavlink":
-            compass_yaw_deg = None
-            if vps_gps_use_compass_yaw:
-                compass_yaw_deg = last_compass_in.get("heading_deg")
             gps_mavlink_mode.handle(
                 now,
                 x_f,
@@ -3091,7 +3092,7 @@ def main():
                 vz_override_mps=vz_override_mps,
                 speed_accuracy_mps=speed_accuracy_mps,
                 gps_fix=gps_serial_fix,
-                yaw_deg=compass_yaw_deg,
+                yaw_deg=compass_heading_deg,
             )
         elif active_output_mode == "gps_port":
             gps_port_mode.handle(
@@ -3101,7 +3102,7 @@ def main():
                 z_f,
                 selector.gps_origin(),
                 alt_override_m=alt_override_m,
-                heading_deg=runtime_heading_deg,
+                heading_deg=compass_heading_deg if compass_heading_deg is not None else runtime_heading_deg,
                 heading_only=False,
             )
         elif active_output_mode == "gps_passthrough":
@@ -3139,7 +3140,7 @@ def main():
                 optical_sample,
                 selector.gps_origin(),
                 alt_override_m=optical_alt_override_m,
-                heading_deg=None,
+                heading_deg=compass_heading_deg,
                 heading_only=False,
             )
 

@@ -140,6 +140,6 @@ gnss_monitor:
     gcs_severity: warning
     min_interval_s: 2.0
 gps_origin:
-  lat: 11.0
-  lon: 56.0
+  lat: 0.0
+  lon: 0.0
   alt: 0.0

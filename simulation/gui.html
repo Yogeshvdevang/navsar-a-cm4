@@ -775,6 +775,8 @@
             <div class="gps-calibration-grid">
               <div id="gps-calibration-latlon-plot" class="gps-calibration-plot"></div>
               <div id="gps-calibration-alt-plot" class="gps-calibration-plot"></div>
+              <div id="gps-calibration-raw-latlon-plot" class="gps-calibration-plot"></div>
+              <div id="gps-calibration-raw-alt-plot" class="gps-calibration-plot"></div>
             </div>
           </div>
           <div class="card">
@@ -1073,6 +1075,8 @@
       const gpsCalibrationStatusEl = document.getElementById("gps-calibration-status");
       const gpsCalibrationLatLonPlotEl = document.getElementById("gps-calibration-latlon-plot");
       const gpsCalibrationAltPlotEl = document.getElementById("gps-calibration-alt-plot");
+      const gpsCalibrationRawLatLonPlotEl = document.getElementById("gps-calibration-raw-latlon-plot");
+      const gpsCalibrationRawAltPlotEl = document.getElementById("gps-calibration-raw-alt-plot");
       const latScaleSlider = document.getElementById("lat-scale-slider");
       const lonScaleSlider = document.getElementById("lon-scale-slider");
       const altOffsetSlider = document.getElementById("alt-offset-slider");
@@ -1448,14 +1452,20 @@
       };
 
       const renderCalibrationGpsPlot = (force = false) => {
-        if (!window.Plotly || !gpsCalibrationLatLonPlotEl || !gpsCalibrationAltPlotEl) return;
+        if (
+          !window.Plotly
+          || !gpsCalibrationLatLonPlotEl
+          || !gpsCalibrationAltPlotEl
+          || !gpsCalibrationRawLatLonPlotEl
+          || !gpsCalibrationRawAltPlotEl
+        ) return;
         const now = Date.now();
         if (!force && now - calibrationGpsState.lastRenderedAtMs < 200) return;
         calibrationGpsState.lastRenderedAtMs = now;
         const raw = calibrationGpsState.raw;
         const sent = calibrationGpsState.sent;
-        if (!sent.lats.length) {
-          setCalibrationStatus("Calibration GPS graph: waiting for final GPS port data...");
+        if (!sent.lats.length && !raw.lats.length) {
+          setCalibrationStatus("Calibration GPS graph: waiting for data...");
           return;
         }
         const latLonSentTrace = {
@@ -1521,6 +1531,75 @@
           altLayout,
           { displayModeBar: false, responsive: true }
         );
+
+        if (raw.lats.length) {
+          const latLonRawTrace = {
+            type: "scatter",
+            mode: "lines+markers",
+            name: "GPS Sensor Raw",
+            x: raw.lons,
+            y: raw.lats,
+            line: { color: "#16a34a", width: 2.5 },
+            marker: { color: "#16a34a", size: 5, opacity: 0.95 },
+          };
+          const rawRefLat = raw.lats[0];
+          const rawRefLon = raw.lons[0];
+          const rawLocal = toLocalCmPoints(raw.lats, raw.lons, rawRefLat, rawRefLon);
+          latLonRawTrace.x = rawLocal.xCm;
+          latLonRawTrace.y = rawLocal.yCm;
+          const rawXRange = tightRange(
+            rawLocal.xCm.filter((v) => Number.isFinite(v)),
+            0.02,
+            0.25
+          );
+          const rawYRange = tightRange(
+            rawLocal.yCm.filter((v) => Number.isFinite(v)),
+            0.02,
+            0.25
+          );
+          const rawLatLonLayout = {
+            margin: { l: 52, r: 14, t: 28, b: 46 },
+            template: "plotly_white",
+            xaxis: { title: "Delta East (cm)", range: rawXRange, fixedrange: false },
+            yaxis: { title: "Delta North (cm)", range: rawYRange, fixedrange: false },
+            title: { text: "GPS Sensor Raw Lat-Lon Change (cm)", font: { size: 13 } },
+            legend: { orientation: "h", x: 0.01, y: 1.15 },
+          };
+          Plotly.react(
+            gpsCalibrationRawLatLonPlotEl,
+            [latLonRawTrace],
+            rawLatLonLayout,
+            { displayModeBar: false, responsive: true }
+          );
+
+          const altRawTrace = {
+            type: "scatter",
+            mode: "lines",
+            name: "GPS Sensor Raw Altitude",
+            x: raw.idx,
+            y: raw.alts.map((v) => (Number.isFinite(v) ? v : null)),
+            line: { color: "#16a34a", width: 2.5 },
+          };
+          const rawAltValues = raw.alts.filter((v) => Number.isFinite(v));
+          const rawAltRange = tightRange(rawAltValues, 0.005, 0.2);
+          const rawAltLayout = {
+            margin: { l: 52, r: 14, t: 28, b: 46 },
+            template: "plotly_white",
+            xaxis: { title: "Sample", autorange: true, fixedrange: false },
+            yaxis: { title: "Altitude (m)", range: rawAltRange, fixedrange: false },
+            title: { text: "GPS Sensor Raw Altitude", font: { size: 13 } },
+            legend: { orientation: "h", x: 0.01, y: 1.15 },
+          };
+          Plotly.react(
+            gpsCalibrationRawAltPlotEl,
+            [altRawTrace],
+            rawAltLayout,
+            { displayModeBar: false, responsive: true }
+          );
+        } else {
+          Plotly.purge(gpsCalibrationRawLatLonPlotEl);
+          Plotly.purge(gpsCalibrationRawAltPlotEl);
+        }
       };
 
       const resetCalibrationGpsPlot = (reason = "") => {
@@ -1537,6 +1616,8 @@
         if (window.Plotly) {
           if (gpsCalibrationLatLonPlotEl) Plotly.purge(gpsCalibrationLatLonPlotEl);
           if (gpsCalibrationAltPlotEl) Plotly.purge(gpsCalibrationAltPlotEl);
+          if (gpsCalibrationRawLatLonPlotEl) Plotly.purge(gpsCalibrationRawLatLonPlotEl);
+          if (gpsCalibrationRawAltPlotEl) Plotly.purge(gpsCalibrationRawAltPlotEl);
         }
       };
 
@@ -1612,6 +1693,7 @@
           const finalFix = getSentCalibrationFixFromRuntimeData(window.__lastData || {});
           const fix = getRawCalibrationFixFromPayload(payload);
           if (finalFix) addSentCalibrationGpsFix(finalFix);
+          if (fix) addCalibrationGpsFix(fix);
           if (payload?.gps_tuning) {
             applyTuningLocal(payload.gps_tuning);
           } else if (window.__lastData?.calibration_tuning) {
@@ -1619,13 +1701,17 @@
           }
           renderCalibrationGpsPlot();
           const finalPoints = calibrationGpsState.sent.lats.length;
-          if (finalFix) {
-            const altText = Number.isFinite(finalFix.altM) ? finalFix.altM.toFixed(3) : "n/a";
+          const rawPoints = calibrationGpsState.raw.lats.length;
+          if (finalFix || fix) {
+            const latShow = fix?.lat ?? finalFix?.lat;
+            const lonShow = fix?.lon ?? finalFix?.lon;
+            const altShow = fix?.altM ?? finalFix?.altM;
+            const altText = Number.isFinite(altShow) ? altShow.toFixed(3) : "n/a";
             setCalibrationStatus(
-              `Final GPS->Pixhawk (blue): points=${finalPoints} lat=${finalFix.lat.toFixed(7)} lon=${finalFix.lon.toFixed(7)} alt=${altText} m`
+              `Final GPS (blue): ${finalPoints} pts | GPS sensor raw (green): ${rawPoints} pts | lat=${latShow.toFixed(7)} lon=${lonShow.toFixed(7)} alt=${altText} m`
             );
           } else {
-            setCalibrationStatus("Final GPS->Pixhawk (blue): waiting for port output payload...");
+            setCalibrationStatus("Calibration GPS graph: waiting for payload...");
           }
         } catch (_) {
           setCalibrationStatus("Calibration GPS graph: endpoint unavailable");
