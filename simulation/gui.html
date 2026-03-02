@@ -185,7 +185,7 @@
 
       .drone-box {
         width: 100%;
-        aspect-ratio: 16 / 9;
+        aspect-ratio: 16 / 10;
         background: #000;
         border: 1px solid var(--panel-border);
         border-radius: 8px;
@@ -210,7 +210,8 @@
       }
 
       #vo-stream {
-        object-fit: cover;
+        object-fit: contain;
+        background: #000;
       }
 
       #cam-sim {
@@ -669,14 +670,6 @@
 
       <div class="main">
         <div class="left-panel">
-          <div class="stage">
-            <div class="drone-box">
-              <div class="drone-wrap">
-                <img id="vo-stream" src="/video" alt="VO Stream" />
-                <canvas id="cam-sim"></canvas>
-              </div>
-            </div>
-          </div>
           <div class="card" style="background:#000; border-color:#1a1a1a;">
             <h3>Compass Gauges</h3>
             <div class="compass-panel">
@@ -748,9 +741,60 @@
             <h3>Output Log</h3>
             <pre id="output-log" style="margin:0; font-size:11px; color:var(--muted); max-height:120px; overflow:auto;"></pre>
           </div>
+          <div class="stage">
+            <div class="drone-box">
+              <div class="drone-wrap">
+                <img id="vo-stream" src="/video" alt="VO Stream" />
+                <canvas id="cam-sim"></canvas>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="plot-row">
+          <div class="card">
+            <h3>Velocities (m/s)</h3>
+            <div class="plot-wrap">
+              <canvas id="vel-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Optical Flow Height (m)</h3>
+            <div class="plot-wrap tall">
+              <canvas id="optical-height-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Integrated Position Optical Flow (m)</h3>
+            <div class="plot-wrap">
+              <canvas id="pos-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Integrated Position Visual Odometry (m)</h3>
+            <div class="mode-buttons" id="vo-heading-buttons" style="margin-bottom:8px;">
+              <button type="button" data-heading-source="vo">VO Compass</button>
+              <button type="button" data-heading-source="real">Real Compass</button>
+            </div>
+            <div class="plot-wrap">
+              <canvas id="vo-pos-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Control Corrections (m/s)</h3>
+            <div class="plot-wrap">
+              <canvas id="corr-plot"></canvas>
+            </div>
+          </div>
+          <div class="card barometer-card">
+            <h3>Barometer Height (m)</h3>
+            <div class="plot-wrap baro-portrait">
+              <canvas id="barometer-height-plot"></canvas>
+            </div>
+            <div class="gps-origin-note" style="margin-top:8px;">
+              baro_alt_m: <strong id="baro-alt-m">--</strong>
+            </div>
+          </div>
           <div class="card span-2" id="gps-calibration-card">
             <h3>Calibration GPS Raw Data (2D)</h3>
             <div class="gps-origin-note" id="gps-calibration-status">
@@ -778,39 +822,6 @@
               <div id="gps-calibration-alt-plot" class="gps-calibration-plot"></div>
               <div id="gps-calibration-raw-latlon-plot" class="gps-calibration-plot"></div>
               <div id="gps-calibration-raw-alt-plot" class="gps-calibration-plot"></div>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Velocities (m/s)</h3>
-            <div class="plot-wrap">
-              <canvas id="vel-plot"></canvas>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Integrated Position (m)</h3>
-            <div class="plot-wrap">
-              <canvas id="pos-plot"></canvas>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Control Corrections (m/s)</h3>
-            <div class="plot-wrap">
-              <canvas id="corr-plot"></canvas>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Optical Flow Height (m)</h3>
-            <div class="plot-wrap tall">
-              <canvas id="optical-height-plot"></canvas>
-            </div>
-          </div>
-          <div class="card barometer-card">
-            <h3>Barometer Height (m)</h3>
-            <div class="plot-wrap baro-portrait">
-              <canvas id="barometer-height-plot"></canvas>
-            </div>
-            <div class="gps-origin-note" style="margin-top:8px;">
-              baro_alt_m: <strong id="baro-alt-m">--</strong>
             </div>
           </div>
         </div>
@@ -962,8 +973,11 @@
         opticalHeight: [],
         corrVx: [],
         corrVy: [],
+        voX: [],
+        voY: [],
         opticalHeightTarget: null,
         currentHeadingDeg: null,
+        voHeadingDeg: null,
       };
       const calibrationGpsState = {
         maxPoints: 1200,
@@ -1056,6 +1070,8 @@
       const velCtx = velPlot ? velPlot.getContext("2d") : null;
       const posPlot = document.getElementById("pos-plot");
       const posCtx = posPlot ? posPlot.getContext("2d") : null;
+      const voPosPlot = document.getElementById("vo-pos-plot");
+      const voPosCtx = voPosPlot ? voPosPlot.getContext("2d") : null;
       const corrPlot = document.getElementById("corr-plot");
       const corrCtx = corrPlot ? corrPlot.getContext("2d") : null;
       const heightPlot = document.getElementById("height-plot");
@@ -1993,7 +2009,7 @@
         posCtx.closePath();
         posCtx.fill();
         posCtx.fillStyle = "#111";
-        posCtx.fillText("Origin", rect.width - 128, 44);
+        posCtx.fillText("Home Origin", rect.width - 128, 44);
         posCtx.fillStyle = "#facc15";
         posCtx.fillRect(rect.width - 148, 38, 10, 10);
         posCtx.fillStyle = "#111";
@@ -2027,6 +2043,126 @@
         );
         if (Number.isFinite(gpsLat) && Number.isFinite(gpsLon)) {
           drawStatLabel(posCtx, 8, 28, `gps ${gpsLat.toFixed(6)}, ${gpsLon.toFixed(6)}`, "#2563eb");
+        }
+      };
+
+      const drawVoPosPlot = () => {
+        const rect = resizeCanvas(voPosPlot, voPosCtx);
+        if (!rect) return;
+        if (plotState.voX.length < 2) return;
+        const finitePoints = plotState.voX
+          .map((xv, i) => ({ xv, yv: plotState.voY[i] }))
+          .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv));
+        if (finitePoints.length < 2) return;
+        const gpsFinitePoints = plotState.gpsX
+          .map((xv, i) => ({ xv, yv: plotState.gpsY[i] }))
+          .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv));
+        const pad = 32;
+        const topPad = 72;
+        const xs = finitePoints.map((p) => p.xv);
+        const ys = finitePoints.map((p) => p.yv);
+        const gpsXs = gpsFinitePoints.map((p) => p.xv);
+        const gpsYs = gpsFinitePoints.map((p) => p.yv);
+        const minX = Math.min(...xs, ...(gpsXs.length ? gpsXs : [0]), 0);
+        const maxX = Math.max(...xs, ...(gpsXs.length ? gpsXs : [0]), 0);
+        const minY = Math.min(...ys, ...(gpsYs.length ? gpsYs : [0]), 0);
+        const maxY = Math.max(...ys, ...(gpsYs.length ? gpsYs : [0]), 0);
+        const spanX = Math.max(Math.abs(minX), Math.abs(maxX));
+        const spanY = Math.max(Math.abs(minY), Math.abs(maxY));
+        const span = Math.max(spanX, spanY, 0.01) * 1.1;
+
+        voPosCtx.strokeStyle = "rgba(0,0,0,0.12)";
+        voPosCtx.lineWidth = 1;
+        voPosCtx.strokeRect(pad, topPad, rect.width - pad * 2, rect.height - topPad - pad);
+        for (let i = 1; i <= 4; i += 1) {
+          const x = pad + ((rect.width - pad * 2) / 5) * i;
+          const y = topPad + ((rect.height - topPad - pad) / 5) * i;
+          voPosCtx.beginPath();
+          voPosCtx.moveTo(x, topPad);
+          voPosCtx.lineTo(x, rect.height - pad);
+          voPosCtx.stroke();
+          voPosCtx.beginPath();
+          voPosCtx.moveTo(pad, y);
+          voPosCtx.lineTo(rect.width - pad, y);
+          voPosCtx.stroke();
+        }
+        drawYScaleLabels(voPosCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
+        drawXScaleLabels(voPosCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
+
+        const pts = finitePoints.map((p) => ({
+          x: clamp(pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad),
+          y: clamp(rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad),
+        }));
+        const gpsPts = gpsFinitePoints.map((p) => ({
+          x: clamp(pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad),
+          y: clamp(rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad),
+        }));
+        voPosCtx.strokeStyle = "rgba(249,115,22,0.8)";
+        voPosCtx.lineWidth = 2.4;
+        voPosCtx.beginPath();
+        voPosCtx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length - 1; i += 1) {
+          const midX = (pts[i].x + pts[i + 1].x) / 2;
+          const midY = (pts[i].y + pts[i + 1].y) / 2;
+          voPosCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
+        }
+        voPosCtx.stroke();
+        if (gpsPts.length >= 2) {
+          voPosCtx.strokeStyle = "rgba(37,99,235,0.75)";
+          voPosCtx.lineWidth = 2.2;
+          voPosCtx.beginPath();
+          voPosCtx.moveTo(gpsPts[0].x, gpsPts[0].y);
+          for (let i = 1; i < gpsPts.length; i += 1) {
+            voPosCtx.lineTo(gpsPts[i].x, gpsPts[i].y);
+          }
+          voPosCtx.stroke();
+          const gpsLast = gpsPts[gpsPts.length - 1];
+          voPosCtx.fillStyle = "#2563eb";
+          voPosCtx.beginPath();
+          voPosCtx.arc(gpsLast.x, gpsLast.y, 5, 0, Math.PI * 2);
+          voPosCtx.fill();
+        }
+
+        const last = pts[pts.length - 1];
+        const originX = pad + (0.5 * (rect.width - pad * 2));
+        const originY = rect.height - pad - (0.5 * (rect.height - topPad - pad));
+        voPosCtx.fillStyle = "#facc15";
+        voPosCtx.beginPath();
+        voPosCtx.arc(originX, originY, 5, 0, Math.PI * 2);
+        voPosCtx.fill();
+
+        const selectedHeading =
+          voHeadingSourceState.value === "real" ? plotState.currentHeadingDeg : plotState.voHeadingDeg;
+        drawHeadingArrow(voPosCtx, last.x, last.y, selectedHeading, 12, "#dc2626");
+
+        voPosCtx.fillStyle = "#111";
+        voPosCtx.font = "11px sans-serif";
+        voPosCtx.fillText("VO Trajectory", rect.width - 140, 16);
+        voPosCtx.fillStyle = "#f97316";
+        voPosCtx.fillRect(rect.width - 160, 8, 14, 4);
+        voPosCtx.fillStyle = "#111";
+        voPosCtx.fillText("Current", rect.width - 140, 30);
+        voPosCtx.fillStyle = "#dc2626";
+        voPosCtx.beginPath();
+        voPosCtx.moveTo(rect.width - 154, 24);
+        voPosCtx.lineTo(rect.width - 160, 34);
+        voPosCtx.lineTo(rect.width - 148, 34);
+        voPosCtx.closePath();
+        voPosCtx.fill();
+        voPosCtx.fillStyle = "#111";
+        voPosCtx.fillText("Home Origin", rect.width - 140, 44);
+        voPosCtx.fillStyle = "#facc15";
+        voPosCtx.fillRect(rect.width - 160, 38, 10, 10);
+        voPosCtx.fillStyle = "#111";
+        voPosCtx.fillText("GPS", rect.width - 140, 58);
+        voPosCtx.fillStyle = "#2563eb";
+        voPosCtx.fillRect(rect.width - 160, 52, 14, 4);
+
+        const curr = finitePoints[finitePoints.length - 1];
+        drawStatLabel(voPosCtx, 8, 10, `vo x ${curr.xv.toFixed(3)} m y ${curr.yv.toFixed(3)} m`, "#333");
+        const headingLabel = voHeadingSourceState.value === "real" ? "real" : "vo";
+        if (Number.isFinite(selectedHeading)) {
+          drawStatLabel(voPosCtx, 8, 28, `${headingLabel} hdg ${selectedHeading.toFixed(1)}°`, "#dc2626");
         }
       };
 
@@ -2549,6 +2685,7 @@
 
           const voCompassHeading = compassFusionState.vo.shown;
           const opticalCompassHeading = compassFusionState.optical.shown;
+          plotState.voHeadingDeg = asFiniteNumber(voCompassHeading, voMotionHeading, plotState.voHeadingDeg);
           setText("nav-hdg", heading, 1);
 
           setText("rt-height", altitude, 3);
@@ -2599,6 +2736,10 @@
           pushSeries(plotState.vy, vy);
           pushSeries(plotState.x, posX);
           pushSeries(plotState.y, posY);
+          const voX = asFiniteNumber(data.camera?.x);
+          const voY = asFiniteNumber(data.camera?.y);
+          pushSeries(plotState.voX, Number.isFinite(voX) ? voX : NaN);
+          pushSeries(plotState.voY, Number.isFinite(voY) ? voY : NaN);
           const gpsLocalX = asFiniteNumber(data.gps?.local?.x);
           const gpsLocalY = asFiniteNumber(data.gps?.local?.y);
           pushSeries(plotState.gpsX, Number.isFinite(gpsLocalX) ? gpsLocalX : NaN);
@@ -2616,6 +2757,7 @@
 
           drawVelPlot();
           drawPosPlot();
+          drawVoPosPlot();
           drawCorrPlot();
           drawHeightPlot();
           drawOpticalHeightPlot();
@@ -2641,6 +2783,7 @@
       const clientRecStopBtn = document.getElementById("client-rec-stop-btn");
       const clientRecDownloadBtn = document.getElementById("client-rec-download-btn");
       const clientRecStatusEl = document.getElementById("client-rec-status");
+      const voHeadingButtons = Array.from(document.querySelectorAll("#vo-heading-buttons button"));
       const gpsAutoBtn = document.getElementById("gps-auto-btn");
       const gpsVariableBtn = document.getElementById("gps-variable-btn");
       const gpsOriginFields = document.getElementById("gps-origin-fields");
@@ -2650,9 +2793,16 @@
       const gpsLonInput = document.getElementById("gps-lon-input");
       const gpsAltInput = document.getElementById("gps-alt-input");
       const gpsOriginMode = { value: "auto" };
+      const voHeadingSourceState = { value: "vo" };
 
       const setGpsModeStatus = (text) => {
         if (gpsModeStatus) gpsModeStatus.textContent = `Mode status: ${text}`;
+      };
+
+      const updateVoHeadingButtons = () => {
+        voHeadingButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.headingSource === voHeadingSourceState.value);
+        });
       };
 
       const appendLog = (text) => {
@@ -3229,6 +3379,17 @@
           }
         });
       });
+      voHeadingButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const src = btn.dataset.headingSource;
+          if (src === "vo" || src === "real") {
+            voHeadingSourceState.value = src;
+            updateVoHeadingButtons();
+            drawVoPosPlot();
+          }
+        });
+      });
+      updateVoHeadingButtons();
       if (gpsAutoBtn) {
         gpsAutoBtn.addEventListener("click", () => {
           handleSelectAuto();
@@ -3374,6 +3535,7 @@
         fitCamCanvas();
         drawVelPlot();
         drawPosPlot();
+        drawVoPosPlot();
         drawCorrPlot();
         drawHeightPlot();
         drawOpticalHeightPlot();
