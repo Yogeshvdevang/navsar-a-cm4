@@ -962,6 +962,7 @@
         corrVx: [],
         corrVy: [],
         opticalHeightTarget: null,
+        currentHeadingDeg: null,
       };
       const calibrationGpsState = {
         maxPoints: 1200,
@@ -1814,6 +1815,48 @@
         ctx.fillText(text, x + 5, y + 2);
       };
 
+      const drawHeadingArrow = (ctx, x, y, headingDeg, size = 12, color = "#dc2626") => {
+        // Compass heading: 0=north, 90=east. Canvas: +x right, +y down.
+        const heading = Number(headingDeg);
+        if (!Number.isFinite(heading)) {
+          return;
+        }
+        const angle = ((90 - heading) * Math.PI) / 180;
+        const tipX = x + Math.cos(angle) * size;
+        const tipY = y - Math.sin(angle) * size;
+        const leftA = angle + (150 * Math.PI) / 180;
+        const rightA = angle - (150 * Math.PI) / 180;
+        const wing = size * 0.68;
+        const leftX = x + Math.cos(leftA) * wing;
+        const leftY = y - Math.sin(leftA) * wing;
+        const rightX = x + Math.cos(rightA) * wing;
+        const rightY = y - Math.sin(rightA) * wing;
+        const tailX = x - Math.cos(angle) * (size * 0.55);
+        const tailY = y + Math.sin(angle) * (size * 0.55);
+
+        // Shaft to make rotation visually clear.
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(leftX, leftY);
+        ctx.lineTo(rightX, rightY);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(147,51,234,0.25)";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(x, y, size + 7, 0, Math.PI * 2);
+        ctx.stroke();
+      };
+
       const drawVelPlot = () => {
         const rect = resizeCanvas(velPlot, velCtx);
         if (!rect) return;
@@ -1925,15 +1968,14 @@
         posCtx.arc(originX, originY, 5, 0, Math.PI * 2);
         posCtx.fill();
 
-        posCtx.fillStyle = "#dc2626";
-        posCtx.beginPath();
-        posCtx.arc(last.x, last.y, 7, 0, Math.PI * 2);
-        posCtx.fill();
-        posCtx.strokeStyle = "rgba(147,51,234,0.25)";
-        posCtx.lineWidth = 6;
-        posCtx.beginPath();
-        posCtx.arc(last.x, last.y, 14, 0, Math.PI * 2);
-        posCtx.stroke();
+        drawHeadingArrow(
+          posCtx,
+          last.x,
+          last.y,
+          plotState.currentHeadingDeg,
+          12,
+          "#dc2626"
+        );
 
         posCtx.fillStyle = "#111";
         posCtx.font = "11px sans-serif";
@@ -1943,7 +1985,12 @@
         posCtx.fillStyle = "#111";
         posCtx.fillText("Current", rect.width - 128, 30);
         posCtx.fillStyle = "#dc2626";
-        posCtx.fillRect(rect.width - 148, 24, 10, 10);
+        posCtx.beginPath();
+        posCtx.moveTo(rect.width - 142, 24);
+        posCtx.lineTo(rect.width - 148, 34);
+        posCtx.lineTo(rect.width - 136, 34);
+        posCtx.closePath();
+        posCtx.fill();
         posCtx.fillStyle = "#111";
         posCtx.fillText("Origin", rect.width - 128, 44);
         posCtx.fillStyle = "#facc15";
@@ -1955,6 +2002,15 @@
         const currX = plotState.x[plotState.x.length - 1] ?? 0;
         const currY = plotState.y[plotState.y.length - 1] ?? 0;
         drawStatLabel(posCtx, 8, 10, `x ${currX.toFixed(3)} m y ${currY.toFixed(3)} m`, "#333");
+        if (Number.isFinite(plotState.currentHeadingDeg)) {
+          drawStatLabel(
+            posCtx,
+            8,
+            48,
+            `compass hdg ${plotState.currentHeadingDeg.toFixed(1)}°`,
+            "#dc2626"
+          );
+        }
         const lastData = window.__lastData || {};
         const gpsFused = lastData.gps_ll_from_fused || {};
         const gpsPayload = lastData.outputs?.gps_mavlink?.payload || {};
@@ -2404,6 +2460,14 @@
           );
           if (Number.isFinite(realCompassHeading)) {
             compassFusionState.realLast = realCompassHeading;
+          }
+          // Use the same heading source as the "real" compass widget.
+          const compassHeadingForArrow = wrapHeading(asFiniteNumber(
+            realCompassHeading,
+            data.compass?.incoming?.heading_deg
+          ));
+          if (Number.isFinite(compassHeadingForArrow)) {
+            plotState.currentHeadingDeg = compassHeadingForArrow;
           }
           const nowMs = Date.now();
           const camXNow = asFiniteNumber(data.camera?.x, null);

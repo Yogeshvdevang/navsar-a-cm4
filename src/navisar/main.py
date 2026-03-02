@@ -3076,9 +3076,12 @@ def main():
             last_runtime_mode["active"] = active_output_mode
             last_runtime_mode["drive"] = drive_source
 
+        # Compass yaw used by VPS->GPS paths (existing behavior).
         compass_heading_deg = None
         if vps_gps_use_compass_yaw:
             compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
+        # Optical-flow GPS integration should always use compass heading when available.
+        optical_compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
 
         if active_output_mode == "gps_mavlink":
             gps_mavlink_mode.handle(
@@ -3140,7 +3143,7 @@ def main():
                 optical_sample,
                 selector.gps_origin(),
                 alt_override_m=optical_alt_override_m,
-                heading_deg=compass_heading_deg,
+                heading_deg=optical_compass_heading_deg,
                 heading_only=False,
             )
 
@@ -3454,6 +3457,9 @@ def main():
                         mavlink_interface,
                     )
                 else:
+                    optical_compass_heading_deg = _safe_float(
+                        last_compass_in.get("heading_deg")
+                    )
                     optical_flow_gps_port_mode.set_gps_calibration(
                         lat_scale=float(lat_scale_state.get()),
                         lon_scale=float(lon_scale_state.get()),
@@ -3464,7 +3470,7 @@ def main():
                         sample,
                         selector.gps_origin(),
                         alt_override_m=alt_override_m,
-                        heading_deg=None,
+                        heading_deg=optical_compass_heading_deg,
                         heading_only=False,
                     )
 
