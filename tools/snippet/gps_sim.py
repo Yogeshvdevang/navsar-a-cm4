@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import threading
+import time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
@@ -17,6 +18,7 @@ DEFAULT_BAUD_RATE = 230400
 DEFAULT_FREQUENCY = 5.0
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_WEB_PORT = 8080
+DEFAULT_INIT_WAIT_S = 5.0
 
 HTML_PAGE = """<!doctype html>
 <html lang="en">
@@ -262,15 +264,27 @@ def main() -> None:
     )
     parser.add_argument("--host", default=DEFAULT_HOST, help="Web server host")
     parser.add_argument("--web-port", type=int, default=DEFAULT_WEB_PORT, help="Web server port")
+    parser.add_argument(
+        "--init-wait-s",
+        type=float,
+        default=DEFAULT_INIT_WAIT_S,
+        help="Initial wait (seconds) before starting NMEA reading",
+    )
     args = parser.parse_args()
 
     if args.frequency <= 0:
         parser.error("--frequency must be greater than 0")
+    if args.init_wait_s < 0:
+        parser.error("--init-wait-s must be >= 0")
     poll_ms = int(1000.0 / args.frequency)
 
     ser = serial.Serial(args.port, args.baud_rate, timeout=1.0)
     points: deque[tuple[float, float]] = deque(maxlen=args.history)
     lock = threading.Lock()
+
+    if args.init_wait_s > 0:
+        print(f"Waiting {args.init_wait_s:.1f}s for GPS sensor warm-up...")
+        time.sleep(args.init_wait_s)
 
     threading.Thread(target=serial_reader, args=(ser, points, lock), daemon=True).start()
 

@@ -62,6 +62,10 @@ RUN_COMPASS_ENABLED = True
 RUN_COMPASS_BUS = 1
 RUN_COMPASS_HZ = DEFAULT_COMPASS_HZ
 RUN_HEADING_SMOOTH_ALPHA = DEFAULT_HEADING_SMOOTH_ALPHA
+RUN_ORIGIN_LAT_DEG = 0.0
+RUN_ORIGIN_LON_DEG = 0.0
+
+EARTH_RADIUS_M = 6378137.0
 
 HTML_PAGE = """<!doctype html>
 <html lang="en">
@@ -351,6 +355,7 @@ HTML_PAGE = """<!doctype html>
           const hsrc = latest.heading_source || "none";
           statusEl.textContent =
             `Points=${{payload.points.length}} | Lon(East)=${{Number(latest.x || 0).toFixed(3)}} m Lat(North)=${{Number(latest.y || 0).toFixed(3)}} m | ` +
+            `final_lat=${{Number(latest.final_lat_deg || 0).toFixed(7)}} final_lon=${{Number(latest.final_lon_deg || 0).toFixed(7)}} | ` +
             `flow_vx=${{latest.flow_vx_mps ?? "--"}} flow_vy=${{latest.flow_vy_mps ?? "--"}} m/s ` +
             `zrot=${{zrot}} deg src=${{hsrc}} compass=${{chdg}} deg dist=${{latest.distance_m ?? "--"}} m quality=${{latest.flow_q ?? "--"}} packets=${{pkt}}${{err}}`;
         }} else {{
@@ -401,11 +406,15 @@ class SharedState:
         self.lock = threading.Lock()
         self.points: deque[tuple[float, float]] = deque(maxlen=max_points)
         self.points.append((0.0, 0.0))
+        self.origin_lat_deg = float(RUN_ORIGIN_LAT_DEG)
+        self.origin_lon_deg = float(RUN_ORIGIN_LON_DEG)
         self.swap_xy = bool(RUN_SWAP_XY)
         self.invert_x = bool(RUN_INVERT_X)
         self.invert_y = bool(RUN_INVERT_Y)
         self.x = 0.0
         self.y = 0.0
+        self.final_lat_deg = self.origin_lat_deg
+        self.final_lon_deg = self.origin_lon_deg
         self.last_time_ms: int | None = None
         self.flow_ema_x = 0.0
         self.flow_ema_y = 0.0
@@ -426,6 +435,10 @@ class SharedState:
             "heading_source": "none",
             "vx_world_mps": 0.0,
             "vy_world_mps": 0.0,
+            "origin_lat_deg": self.origin_lat_deg,
+            "origin_lon_deg": self.origin_lon_deg,
+            "final_lat_deg": self.final_lat_deg,
+            "final_lon_deg": self.final_lon_deg,
             "packet_count": 0,
             "raw_bytes": 0,
             "last_sample_time_s": None,
@@ -439,12 +452,18 @@ class SharedState:
             self.points.append((0.0, 0.0))
             self.x = 0.0
             self.y = 0.0
+            self.final_lat_deg = self.origin_lat_deg
+            self.final_lon_deg = self.origin_lon_deg
             self.last_time_ms = None
             self.flow_ema_x = 0.0
             self.flow_ema_y = 0.0
             self.fused_heading_deg = None
             self.latest["x"] = 0.0
             self.latest["y"] = 0.0
+            self.latest["origin_lat_deg"] = self.origin_lat_deg
+            self.latest["origin_lon_deg"] = self.origin_lon_deg
+            self.latest["final_lat_deg"] = self.final_lat_deg
+            self.latest["final_lon_deg"] = self.final_lon_deg
             self.latest["reader_error"] = None
 
 
@@ -463,6 +482,23 @@ def blend_heading(base_deg: float, target_deg: float, alpha: float) -> float:
     t = wrap_heading(target_deg)
     d = (t - b + 540.0) % 360.0 - 180.0
     return wrap_heading(b + float(alpha) * d)
+
+
+def meters_to_lat_lon(
+    origin_lat_deg: float,
+    origin_lon_deg: float,
+    east_m: float,
+    north_m: float,
+) -> tuple[float, float]:
+    lat_rad = math.radians(float(origin_lat_deg))
+    dlat_deg = math.degrees(float(north_m) / EARTH_RADIUS_M)
+    cos_lat = math.cos(lat_rad)
+    if abs(cos_lat) < 1e-9:
+        cos_lat = 1e-9 if cos_lat >= 0.0 else -1e-9
+    dlon_deg = math.degrees(float(east_m) / (EARTH_RADIUS_M * cos_lat))
+    final_lat = float(origin_lat_deg) + dlat_deg
+    final_lon = float(origin_lon_deg) + dlon_deg
+    return final_lat, final_lon
 
 
 def compass_loop(state: SharedState, preferred_bus: int, hz: float) -> None:
@@ -588,6 +624,12 @@ def optical_reader_loop(
                 state.x += state.flow_ema_x * dt * gain
                 state.y += state.flow_ema_y * dt * gain
                 state.points.append((state.x, state.y))
+                state.final_lat_deg, state.final_lon_deg = meters_to_lat_lon(
+                    state.origin_lat_deg,
+                    state.origin_lon_deg,
+                    state.x,
+                    state.y,
+                )
 
                 target_heading = None
                 heading_fusion_source = "hold"
@@ -629,6 +671,10 @@ def optical_reader_loop(
                     "heading_source": f"{heading_source}/{heading_fusion_source}",
                     "vx_world_mps": state.flow_ema_x,
                     "vy_world_mps": state.flow_ema_y,
+                    "origin_lat_deg": state.origin_lat_deg,
+                    "origin_lon_deg": state.origin_lon_deg,
+                    "final_lat_deg": state.final_lat_deg,
+                    "final_lon_deg": state.final_lon_deg,
                     "packet_count": packet_count,
                     "raw_bytes": None,
                     "last_sample_time_s": time.time(),
@@ -642,7 +688,8 @@ def optical_reader_loop(
                         f"[{ts}] [{packet_count}] flow_vx={state.latest['flow_vx']} flow_vy={state.latest['flow_vy']} "
                         f"vx_mps={state.latest['flow_vx_mps']} vy_mps={state.latest['flow_vy_mps']} "
                         f"q={state.latest['flow_q']} ok={state.latest['flow_ok']} dist_m={state.latest['distance_m']} "
-                        f"x={state.x:.3f} y={state.y:.3f}",
+                        f"x={state.x:.3f} y={state.y:.3f} "
+                        f"lat={state.final_lat_deg:.7f} lon={state.final_lon_deg:.7f}",
                         flush=True,
                     )
             time.sleep(loop_sleep_s)
@@ -828,6 +875,8 @@ def main() -> None:
             compass_heading = latest.get("compass_heading_deg")
             x = float(latest.get("x") or 0.0)
             y = float(latest.get("y") or 0.0)
+            final_lat = latest.get("final_lat_deg")
+            final_lon = latest.get("final_lon_deg")
             last_sample_time_s = latest.get("last_sample_time_s")
             reader_error = latest.get("reader_error")
             compass_error = latest.get("compass_error")
@@ -840,7 +889,7 @@ def main() -> None:
                 f"[{ts}] live raw_bytes={raw_bytes} packets={pkt} "
                 f"flow_vx={flow_vx} flow_vy={flow_vy} zrot={latest.get('heading_plot_deg')} "
                 f"compass={compass_heading} src={latest.get('heading_source')} q={flow_q} ok={flow_ok} "
-                f"x={x:.3f} y={y:.3f} sample_age={age_text}"
+                f"x={x:.3f} y={y:.3f} lat={final_lat} lon={final_lon} sample_age={age_text}"
                 + (f" error={reader_error}" if reader_error else "")
                 + (f" compass_error={compass_error}" if compass_error else ""),
                 flush=True,

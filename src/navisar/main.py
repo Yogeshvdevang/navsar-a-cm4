@@ -23,8 +23,12 @@ import yaml
 
 
 from navisar.sensors.camera import SharedCamera, create_camera_driver
-from navisar.sensors.compass import CompassReader
-from navisar.sensors.gps_serial import GpsSerialReader, probe_nmea_on_port
+from navisar.sensors.compass import CompassReader, load_calibration_file
+from navisar.sensors.gps_serial import (
+    GpsSerialReader,
+    find_gps_port_and_baud,
+    probe_nmea_on_port,
+)
 from navisar.sensors.barometer import BarometerHeightEstimator
 from navisar.sensors.optical_flow import MTF01OpticalFlowReader
 from navisar.pixhawk.gps_output import FakeGpsEmitter, NmeaSerialEmitter, UbxSerialEmitter
@@ -1836,6 +1840,7 @@ def main():
         gps_input_baud = int(gps_input_baud_raw) if gps_input_baud_raw is not None else None
     gps_input_fmt = gps_input_cfg.get("format", GPS_SERIAL_FORMAT)
     gps_input_wait_s = float(gps_input_cfg.get("init_wait_s", 60.0))
+    gps_input_startup_wait_s = float(gps_input_cfg.get("startup_wait_s", 5.0))
     gps_input_min_fix = int(gps_input_cfg.get("min_fix_type", GPS_MIN_FIX_TYPE))
     gps_input_reader = None
     passthrough_requested = output_mode == "gps_passthrough"
@@ -2186,20 +2191,55 @@ def main():
     if passthrough_requested:
         gps_input_enabled = False
     if gps_input_enabled:
-        probe_baud = gps_input_baud if isinstance(gps_input_baud, int) else 9600
-        if probe_nmea_on_port(
-            gps_input_probe_port,
-            baud=probe_baud,
-            seconds=gps_input_probe_seconds,
-            verbose=True,
-        ):
-            gps_input_port = gps_input_probe_port
-        else:
+        if gps_input_startup_wait_s > 0:
             print(
-                f"No GPS data on {gps_input_probe_port} after "
-                f"{gps_input_probe_seconds:.0f}s; using origin."
+                f"Waiting {gps_input_startup_wait_s:.1f}s for GPS sensor warm-up..."
             )
-            gps_input_enabled = False
+            time.sleep(gps_input_startup_wait_s)
+        probe_locked = False
+        if isinstance(gps_input_baud, int):
+            probe_locked = probe_nmea_on_port(
+                gps_input_probe_port,
+                baud=gps_input_baud,
+                seconds=gps_input_probe_seconds,
+                verbose=True,
+            )
+            if probe_locked:
+                gps_input_port = gps_input_probe_port
+            else:
+                fallback = find_gps_port_and_baud(
+                    port=gps_input_probe_port,
+                    bauds=[4800, 9600, 19200, 38400, 57600, 115200, 230400],
+                    probe_seconds=gps_input_probe_seconds,
+                    verbose=True,
+                )
+                if fallback:
+                    gps_input_port, gps_input_baud = fallback
+                    probe_locked = True
+                    print(
+                        "GPS probe fallback matched "
+                        f"{gps_input_port} @ {gps_input_baud}"
+                    )
+        else:
+            fallback = find_gps_port_and_baud(
+                port=gps_input_probe_port,
+                probe_seconds=gps_input_probe_seconds,
+                verbose=True,
+            )
+            if fallback:
+                gps_input_port, gps_input_baud = fallback
+                probe_locked = True
+                print(
+                    f"GPS auto probe locked {gps_input_port} @ {gps_input_baud}"
+                )
+
+        if not probe_locked:
+            print(
+                f"GPS probe did not lock on {gps_input_probe_port} after "
+                f"{gps_input_probe_seconds:.0f}s; continuing with configured GPS input."
+            )
+            if gps_input_port is None:
+                gps_input_enabled = False
     if GPS_ORIGIN_LAT is not None and GPS_ORIGIN_LON is not None:
         try:
             origin_lat = float(GPS_ORIGIN_LAT)
@@ -2277,6 +2317,20 @@ def main():
     compass_bus = int(compass_cfg.get("i2c_bus", 1))
     compass_send_mavlink = bool(compass_cfg.get("send_mavlink", True))
     compass_calibration = dict(compass_cfg.get("calibration", {}))
+    compass_calibration_file = compass_cfg.get("calibration_file")
+    if compass_calibration_file:
+        calibration_path = Path(str(compass_calibration_file)).expanduser()
+        if not calibration_path.is_absolute():
+            calibration_path = (_repo_root() / calibration_path).resolve()
+        try:
+            file_calibration = load_calibration_file(calibration_path)
+            # Inline config stays as highest-priority override.
+            merged_calibration = dict(file_calibration)
+            merged_calibration.update(compass_calibration)
+            compass_calibration = merged_calibration
+            print(f"Loaded compass calibration file: {calibration_path}")
+        except Exception as exc:
+            print(f"Warning: failed to load compass calibration file {calibration_path} ({exc})")
     compass_heading_offset = compass_cfg.get("heading_offset_deg")
     if compass_heading_offset is not None and "heading_offset_deg" not in compass_calibration:
         compass_calibration["heading_offset_deg"] = compass_heading_offset

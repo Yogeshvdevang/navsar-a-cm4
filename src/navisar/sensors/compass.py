@@ -1,8 +1,10 @@
 """Compass (HMC5883L/QMC5883L/M10) utilities for NAVISAR."""
 
 import glob
+import json
 import math
 import time
+from pathlib import Path
 
 try:
     from smbus2 import SMBus
@@ -12,6 +14,14 @@ except ImportError:  # pragma: no cover - depends on platform packages
 HMC5883L_ADDR = 0x1E
 QMC5883L_ADDR = 0x0D
 M10_ADDR = 0x0C
+
+
+def _is_bad_frame(x, y, z):
+    if (x == -1 and y == -1) or (x == -1 and z == -1) or (y == -1 and z == -1):
+        return True
+    if abs(x) >= 32760 or abs(y) >= 32760 or abs(z) >= 32760:
+        return True
+    return False
 
 
 def list_i2c_bus_indices(preferred=None):
@@ -86,15 +96,27 @@ def read_compass_raw(bus, addr, retries=3):
         last_error = None
         for _ in range(max(1, int(retries))):
             try:
-                # M10: trigger single conversion, then read XYZ from 0x03.
+                # Trigger one-shot measurement.
                 bus.write_byte_data(addr, 0x0A, 0x01)
-                time.sleep(0.02)
-                data = bus.read_i2c_block_data(addr, 0x03, 6)
+                for _ in range(10):
+                    st1 = bus.read_byte_data(addr, 0x02)
+                    if st1 & 0x01:
+                        break
+                    time.sleep(0.003)
+                else:
+                    raise RuntimeError("Compass data-ready timeout")
+
+                data = bus.read_i2c_block_data(addr, 0x03, 7)
                 x = _signed_16((data[1] << 8) | data[0])
                 y = _signed_16((data[3] << 8) | data[2])
                 z = _signed_16((data[5] << 8) | data[4])
+                st2 = data[6]
+                if st2 & 0x08:
+                    raise RuntimeError("Compass overflow (ST2)")
+                if _is_bad_frame(x, y, z):
+                    raise RuntimeError(f"Rejected corrupt sample x={x} y={y} z={z}")
                 return x, y, z
-            except OSError as exc:
+            except (OSError, RuntimeError) as exc:
                 last_error = exc
                 time.sleep(0.02)
         raise RuntimeError(f"I2C read failed for M10 after {retries} retries: {last_error}")
@@ -154,12 +176,48 @@ def _apply_calibration(vec, calibration):
         x *= scales[0]
         y *= scales[1]
         z *= scales[2]
-    if heading_offset_deg:
+    if heading_offset_deg is not None:
         angle = math.radians(float(heading_offset_deg))
         cos_a = math.cos(angle)
         sin_a = math.sin(angle)
         x, y = (x * cos_a - y * sin_a), (x * sin_a + y * cos_a)
     return x, y, z
+
+
+def _triplet_from_dict(values):
+    if not isinstance(values, dict):
+        return None
+    keys = ("x", "y", "z")
+    if any(key not in values for key in keys):
+        return None
+    return [float(values["x"]), float(values["y"]), float(values["z"])]
+
+
+def load_calibration_file(path):
+    """Load compass calibration from JSON file."""
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("Calibration JSON root must be an object")
+
+    offsets = raw.get("offsets_mg")
+    if offsets is None:
+        offsets = _triplet_from_dict(raw.get("offsets"))
+    scales = raw.get("scales")
+    if isinstance(scales, dict):
+        scales = _triplet_from_dict(scales)
+    axis_map = raw.get("axis_map")
+    heading_offset_deg = raw.get("heading_offset_deg")
+
+    calibration = {}
+    if offsets is not None and len(offsets) == 3:
+        calibration["offsets_mg"] = [float(offsets[0]), float(offsets[1]), float(offsets[2])]
+    if scales is not None and len(scales) == 3:
+        calibration["scales"] = [float(scales[0]), float(scales[1]), float(scales[2])]
+    if axis_map:
+        calibration["axis_map"] = axis_map
+    if heading_offset_deg is not None:
+        calibration["heading_offset_deg"] = float(heading_offset_deg)
+    return calibration
 
 
 class CompassReader:

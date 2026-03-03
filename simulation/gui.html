@@ -780,6 +780,21 @@
               <canvas id="vo-pos-plot"></canvas>
             </div>
           </div>
+          <div class="card span-2">
+            <h3>GPS Sensor Lat/Lon Trajectory</h3>
+            <div class="gps-origin-note" id="gps-traj-live">
+              GPS Sensor: lat=-- lon=-- alt=--m fix=-- hdg=--
+            </div>
+            <div class="plot-wrap">
+              <canvas id="gps-traj-plot"></canvas>
+            </div>
+            <div class="gps-origin-note" id="gps-port-traj-live" style="margin-top:8px;">
+              Pixhawk Port: lat=-- lon=-- alt=--m hdg=--
+            </div>
+            <div class="plot-wrap">
+              <canvas id="gps-port-traj-plot"></canvas>
+            </div>
+          </div>
           <div class="card">
             <h3>Control Corrections (m/s)</h3>
             <div class="plot-wrap">
@@ -991,6 +1006,11 @@
         corrVy: [],
         voX: [],
         voY: [],
+        gpsSensorLat: [],
+        gpsSensorLon: [],
+        gpsPortLat: [],
+        gpsPortLon: [],
+        gpsPortHeadingDeg: null,
         opticalHeightTarget: null,
         currentHeadingDeg: null,
         voHeadingDeg: null,
@@ -1088,6 +1108,10 @@
       const posCtx = posPlot ? posPlot.getContext("2d") : null;
       const voPosPlot = document.getElementById("vo-pos-plot");
       const voPosCtx = voPosPlot ? voPosPlot.getContext("2d") : null;
+      const gpsTrajPlot = document.getElementById("gps-traj-plot");
+      const gpsTrajCtx = gpsTrajPlot ? gpsTrajPlot.getContext("2d") : null;
+      const gpsPortTrajPlot = document.getElementById("gps-port-traj-plot");
+      const gpsPortTrajCtx = gpsPortTrajPlot ? gpsPortTrajPlot.getContext("2d") : null;
       const corrPlot = document.getElementById("corr-plot");
       const corrCtx = corrPlot ? corrPlot.getContext("2d") : null;
       const heightPlot = document.getElementById("height-plot");
@@ -1107,6 +1131,8 @@
         streamRetryTimer: null,
       };
       const gpsCalibrationStatusEl = document.getElementById("gps-calibration-status");
+      const gpsTrajLiveEl = document.getElementById("gps-traj-live");
+      const gpsPortTrajLiveEl = document.getElementById("gps-port-traj-live");
       const gpsCalibrationLatLonPlotEl = document.getElementById("gps-calibration-latlon-plot");
       const gpsCalibrationAltPlotEl = document.getElementById("gps-calibration-alt-plot");
       const gpsCalibrationRawLatLonPlotEl = document.getElementById("gps-calibration-raw-latlon-plot");
@@ -2182,6 +2208,124 @@
         }
       };
 
+      const latLonToLocalMeters = (lat, lon, refLat, refLon) => {
+        const la = Number(lat);
+        const lo = Number(lon);
+        const la0 = Number(refLat);
+        const lo0 = Number(refLon);
+        if (!Number.isFinite(la) || !Number.isFinite(lo) || !Number.isFinite(la0) || !Number.isFinite(lo0)) {
+          return null;
+        }
+        const cosLat = Math.cos((la0 * Math.PI) / 180);
+        const x = (lo - lo0) * 111320 * cosLat;
+        const y = (la - la0) * 110540;
+        return { x, y };
+      };
+
+      const buildTrajectoryPoints = (lats, lons, refLat, refLon) =>
+        lats
+          .map((lat, i) => latLonToLocalMeters(lat, lons[i], refLat, refLon))
+          .filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y));
+
+      const headingFromTrajectoryPoints = (points) => {
+        if (!Array.isArray(points) || points.length < 2) return null;
+        const a = points[points.length - 2];
+        const b = points[points.length - 1];
+        return headingFromVelocity(b.x - a.x, b.y - a.y, 0.001);
+      };
+
+      const drawLatLonTrajectoryPlot = (plotEl, plotCtx, points, titleText) => {
+        const rect = resizeCanvas(plotEl, plotCtx);
+        if (!rect) return;
+        if (!points.length) return;
+
+        let minLon = Math.min(...points.map((p) => p.lon));
+        let maxLon = Math.max(...points.map((p) => p.lon));
+        let minLat = Math.min(...points.map((p) => p.lat));
+        let maxLat = Math.max(...points.map((p) => p.lat));
+        const lonPad = Math.max((maxLon - minLon) * 0.1, 0.0002);
+        const latPad = Math.max((maxLat - minLat) * 0.1, 0.0002);
+        minLon -= lonPad;
+        maxLon += lonPad;
+        minLat -= latPad;
+        maxLat += latPad;
+
+        const pad = 32;
+        const topPad = 72;
+        plotCtx.strokeStyle = "rgba(0,0,0,0.12)";
+        plotCtx.lineWidth = 1;
+        plotCtx.strokeRect(pad, topPad, rect.width - pad * 2, rect.height - topPad - pad);
+        for (let i = 1; i <= 4; i += 1) {
+          const x = pad + ((rect.width - pad * 2) / 5) * i;
+          const y = topPad + ((rect.height - topPad - pad) / 5) * i;
+          plotCtx.beginPath();
+          plotCtx.moveTo(x, topPad);
+          plotCtx.lineTo(x, rect.height - pad);
+          plotCtx.stroke();
+          plotCtx.beginPath();
+          plotCtx.moveTo(pad, y);
+          plotCtx.lineTo(rect.width - pad, y);
+          plotCtx.stroke();
+        }
+        drawYScaleLabels(plotCtx, rect, pad, topPad, pad, pad, minLat, maxLat, 6, "");
+        drawXScaleLabels(plotCtx, rect, pad, topPad, pad, pad, minLon, maxLon, 6, "");
+
+        const toCanvas = (p) => ({
+          x: clamp(
+            pad + ((p.lon - minLon) / Math.max(1e-9, maxLon - minLon)) * (rect.width - pad * 2),
+            pad,
+            rect.width - pad
+          ),
+          y: clamp(
+            rect.height - pad - ((p.lat - minLat) / Math.max(1e-9, maxLat - minLat)) * (rect.height - topPad - pad),
+            topPad,
+            rect.height - pad
+          ),
+        });
+        const canvasPts = points.map(toCanvas);
+        plotCtx.strokeStyle = "#0077cc";
+        plotCtx.lineWidth = 2.2;
+        plotCtx.beginPath();
+        plotCtx.moveTo(canvasPts[0].x, canvasPts[0].y);
+        for (let i = 1; i < canvasPts.length; i += 1) {
+          plotCtx.lineTo(canvasPts[i].x, canvasPts[i].y);
+        }
+        plotCtx.stroke();
+
+        const last = canvasPts[canvasPts.length - 1];
+        plotCtx.fillStyle = "#e63946";
+        plotCtx.beginPath();
+        plotCtx.arc(last.x, last.y, 5, 0, Math.PI * 2);
+        plotCtx.fill();
+
+        plotCtx.fillStyle = "#111";
+        plotCtx.font = "11px sans-serif";
+        plotCtx.fillText(titleText, rect.width - 190, 16);
+        plotCtx.fillStyle = "#0077cc";
+        plotCtx.fillRect(rect.width - 210, 8, 14, 4);
+        plotCtx.fillStyle = "#111";
+        plotCtx.fillText("X: Longitude  Y: Latitude", rect.width - 190, 32);
+      };
+
+      const drawGpsTrajectoryPlot = () => {
+        const sensorPts = plotState.gpsSensorLat
+          .map((lat, i) => ({ lat: Number(lat), lon: Number(plotState.gpsSensorLon[i]) }))
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+        drawLatLonTrajectoryPlot(gpsTrajPlot, gpsTrajCtx, sensorPts, "GPS Sensor Trajectory");
+      };
+
+      const drawGpsPortTrajectoryPlot = () => {
+        const portPts = plotState.gpsPortLat
+          .map((lat, i) => ({ lat: Number(lat), lon: Number(plotState.gpsPortLon[i]) }))
+          .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+        drawLatLonTrajectoryPlot(
+          gpsPortTrajPlot,
+          gpsPortTrajCtx,
+          portPts,
+          "Pixhawk Port Trajectory"
+        );
+      };
+
       const drawCorrPlot = () => {
         const rect = resizeCanvas(corrPlot, corrCtx);
         if (!rect) return;
@@ -2465,7 +2609,7 @@
           setText("mode", data.mode, 0);
           setText("source", data.source, 0);
           setText("drift", data.drift_m, 2);
-          setText("fix", data.gps?.fix_type, 0);
+          setText("fix", data.sensors?.gps_input?.fix_type ?? data.gps?.fix_type, 0);
 
           setText("vo-x", data.camera?.x);
           setText("vo-y", data.camera?.y);
@@ -2542,6 +2686,61 @@
           );
           const gpsSensorAltitudeM = asFiniteNumber(
             data.sensors?.gps_input?.alt_m
+          );
+          const gpsSensorFixType = asFiniteNumber(
+            data.sensors?.gps_input?.fix_type
+          );
+          const gpsSensorLatRaw = asFiniteNumber(
+            data.sensors?.gps_input?.lat
+          );
+          const gpsSensorLonRaw = asFiniteNumber(
+            data.sensors?.gps_input?.lon
+          );
+          const isValidGpsCoord = (latVal, lonVal) => (
+            Number.isFinite(latVal)
+            && Number.isFinite(lonVal)
+            && Math.abs(latVal) <= 90
+            && Math.abs(lonVal) <= 180
+            && !(Math.abs(latVal) < 1e-7 && Math.abs(lonVal) < 1e-7)
+          );
+          const gpsSensorValid = isValidGpsCoord(gpsSensorLatRaw, gpsSensorLonRaw);
+          const gpsSensorLat = gpsSensorValid ? gpsSensorLatRaw : NaN;
+          const gpsSensorLon = gpsSensorValid ? gpsSensorLonRaw : NaN;
+          const gpsPortOut = data.outputs?.gps_port || data.outputs?.optical_flow_gps_port || {};
+          const gpsPortLatRaw = asFiniteNumber(
+            gpsPortOut?.lat
+          );
+          const gpsPortLonRaw = asFiniteNumber(
+            gpsPortOut?.lon
+          );
+          const gpsPortValid = isValidGpsCoord(gpsPortLatRaw, gpsPortLonRaw);
+          const gpsPortLat = gpsPortValid ? gpsPortLatRaw : NaN;
+          const gpsPortLon = gpsPortValid ? gpsPortLonRaw : NaN;
+          if (gpsTrajLiveEl) {
+            const sLatTxt = Number.isFinite(gpsSensorLat) ? gpsSensorLat.toFixed(7) : "--";
+            const sLonTxt = Number.isFinite(gpsSensorLon) ? gpsSensorLon.toFixed(7) : "--";
+            const sFixTxt = Number.isFinite(gpsSensorFixType) ? gpsSensorFixType.toFixed(0) : "--";
+            const sAltTxt = Number.isFinite(gpsSensorAltitudeM)
+              ? gpsSensorAltitudeM.toFixed(2)
+              : "--";
+            const sHdgNum = asFiniteNumber(realCompassHeading, plotState.currentHeadingDeg);
+            const sHdg = Number.isFinite(sHdgNum) ? sHdgNum.toFixed(1) : "--";
+            gpsTrajLiveEl.textContent =
+              `GPS Sensor: lat=${sLatTxt} lon=${sLonTxt} alt=${sAltTxt}m fix=${sFixTxt} hdg=${sHdg}°`;
+          }
+          if (gpsPortTrajLiveEl) {
+            const pLatTxt = Number.isFinite(gpsPortLat) ? gpsPortLat.toFixed(7) : "--";
+            const pLonTxt = Number.isFinite(gpsPortLon) ? gpsPortLon.toFixed(7) : "--";
+            const pAltRaw = asFiniteNumber(gpsPortOut?.alt_m, data.outputs?.optical_flow_gps_port?.alt_m);
+            const pAltTxt = Number.isFinite(pAltRaw) ? pAltRaw.toFixed(2) : "--";
+            const pHdgRaw = asFiniteNumber(gpsPortOut?.heading_deg, plotState.currentHeadingDeg);
+            const pHdgTxt = Number.isFinite(pHdgRaw) ? pHdgRaw.toFixed(1) : "--";
+            gpsPortTrajLiveEl.textContent =
+              `Pixhawk Port: lat=${pLatTxt} lon=${pLonTxt} alt=${pAltTxt}m hdg=${pHdgTxt}°`;
+          }
+          plotState.gpsPortHeadingDeg = asFiniteNumber(
+            gpsPortOut?.heading_deg,
+            plotState.gpsPortHeadingDeg
           );
           const gpsPortFinalAltitudeM = asFiniteNumber(
             data.outputs?.gps_port?.alt_m
@@ -2767,6 +2966,10 @@
           const gpsLocalY = asFiniteNumber(data.gps?.local?.y);
           pushSeries(plotState.gpsX, Number.isFinite(gpsLocalX) ? gpsLocalX : NaN);
           pushSeries(plotState.gpsY, Number.isFinite(gpsLocalY) ? gpsLocalY : NaN);
+          pushSeries(plotState.gpsSensorLat, Number.isFinite(gpsSensorLat) ? gpsSensorLat : NaN);
+          pushSeries(plotState.gpsSensorLon, Number.isFinite(gpsSensorLon) ? gpsSensorLon : NaN);
+          pushSeries(plotState.gpsPortLat, Number.isFinite(gpsPortLat) ? gpsPortLat : NaN);
+          pushSeries(plotState.gpsPortLon, Number.isFinite(gpsPortLon) ? gpsPortLon : NaN);
           pushSeries(plotState.height, sharedHeightForPlots);
           pushSeries(plotState.barometerHeight, barometerHeightForPlot);
           pushSeries(plotState.gpsSensorHeight, gpsSensorHeightForPlot);
@@ -2781,6 +2984,8 @@
           drawVelPlot();
           drawPosPlot();
           drawVoPosPlot();
+          drawGpsTrajectoryPlot();
+          drawGpsPortTrajectoryPlot();
           drawCorrPlot();
           drawHeightPlot();
           drawOpticalHeightPlot();
