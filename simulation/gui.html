@@ -1998,12 +1998,10 @@
         if (plotState.x.length < 2) return;
         const pad = 32;
         const topPad = 72;
-        const gpsXFinite = plotState.gpsX.filter(Number.isFinite);
-        const gpsYFinite = plotState.gpsY.filter(Number.isFinite);
-        const minX = Math.min(...plotState.x, ...(gpsXFinite.length ? gpsXFinite : [0]));
-        const maxX = Math.max(...plotState.x, ...(gpsXFinite.length ? gpsXFinite : [0]));
-        const minY = Math.min(...plotState.y, ...(gpsYFinite.length ? gpsYFinite : [0]));
-        const maxY = Math.max(...plotState.y, ...(gpsYFinite.length ? gpsYFinite : [0]));
+        const minX = Math.min(...plotState.x);
+        const maxX = Math.max(...plotState.x);
+        const minY = Math.min(...plotState.y);
+        const maxY = Math.max(...plotState.y);
         const spanX = Math.max(Math.abs(minX), Math.abs(maxX));
         const spanY = Math.max(Math.abs(minY), Math.abs(maxY));
         const span = Math.max(spanX, spanY, 0.01) * 1.1;
@@ -2030,13 +2028,6 @@
           const y = clamp(rect.height - pad - ((yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad);
           return { x, y };
         });
-        const gpsPts = plotState.gpsX
-          .map((xv, i) => ({ xv, yv: plotState.gpsY[i] }))
-          .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv))
-          .map((p) => ({
-            x: clamp(pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad),
-            y: clamp(rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad),
-          }));
         posCtx.strokeStyle = "rgba(147,51,234,0.6)";
         posCtx.lineWidth = 2.4;
         posCtx.beginPath();
@@ -2047,22 +2038,6 @@
           posCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
         }
         posCtx.stroke();
-
-        if (gpsPts.length >= 2) {
-          posCtx.strokeStyle = "rgba(37,99,235,0.75)";
-          posCtx.lineWidth = 2.2;
-          posCtx.beginPath();
-          posCtx.moveTo(gpsPts[0].x, gpsPts[0].y);
-          for (let i = 1; i < gpsPts.length; i += 1) {
-            posCtx.lineTo(gpsPts[i].x, gpsPts[i].y);
-          }
-          posCtx.stroke();
-          const gpsLast = gpsPts[gpsPts.length - 1];
-          posCtx.fillStyle = "#2563eb";
-          posCtx.beginPath();
-          posCtx.arc(gpsLast.x, gpsLast.y, 5, 0, Math.PI * 2);
-          posCtx.fill();
-        }
 
         const last = pts[pts.length - 1];
         // origin marker
@@ -2100,10 +2075,6 @@
         posCtx.fillText("Home Origin", rect.width - 128, 44);
         posCtx.fillStyle = "#facc15";
         posCtx.fillRect(rect.width - 148, 38, 10, 10);
-        posCtx.fillStyle = "#111";
-        posCtx.fillText("GPS", rect.width - 128, 58);
-        posCtx.fillStyle = "#2563eb";
-        posCtx.fillRect(rect.width - 148, 52, 14, 4);
         const currX = plotState.x[plotState.x.length - 1] ?? 0;
         const currY = plotState.y[plotState.y.length - 1] ?? 0;
         drawStatLabel(posCtx, 8, 10, `x ${currX.toFixed(3)} m y ${currY.toFixed(3)} m`, "#333");
@@ -2116,22 +2087,6 @@
             "#dc2626"
           );
         }
-        const lastData = window.__lastData || {};
-        const gpsFused = lastData.gps_ll_from_fused || {};
-        const gpsPayload = lastData.outputs?.gps_mavlink?.payload || {};
-        const gpsLat = asFiniteNumber(
-          gpsFused?.lat,
-          gpsPayload?.lat != null ? gpsPayload.lat / 1e7 : null,
-          lastData.gps?.origin?.lat
-        );
-        const gpsLon = asFiniteNumber(
-          gpsFused?.lon,
-          gpsPayload?.lon != null ? gpsPayload.lon / 1e7 : null,
-          lastData.gps?.origin?.lon
-        );
-        if (Number.isFinite(gpsLat) && Number.isFinite(gpsLon)) {
-          drawStatLabel(posCtx, 8, 28, `gps ${gpsLat.toFixed(6)}, ${gpsLon.toFixed(6)}`, "#2563eb");
-        }
       };
 
       const drawVoPosPlot = () => {
@@ -2142,19 +2097,14 @@
           .map((xv, i) => ({ xv, yv: plotState.voY[i] }))
           .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv));
         if (finitePoints.length < 2) return;
-        const gpsFinitePoints = plotState.gpsX
-          .map((xv, i) => ({ xv, yv: plotState.gpsY[i] }))
-          .filter((p) => Number.isFinite(p.xv) && Number.isFinite(p.yv));
         const pad = 32;
         const topPad = 72;
         const xs = finitePoints.map((p) => p.xv);
         const ys = finitePoints.map((p) => p.yv);
-        const gpsXs = gpsFinitePoints.map((p) => p.xv);
-        const gpsYs = gpsFinitePoints.map((p) => p.yv);
-        const minX = Math.min(...xs, ...(gpsXs.length ? gpsXs : [0]), 0);
-        const maxX = Math.max(...xs, ...(gpsXs.length ? gpsXs : [0]), 0);
-        const minY = Math.min(...ys, ...(gpsYs.length ? gpsYs : [0]), 0);
-        const maxY = Math.max(...ys, ...(gpsYs.length ? gpsYs : [0]), 0);
+        const minX = Math.min(...xs, 0);
+        const maxX = Math.max(...xs, 0);
+        const minY = Math.min(...ys, 0);
+        const maxY = Math.max(...ys, 0);
         const spanX = Math.max(Math.abs(minX), Math.abs(maxX));
         const spanY = Math.max(Math.abs(minY), Math.abs(maxY));
         const span = Math.max(spanX, spanY, 0.01) * 1.1;
@@ -2181,10 +2131,6 @@
           x: clamp(pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad),
           y: clamp(rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad),
         }));
-        const gpsPts = gpsFinitePoints.map((p) => ({
-          x: clamp(pad + ((p.xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad),
-          y: clamp(rect.height - pad - ((p.yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad),
-        }));
         voPosCtx.strokeStyle = "rgba(249,115,22,0.8)";
         voPosCtx.lineWidth = 2.4;
         voPosCtx.beginPath();
@@ -2195,22 +2141,6 @@
           voPosCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
         }
         voPosCtx.stroke();
-        if (gpsPts.length >= 2) {
-          voPosCtx.strokeStyle = "rgba(37,99,235,0.75)";
-          voPosCtx.lineWidth = 2.2;
-          voPosCtx.beginPath();
-          voPosCtx.moveTo(gpsPts[0].x, gpsPts[0].y);
-          for (let i = 1; i < gpsPts.length; i += 1) {
-            voPosCtx.lineTo(gpsPts[i].x, gpsPts[i].y);
-          }
-          voPosCtx.stroke();
-          const gpsLast = gpsPts[gpsPts.length - 1];
-          voPosCtx.fillStyle = "#2563eb";
-          voPosCtx.beginPath();
-          voPosCtx.arc(gpsLast.x, gpsLast.y, 5, 0, Math.PI * 2);
-          voPosCtx.fill();
-        }
-
         const last = pts[pts.length - 1];
         const originX = pad + (0.5 * (rect.width - pad * 2));
         const originY = rect.height - pad - (0.5 * (rect.height - topPad - pad));
@@ -2241,11 +2171,6 @@
         voPosCtx.fillText("Home Origin", rect.width - 140, 44);
         voPosCtx.fillStyle = "#facc15";
         voPosCtx.fillRect(rect.width - 160, 38, 10, 10);
-        voPosCtx.fillStyle = "#111";
-        voPosCtx.fillText("GPS", rect.width - 140, 58);
-        voPosCtx.fillStyle = "#2563eb";
-        voPosCtx.fillRect(rect.width - 160, 52, 14, 4);
-
         const curr = finitePoints[finitePoints.length - 1];
         drawStatLabel(voPosCtx, 8, 10, `vo x ${curr.xv.toFixed(3)} m y ${curr.yv.toFixed(3)} m`, "#333");
         const headingLabel = voHeadingSourceState.value === "real" ? "real" : "vo";
