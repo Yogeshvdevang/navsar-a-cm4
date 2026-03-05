@@ -776,7 +776,7 @@
             <option value="200-250">Altitude: 200-250 m</option>
             <option value="250-300">Altitude: 250-300 m</option>
           </select>
-          <input id="vo-scale-input" class="of-scale-input" type="number" step="0.001" min="0" max="20" value="1.000" />
+          <input id="vo-scale-input" class="of-scale-input" type="number" step="0.001" min="0.1" max="5.0" value="1.000" />
           <button id="vo-scale-write-btn" class="of-scale-write-btn" type="button">Write</button>
         </div>
       </div>
@@ -1134,6 +1134,12 @@
         }
         return "/optical-flow-scale";
       })();
+      const voScaleUrl = (() => {
+        if (window.location.protocol === "file:") {
+          return "http://127.0.0.1:8765/vo-scale";
+        }
+        return "/vo-scale";
+      })();
 
       // VO stream image replaces previous canvas drawing.
 
@@ -1306,6 +1312,9 @@
         lat_scale: 1.0,
         lon_scale: 1.0,
         alt_offset_m: 0.0,
+        vo_scale: 1.0,
+        vo_lat_scale: 1.0,
+        vo_lon_scale: 1.0,
         syncing: false,
         pendingTimer: null,
       };
@@ -1313,6 +1322,9 @@
         lat_scale: 1.0,
         lon_scale: 1.0,
         alt_offset_m: 0.0,
+        vo_scale: 1.0,
+        vo_lat_scale: 1.0,
+        vo_lon_scale: 1.0,
       };
       const clientRecorderState = {
         recording: false,
@@ -1555,43 +1567,84 @@
         const lat = Number.isFinite(Number(tuning?.lat_scale)) ? Number(tuning.lat_scale) : gpsTuningState.lat_scale;
         const lon = Number.isFinite(Number(tuning?.lon_scale)) ? Number(tuning.lon_scale) : gpsTuningState.lon_scale;
         const alt = Number.isFinite(Number(tuning?.alt_offset_m)) ? Number(tuning.alt_offset_m) : gpsTuningState.alt_offset_m;
+        const voScale = Number.isFinite(Number(tuning?.vo_scale)) ? Number(tuning.vo_scale) : gpsTuningState.vo_scale;
+        const voLatScale = Number.isFinite(Number(tuning?.vo_lat_scale))
+          ? Number(tuning.vo_lat_scale)
+          : (Number.isFinite(Number(tuning?.lat_scale)) ? Number(tuning.lat_scale) : gpsTuningState.vo_lat_scale);
+        const voLonScale = Number.isFinite(Number(tuning?.vo_lon_scale))
+          ? Number(tuning.vo_lon_scale)
+          : (Number.isFinite(Number(tuning?.lon_scale)) ? Number(tuning.lon_scale) : gpsTuningState.vo_lon_scale);
         gpsTuningState.lat_scale = lat;
         gpsTuningState.lon_scale = lon;
         gpsTuningState.alt_offset_m = alt;
+        gpsTuningState.vo_scale = voScale;
+        gpsTuningState.vo_lat_scale = voLatScale;
+        gpsTuningState.vo_lon_scale = voLonScale;
         setTuningUi(lat, lon, alt);
+        if (voLatScaleInput && !document.activeElement?.isSameNode(voLatScaleInput)) {
+          voLatScaleInput.value = voLatScale.toFixed(3);
+        }
+        if (voLonScaleInput && !document.activeElement?.isSameNode(voLonScaleInput)) {
+          voLonScaleInput.value = voLonScale.toFixed(3);
+        }
+        voScaleState.currentScale = voScale;
+        if (voScaleInput && !document.activeElement?.isSameNode(voScaleInput)) {
+          voScaleInput.value = voScale.toFixed(3);
+        }
       };
 
       const applyTuningDefaultsLocal = (defaults) => {
         const lat = Number.isFinite(Number(defaults?.lat_scale)) ? Number(defaults.lat_scale) : gpsTuningDefaults.lat_scale;
         const lon = Number.isFinite(Number(defaults?.lon_scale)) ? Number(defaults.lon_scale) : gpsTuningDefaults.lon_scale;
         const alt = Number.isFinite(Number(defaults?.alt_offset_m)) ? Number(defaults.alt_offset_m) : gpsTuningDefaults.alt_offset_m;
+        const voScale = Number.isFinite(Number(defaults?.vo_scale)) ? Number(defaults.vo_scale) : gpsTuningDefaults.vo_scale;
+        const voLatScale = Number.isFinite(Number(defaults?.vo_lat_scale))
+          ? Number(defaults.vo_lat_scale)
+          : (Number.isFinite(Number(defaults?.lat_scale)) ? Number(defaults.lat_scale) : gpsTuningDefaults.vo_lat_scale);
+        const voLonScale = Number.isFinite(Number(defaults?.vo_lon_scale))
+          ? Number(defaults.vo_lon_scale)
+          : (Number.isFinite(Number(defaults?.lon_scale)) ? Number(defaults.lon_scale) : gpsTuningDefaults.vo_lon_scale);
         gpsTuningDefaults.lat_scale = lat;
         gpsTuningDefaults.lon_scale = lon;
         gpsTuningDefaults.alt_offset_m = alt;
+        gpsTuningDefaults.vo_scale = voScale;
+        gpsTuningDefaults.vo_lat_scale = voLatScale;
+        gpsTuningDefaults.vo_lon_scale = voLonScale;
       };
 
       const pushCalibrationTuning = async (tuning) => {
-        if (gpsTuningState.syncing) return;
+        if (gpsTuningState.syncing) {
+          return { ok: false, error: "sync in progress" };
+        }
         gpsTuningState.syncing = true;
         try {
           const res = await fetch(calibrationTuningUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              lat_scale: tuning.lat_scale,
-              lon_scale: tuning.lon_scale,
-              alt_offset_m: tuning.alt_offset_m,
+              lat_scale: Number.isFinite(Number(tuning?.lat_scale)) ? Number(tuning.lat_scale) : Number(gpsTuningState.lat_scale),
+              lon_scale: Number.isFinite(Number(tuning?.lon_scale)) ? Number(tuning.lon_scale) : Number(gpsTuningState.lon_scale),
+              alt_offset_m: Number.isFinite(Number(tuning?.alt_offset_m)) ? Number(tuning.alt_offset_m) : Number(gpsTuningState.alt_offset_m),
+              vo_scale: Number.isFinite(Number(tuning?.vo_scale)) ? Number(tuning.vo_scale) : Number(gpsTuningState.vo_scale),
+              vo_lat_scale: Number.isFinite(Number(tuning?.vo_lat_scale)) ? Number(tuning.vo_lat_scale) : Number(gpsTuningState.vo_lat_scale),
+              vo_lon_scale: Number.isFinite(Number(tuning?.vo_lon_scale)) ? Number(tuning.vo_lon_scale) : Number(gpsTuningState.vo_lon_scale),
             }),
           });
-          const payload = await res.json();
+          const payload = await res.json().catch(() => ({}));
           if (res.ok && payload?.ok && payload?.tuning) {
             applyTuningLocal(payload.tuning);
             if (payload?.defaults) {
               applyTuningDefaultsLocal(payload.defaults);
             }
+            return { ok: true, payload };
           }
+          return {
+            ok: false,
+            error: payload?.error || `HTTP ${res.status}`,
+            payload,
+          };
         } catch (_) {
-          // ignore transient network errors
+          return { ok: false, error: "endpoint unavailable" };
         } finally {
           gpsTuningState.syncing = false;
         }
@@ -3353,6 +3406,9 @@
       const ofScaleInput = document.getElementById("of-scale-input");
       const ofScaleWriteBtn = document.getElementById("of-scale-write-btn");
       const voScaleStatusEl = document.getElementById("vo-scale-status");
+      const voLatScaleInput = document.getElementById("vo-lat-scale-input");
+      const voLonScaleInput = document.getElementById("vo-lon-scale-input");
+      const voLatLonWriteBtn = document.getElementById("vo-latlon-write-btn");
       const voScaleEnvSelect = document.getElementById("vo-scale-env-select");
       const voScaleLightSelect = document.getElementById("vo-scale-light-select");
       const voScaleAltSelect = document.getElementById("vo-scale-alt-select");
@@ -3767,18 +3823,17 @@
           setVoAutoCalibStatus(`VO auto calib: failed - ${result.error}`);
           return;
         }
-        const nextLat = clamp(Number(gpsTuningState.lat_scale) * result.kLat, 0.5, 2.0);
-        const nextLon = clamp(Number(gpsTuningState.lon_scale) * result.kLon, 0.5, 2.0);
+        const nextVoScale = clamp(Number(gpsTuningState.vo_scale) * result.scaleFactor, 0.1, 5.0);
         await pushCalibrationTuning({
-          lat_scale: nextLat,
-          lon_scale: nextLon,
-          alt_offset_m: Number(gpsTuningState.alt_offset_m),
+          vo_scale: nextVoScale,
         });
+        voScaleState.currentScale = nextVoScale;
+        if (voScaleInput) voScaleInput.value = nextVoScale.toFixed(3);
         const freqMsg = Number.isFinite(result.rawHz) && Number.isFinite(result.sentHz)
           ? `raw=${result.rawHz.toFixed(2)}Hz sent=${result.sentHz.toFixed(2)}Hz suggested=${result.suggestedHz || "--"}Hz`
           : "frequency estimate unavailable";
         setVoAutoCalibStatus(
-          `VO auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | scale_factor=${result.scaleFactor.toFixed(3)} (lat=${result.kLat.toFixed(3)} lon=${result.kLon.toFixed(3)}) | ${freqMsg}`
+          `VO auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | scale_factor=${result.scaleFactor.toFixed(3)} applied_vo_scale=${nextVoScale.toFixed(3)} | ${freqMsg}`
         );
       };
       const getProfileScale = (feature, lighting, altitude) => {
@@ -3897,29 +3952,55 @@
           setVoScaleStatus("VO scale: invalid numeric value");
           return;
         }
+        const clampedScale = clamp(scale, 0.1, 5.0);
         const feature = voScaleEnvSelect.value;
         const lighting = voScaleLightSelect.value;
         const altitude = voScaleAltSelect.value;
         voScaleWriteBtn.disabled = true;
         try {
-          voScaleState.profiles[feature][lighting][altitude] = scale;
+          voScaleState.profiles[feature][lighting][altitude] = clampedScale;
           voScaleState.active = { feature, lighting, altitude };
-          voScaleState.currentScale = scale;
+          voScaleState.currentScale = clampedScale;
           saveVoScaleStateToStorage({
             profiles: voScaleState.profiles,
             active: voScaleState.active,
           });
-          await pushCalibrationTuning({
-            lat_scale: scale,
-            lon_scale: scale,
-            alt_offset_m: Number(gpsTuningState.alt_offset_m),
-          });
+          let writeOk = false;
+          let writeError = "";
+          try {
+            const res = await fetch(voScaleUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ scale: clampedScale }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (res.ok && payload?.ok) {
+              writeOk = true;
+            } else {
+              writeError = payload?.error || `HTTP ${res.status}`;
+            }
+          } catch (err) {
+            writeError = err?.message || "endpoint unavailable";
+          }
+          if (!writeOk) {
+            // Backward-compatible fallback for older backends without /vo-scale.
+            const fallback = await pushCalibrationTuning({
+              vo_scale: clampedScale,
+              vo_lat_scale: clampedScale,
+              vo_lon_scale: clampedScale,
+            });
+            if (!fallback?.ok) {
+              const fbError = fallback?.error || "fallback failed";
+              setVoScaleStatus(`VO scale: write failed (${writeError || fbError})`);
+              return;
+            }
+          }
           renderVoScaleControls();
           setVoScaleStatus(
-            `VO scale: active=${feature}/${lighting}/${altitude} current=${scale.toFixed(3)}`
+            `VO scale: active=${feature}/${lighting}/${altitude} current=${clampedScale.toFixed(3)}`
           );
-        } catch (_) {
-          setVoScaleStatus("VO scale: write failed");
+        } catch (err) {
+          setVoScaleStatus(`VO scale: write failed (${err?.message || "unknown error"})`);
         } finally {
           voScaleWriteBtn.disabled = false;
         }
@@ -3947,8 +4028,8 @@
         }
       };
       const initVoScaleState = () => {
-        const initialScale = Number.isFinite(Number(gpsTuningState?.lat_scale))
-          ? Number(gpsTuningState.lat_scale)
+        const initialScale = Number.isFinite(Number(gpsTuningState?.vo_scale))
+          ? Number(gpsTuningState.vo_scale)
           : 1.0;
         const loaded = loadVoScaleStateFromStorage(initialScale);
         voScaleState.profiles = loaded.profiles;
@@ -4763,6 +4844,9 @@
             lat_scale: gpsTuningDefaults.lat_scale,
             lon_scale: gpsTuningDefaults.lon_scale,
             alt_offset_m: gpsTuningDefaults.alt_offset_m,
+            vo_scale: gpsTuningDefaults.vo_scale,
+            vo_lat_scale: gpsTuningDefaults.vo_lat_scale,
+            vo_lon_scale: gpsTuningDefaults.vo_lon_scale,
           };
           if (gpsTuningState.pendingTimer) {
             clearTimeout(gpsTuningState.pendingTimer);
@@ -4771,7 +4855,7 @@
           applyTuningLocal(defaults);
           await pushCalibrationTuning(defaults);
           appendLog(
-            `tuning default applied: lat_scale=${defaults.lat_scale.toFixed(3)} lon_scale=${defaults.lon_scale.toFixed(3)} alt_offset_m=${defaults.alt_offset_m.toFixed(3)}`
+            `tuning default applied: lat_scale=${defaults.lat_scale.toFixed(3)} lon_scale=${defaults.lon_scale.toFixed(3)} alt_offset_m=${defaults.alt_offset_m.toFixed(3)} vo_scale=${defaults.vo_scale.toFixed(3)} vo_lat_scale=${defaults.vo_lat_scale.toFixed(3)} vo_lon_scale=${defaults.vo_lon_scale.toFixed(3)}`
           );
         });
       }

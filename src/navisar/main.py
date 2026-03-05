@@ -291,6 +291,9 @@ def _persist_calibration_tuning(
     lat_scale,
     lon_scale,
     alt_offset_m,
+    vo_scale,
+    vo_lat_scale,
+    vo_lon_scale,
 ):
     """Persist calibration tuning values into config/pixhawk.yaml."""
     path = Path(pixhawk_config_path)
@@ -308,6 +311,9 @@ def _persist_calibration_tuning(
         tuning_cfg["lat_scale"] = round(float(lat_scale), 6)
         tuning_cfg["lon_scale"] = round(float(lon_scale), 6)
         tuning_cfg["alt_offset_m"] = round(float(alt_offset_m), 6)
+        tuning_cfg["vo_scale"] = round(float(vo_scale), 6)
+        tuning_cfg["vo_lat_scale"] = round(float(vo_lat_scale), 6)
+        tuning_cfg["vo_lon_scale"] = round(float(vo_lon_scale), 6)
         calibration_cfg["optical_gps_tuning"] = tuning_cfg
         cfg["calibration"] = calibration_cfg
 
@@ -318,6 +324,9 @@ def _persist_calibration_tuning(
         "lat_scale": tuning_cfg["lat_scale"],
         "lon_scale": tuning_cfg["lon_scale"],
         "alt_offset_m": tuning_cfg["alt_offset_m"],
+        "vo_scale": tuning_cfg["vo_scale"],
+        "vo_lat_scale": tuning_cfg["vo_lat_scale"],
+        "vo_lon_scale": tuning_cfg["vo_lon_scale"],
     }
 
 
@@ -1156,6 +1165,9 @@ def _make_dashboard_handler(
                         "lat_scale": float(calibration_tuning_state["lat_scale"].get()),
                         "lon_scale": float(calibration_tuning_state["lon_scale"].get()),
                         "alt_offset_m": float(calibration_tuning_state["alt_offset_m"].get()),
+                        "vo_scale": float(calibration_tuning_state["vo_scale"].get()),
+                        "vo_lat_scale": float(calibration_tuning_state["vo_lat_scale"].get()),
+                        "vo_lon_scale": float(calibration_tuning_state["vo_lon_scale"].get()),
                     },
                     "timestamp": snap.get("timestamp") if isinstance(snap, dict) else None,
                     "url": snap.get("url") if isinstance(snap, dict) else None,
@@ -1216,12 +1228,33 @@ def _make_dashboard_handler(
                         "lat_scale": float(calibration_tuning_state["lat_scale"].get()),
                         "lon_scale": float(calibration_tuning_state["lon_scale"].get()),
                         "alt_offset_m": float(calibration_tuning_state["alt_offset_m"].get()),
+                        "vo_scale": float(calibration_tuning_state["vo_scale"].get()),
+                        "vo_lat_scale": float(calibration_tuning_state["vo_lat_scale"].get()),
+                        "vo_lon_scale": float(calibration_tuning_state["vo_lon_scale"].get()),
                     },
                     "defaults": {
                         "lat_scale": float(calibration_tuning_defaults["lat_scale"]),
                         "lon_scale": float(calibration_tuning_defaults["lon_scale"]),
                         "alt_offset_m": float(calibration_tuning_defaults["alt_offset_m"]),
+                        "vo_scale": float(calibration_tuning_defaults["vo_scale"]),
+                        "vo_lat_scale": float(calibration_tuning_defaults["vo_lat_scale"]),
+                        "vo_lon_scale": float(calibration_tuning_defaults["vo_lon_scale"]),
                     },
+                }
+                data = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if req_path.startswith("/vo-scale"):
+                payload = {
+                    "ok": True,
+                    "vo_scale": float(calibration_tuning_state["vo_scale"].get()),
+                    "vo_lat_scale": float(calibration_tuning_state["vo_lat_scale"].get()),
+                    "vo_lon_scale": float(calibration_tuning_state["vo_lon_scale"].get()),
                 }
                 data = json.dumps(payload).encode("utf-8")
                 self.send_response(200)
@@ -1729,18 +1762,39 @@ def _make_dashboard_handler(
                 ).encode("utf-8")
                 self.send_response(200)
             elif req_path.startswith("/calibration-tuning"):
-                lat_scale_raw = payload.get("lat_scale")
-                lon_scale_raw = payload.get("lon_scale")
-                alt_offset_raw = payload.get("alt_offset_m")
+                lat_scale_raw = payload.get(
+                    "lat_scale", float(calibration_tuning_state["lat_scale"].get())
+                )
+                lon_scale_raw = payload.get(
+                    "lon_scale", float(calibration_tuning_state["lon_scale"].get())
+                )
+                alt_offset_raw = payload.get(
+                    "alt_offset_m", float(calibration_tuning_state["alt_offset_m"].get())
+                )
+                vo_scale_raw = payload.get(
+                    "vo_scale", float(calibration_tuning_state["vo_scale"].get())
+                )
+                vo_lat_scale_raw = payload.get(
+                    "vo_lat_scale", float(calibration_tuning_state["vo_lat_scale"].get())
+                )
+                vo_lon_scale_raw = payload.get(
+                    "vo_lon_scale", float(calibration_tuning_state["vo_lon_scale"].get())
+                )
                 try:
                     lat_scale = float(lat_scale_raw)
                     lon_scale = float(lon_scale_raw)
                     alt_offset_m = float(alt_offset_raw)
+                    vo_scale = float(vo_scale_raw)
+                    vo_lat_scale = float(vo_lat_scale_raw)
+                    vo_lon_scale = float(vo_lon_scale_raw)
                 except (TypeError, ValueError):
                     data = json.dumps(
                         {
                             "ok": False,
-                            "error": "lat_scale, lon_scale and alt_offset_m must be numeric",
+                            "error": (
+                                "lat_scale, lon_scale, alt_offset_m, vo_scale, "
+                                "vo_lat_scale and vo_lon_scale must be numeric"
+                            ),
                         }
                     ).encode("utf-8")
                     self.send_response(400)
@@ -1753,14 +1807,23 @@ def _make_dashboard_handler(
                 lat_scale = max(0.1, min(5.0, lat_scale))
                 lon_scale = max(0.1, min(5.0, lon_scale))
                 alt_offset_m = max(-20.0, min(20.0, alt_offset_m))
+                vo_scale = max(0.1, min(5.0, vo_scale))
+                vo_lat_scale = max(0.1, min(5.0, vo_lat_scale))
+                vo_lon_scale = max(0.1, min(5.0, vo_lon_scale))
                 calibration_tuning_state["lat_scale"].set(lat_scale)
                 calibration_tuning_state["lon_scale"].set(lon_scale)
                 calibration_tuning_state["alt_offset_m"].set(alt_offset_m)
+                calibration_tuning_state["vo_scale"].set(vo_scale)
+                calibration_tuning_state["vo_lat_scale"].set(vo_lat_scale)
+                calibration_tuning_state["vo_lon_scale"].set(vo_lon_scale)
                 persisted_tuning = _persist_calibration_tuning(
                     pixhawk_config_path=pixhawk_config_path,
                     lat_scale=lat_scale,
                     lon_scale=lon_scale,
                     alt_offset_m=alt_offset_m,
+                    vo_scale=vo_scale,
+                    vo_lat_scale=vo_lat_scale,
+                    vo_lon_scale=vo_lon_scale,
                 )
                 data = json.dumps(
                     {
@@ -1769,16 +1832,65 @@ def _make_dashboard_handler(
                             "lat_scale": lat_scale,
                             "lon_scale": lon_scale,
                             "alt_offset_m": alt_offset_m,
+                            "vo_scale": vo_scale,
+                            "vo_lat_scale": vo_lat_scale,
+                            "vo_lon_scale": vo_lon_scale,
                         },
                         "persisted": persisted_tuning,
                         "defaults": {
                             "lat_scale": float(calibration_tuning_defaults["lat_scale"]),
                             "lon_scale": float(calibration_tuning_defaults["lon_scale"]),
                             "alt_offset_m": float(calibration_tuning_defaults["alt_offset_m"]),
+                            "vo_scale": float(calibration_tuning_defaults["vo_scale"]),
+                            "vo_lat_scale": float(calibration_tuning_defaults["vo_lat_scale"]),
+                            "vo_lon_scale": float(calibration_tuning_defaults["vo_lon_scale"]),
                         },
                     }
                 ).encode("utf-8")
                 self.send_response(200)
+            elif req_path.startswith("/vo-scale"):
+                scale_raw = payload.get("scale", payload.get("vo_scale"))
+                if scale_raw is None:
+                    data = json.dumps(
+                        {"ok": False, "error": "scale is required"}
+                    ).encode("utf-8")
+                    self.send_response(400)
+                else:
+                    try:
+                        new_scale = float(scale_raw)
+                    except (TypeError, ValueError):
+                        data = json.dumps(
+                            {"ok": False, "error": "scale must be numeric"}
+                        ).encode("utf-8")
+                        self.send_response(400)
+                    else:
+                        new_scale = max(0.1, min(5.0, new_scale))
+                        calibration_tuning_state["vo_scale"].set(new_scale)
+                        calibration_tuning_state["vo_lat_scale"].set(new_scale)
+                        calibration_tuning_state["vo_lon_scale"].set(new_scale)
+                        persisted_tuning = _persist_calibration_tuning(
+                            pixhawk_config_path=pixhawk_config_path,
+                            lat_scale=float(calibration_tuning_state["lat_scale"].get()),
+                            lon_scale=float(calibration_tuning_state["lon_scale"].get()),
+                            alt_offset_m=float(calibration_tuning_state["alt_offset_m"].get()),
+                            vo_scale=float(calibration_tuning_state["vo_scale"].get()),
+                            vo_lat_scale=float(calibration_tuning_state["vo_lat_scale"].get()),
+                            vo_lon_scale=float(calibration_tuning_state["vo_lon_scale"].get()),
+                        )
+                        data = json.dumps(
+                            {
+                                "ok": True,
+                                "vo_scale": float(calibration_tuning_state["vo_scale"].get()),
+                                "vo_lat_scale": float(
+                                    calibration_tuning_state["vo_lat_scale"].get()
+                                ),
+                                "vo_lon_scale": float(
+                                    calibration_tuning_state["vo_lon_scale"].get()
+                                ),
+                                "persisted": persisted_tuning,
+                            }
+                        ).encode("utf-8")
+                        self.send_response(200)
             elif req_path.startswith("/optical-flow-scale"):
                 feature = payload.get("feature")
                 lighting = payload.get("lighting")
@@ -2431,14 +2543,30 @@ def main():
     tuning_cfg = calibration_cfg.get("optical_gps_tuning", {})
     if not isinstance(tuning_cfg, dict):
         tuning_cfg = {}
+    vo_height_cfg = calibration_cfg.get("vo_height_scaling", {})
+    if not isinstance(vo_height_cfg, dict):
+        vo_height_cfg = {}
     tuning_defaults = {
         "lat_scale": float(tuning_cfg.get("lat_scale", 1.0)),
         "lon_scale": float(tuning_cfg.get("lon_scale", 1.0)),
         "alt_offset_m": float(tuning_cfg.get("alt_offset_m", 0.0)),
+        "vo_scale": float(tuning_cfg.get("vo_scale", 1.0)),
+        "vo_lat_scale": float(tuning_cfg.get("vo_lat_scale", tuning_cfg.get("lat_scale", 1.0))),
+        "vo_lon_scale": float(tuning_cfg.get("vo_lon_scale", tuning_cfg.get("lon_scale", 1.0))),
     }
     lat_scale_state = ModeState(float(tuning_defaults["lat_scale"]))
     lon_scale_state = ModeState(float(tuning_defaults["lon_scale"]))
     alt_offset_state = ModeState(float(tuning_defaults["alt_offset_m"]))
+    vo_scale_state = ModeState(float(tuning_defaults["vo_scale"]))
+    vo_lat_scale_state = ModeState(float(tuning_defaults["vo_lat_scale"]))
+    vo_lon_scale_state = ModeState(float(tuning_defaults["vo_lon_scale"]))
+    vo_height_scaling_enabled = bool(vo_height_cfg.get("enabled", False))
+    vo_height_reference_m = max(0.05, float(vo_height_cfg.get("reference_height_m", 1.0)))
+    vo_height_power = max(0.0, float(vo_height_cfg.get("power", 1.0)))
+    vo_height_min_factor = max(0.1, float(vo_height_cfg.get("min_factor", 0.3)))
+    vo_height_max_factor = max(
+        vo_height_min_factor, float(vo_height_cfg.get("max_factor", 5.0))
+    )
     altitude_offset_m = float(pixhawk_cfg.get("altitude_offset_m", 0.0))
     altitude_offset_state = ModeState(altitude_offset_m)
     use_imu_fusion = pixhawk_cfg.get("use_imu_fusion", True)
@@ -2809,6 +2937,9 @@ def main():
                     "lat_scale": lat_scale_state,
                     "lon_scale": lon_scale_state,
                     "alt_offset_m": alt_offset_state,
+                    "vo_scale": vo_scale_state,
+                    "vo_lat_scale": vo_lat_scale_state,
+                    "vo_lon_scale": vo_lon_scale_state,
                 },
                 tuning_defaults,
                 optical_flow_scale_state,
@@ -2828,6 +2959,9 @@ def main():
                         "lat_scale": float(lat_scale_state.get()),
                         "lon_scale": float(lon_scale_state.get()),
                         "alt_offset_m": float(alt_offset_state.get()),
+                        "vo_scale": float(vo_scale_state.get()),
+                        "vo_lat_scale": float(vo_lat_scale_state.get()),
+                        "vo_lon_scale": float(vo_lon_scale_state.get()),
                     },
                 }
             )
@@ -3794,12 +3928,28 @@ def main():
             compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
         # Optical-flow GPS integration should always use compass heading when available.
         optical_compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
+        vo_scale_value = max(0.1, min(5.0, float(vo_scale_state.get())))
+        vo_height_factor = 1.0
+        if vo_height_scaling_enabled:
+            height_for_scaling = _safe_float(
+                alt_override_m if alt_override_m is not None else z_f
+            )
+            if height_for_scaling is not None and height_for_scaling > 0.0:
+                raw_height_factor = (
+                    float(height_for_scaling) / vo_height_reference_m
+                ) ** vo_height_power
+                vo_height_factor = max(
+                    vo_height_min_factor,
+                    min(vo_height_max_factor, raw_height_factor),
+                )
+        x_vo_output = x_f * vo_scale_value * vo_height_factor
+        y_vo_output = y_f * vo_scale_value * vo_height_factor
 
         if active_output_mode == "gps_mavlink":
             gps_mavlink_mode.handle(
                 now,
-                x_f,
-                y_f,
+                x_vo_output,
+                y_vo_output,
                 z_f,
                 selector.gps_origin(),
                 mavlink_interface,
@@ -3812,8 +3962,8 @@ def main():
         elif active_output_mode == "gps_port":
             gps_port_mode.handle(
                 now,
-                x_f,
-                y_f,
+                x_vo_output,
+                y_vo_output,
                 z_f,
                 selector.gps_origin(),
                 alt_override_m=alt_override_m,
@@ -3825,8 +3975,8 @@ def main():
         elif active_output_mode == "odometry":
             odometry_mode.handle(
                 now,
-                x_f,
-                y_f,
+                x_vo_output,
+                y_vo_output,
                 z_for_output,
                 mavlink_interface,
                 mavlink_interface.get_last_attitude() if mavlink_interface else None,
@@ -3888,6 +4038,17 @@ def main():
                         "lat_scale": float(lat_scale_state.get()),
                         "lon_scale": float(lon_scale_state.get()),
                         "alt_offset_m": float(alt_offset_state.get()),
+                        "vo_scale": float(vo_scale_state.get()),
+                        "vo_lat_scale": float(vo_lat_scale_state.get()),
+                        "vo_lon_scale": float(vo_lon_scale_state.get()),
+                    },
+                    "vo_height_scaling": {
+                        "enabled": bool(vo_height_scaling_enabled),
+                        "factor": float(vo_height_factor),
+                        "reference_height_m": float(vo_height_reference_m),
+                        "power": float(vo_height_power),
+                        "min_factor": float(vo_height_min_factor),
+                        "max_factor": float(vo_height_max_factor),
                     },
                     "altitude_offset_m": current_altitude_offset_m,
                     "optical_altitude_offset_m": _safe_float(optical_altitude_offset_m),
@@ -4206,6 +4367,9 @@ def main():
                                 "lat_scale": float(lat_scale_state.get()),
                                 "lon_scale": float(lon_scale_state.get()),
                                 "alt_offset_m": float(alt_offset_state.get()),
+                                "vo_scale": float(vo_scale_state.get()),
+                                "vo_lat_scale": float(vo_lat_scale_state.get()),
+                                "vo_lon_scale": float(vo_lon_scale_state.get()),
                             },
                             "altitude_offset_m": current_altitude_offset_m,
                             "optical_altitude_offset_m": _safe_float(optical_altitude_offset_m),
