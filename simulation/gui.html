@@ -545,6 +545,81 @@
         height: 280px;
         margin-top: 0;
       }
+      .of-scale-panel {
+        display: grid;
+        gap: 8px;
+      }
+      .of-scale-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 140px auto;
+        gap: 8px;
+        align-items: center;
+        background: #000;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .vo-scale-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 140px auto;
+        gap: 8px;
+        align-items: center;
+        background: #000;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+      .of-scale-input {
+        width: 100%;
+        background: #050505;
+        color: var(--text);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-size: 12px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      .of-scale-select {
+        width: 100%;
+        background: #050505;
+        color: var(--text);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+      .of-scale-write-btn {
+        border: 1px solid var(--panel-border);
+        background: #000;
+        color: var(--text);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+      }
+      .of-scale-write-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .vo-calib-panel {
+        display: grid;
+        gap: 8px;
+        background: #000;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 10px;
+      }
+      .vo-calib-select {
+        width: 100%;
+        background: #050505;
+        color: var(--text);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 6px 8px;
+        font-size: 12px;
+      }
 
       .traj-wrap canvas {
         height: 200px;
@@ -591,6 +666,12 @@
           grid-template-columns: 1fr;
         }
         .gps-tuning-panel {
+          grid-template-columns: 1fr;
+        }
+        .of-scale-form {
+          grid-template-columns: 1fr;
+        }
+        .vo-scale-form {
           grid-template-columns: 1fr;
         }
       }
@@ -656,6 +737,54 @@
         <button id="gps-log-toggle-btn">Start GPS Log</button>
       </div>
       <div class="gps-origin-note" id="gps-log-status">GPS logger: idle</div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Sensor Raw CSV Capture</div>
+      <div class="mode-buttons" id="sensor-csv-buttons">
+        <button id="sensor-csv-start-btn">Start Sensor CSV</button>
+        <button id="sensor-csv-stop-btn" disabled>Stop Sensor CSV</button>
+        <button id="sensor-csv-download-btn" disabled>Download Sensor CSV</button>
+      </div>
+      <div class="gps-origin-note" id="sensor-csv-status">Sensor CSV: idle</div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Optical Flow Scale Factor</div>
+      <div class="gps-origin-note" id="of-scale-status">Optical scale: idle</div>
+      <div class="of-scale-panel">
+        <div class="of-scale-form">
+          <select id="of-env-select" class="of-scale-select"></select>
+          <select id="of-light-select" class="of-scale-select"></select>
+          <input id="of-scale-input" class="of-scale-input" type="number" step="0.001" min="0" max="20" value="1.000" />
+          <button id="of-scale-write-btn" class="of-scale-write-btn" type="button">Write</button>
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Auto Calibration</div>
+      <div class="mode-buttons">
+        <button id="auto-calib-btn">Start Auto Calib</button>
+      </div>
+      <div class="gps-origin-note" id="auto-calib-status">
+        Auto calib: idle
+      </div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">VO Scale Factor</div>
+      <div class="gps-origin-note" id="vo-scale-status">VO scale: idle</div>
+      <div class="of-scale-panel">
+        <div class="vo-scale-form">
+          <select id="vo-scale-env-select" class="of-scale-select"></select>
+          <select id="vo-scale-light-select" class="of-scale-select"></select>
+          <select id="vo-scale-alt-select" class="of-scale-select">
+            <option value="0-8">Altitude: 0-8 m</option>
+            <option value="8-50">Altitude: 8-50 m</option>
+            <option value="50-100">Altitude: 50-100 m</option>
+            <option value="100-150">Altitude: 100-150 m</option>
+            <option value="150-200">Altitude: 150-200 m</option>
+            <option value="200-250">Altitude: 200-250 m</option>
+            <option value="250-300">Altitude: 250-300 m</option>
+          </select>
+          <input id="vo-scale-input" class="of-scale-input" type="number" step="0.001" min="0" max="20" value="1.000" />
+          <button id="vo-scale-write-btn" class="of-scale-write-btn" type="button">Write</button>
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">VO Auto Calibration</div>
+      <div class="mode-buttons">
+        <button id="vo-auto-calib-btn">Start VO Auto Calib</button>
+      </div>
+      <div class="gps-origin-note" id="vo-auto-calib-status">VO auto calib: idle</div>
       <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">GPS Mode</div>
       <div class="gps-origin-controls">
         <div class="mode-buttons" id="gps-origin-buttons">
@@ -792,6 +921,24 @@
             </div>
             <div class="plot-wrap">
               <canvas id="gps-traj-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>GPS Latitude (Sensor vs Pixhawk)</h3>
+            <div class="plot-wrap">
+              <canvas id="gps-lat-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>GPS Longitude (Sensor vs Pixhawk)</h3>
+            <div class="plot-wrap">
+              <canvas id="gps-lon-plot"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <h3>GPS Altitude (Sensor vs Pixhawk)</h3>
+            <div class="plot-wrap">
+              <canvas id="gps-alt-plot"></canvas>
             </div>
           </div>
           <div class="card">
@@ -981,6 +1128,12 @@
         }
         return "/calibration-tuning";
       })();
+      const opticalFlowScaleUrl = (() => {
+        if (window.location.protocol === "file:") {
+          return "http://127.0.0.1:8765/optical-flow-scale";
+        }
+        return "/optical-flow-scale";
+      })();
 
       // VO stream image replaces previous canvas drawing.
 
@@ -1109,6 +1262,12 @@
       const voPosCtx = voPosPlot ? voPosPlot.getContext("2d") : null;
       const gpsTrajPlot = document.getElementById("gps-traj-plot");
       const gpsTrajCtx = gpsTrajPlot ? gpsTrajPlot.getContext("2d") : null;
+      const gpsLatPlot = document.getElementById("gps-lat-plot");
+      const gpsLatCtx = gpsLatPlot ? gpsLatPlot.getContext("2d") : null;
+      const gpsLonPlot = document.getElementById("gps-lon-plot");
+      const gpsLonCtx = gpsLonPlot ? gpsLonPlot.getContext("2d") : null;
+      const gpsAltPlot = document.getElementById("gps-alt-plot");
+      const gpsAltCtx = gpsAltPlot ? gpsAltPlot.getContext("2d") : null;
       const corrPlot = document.getElementById("corr-plot");
       const corrCtx = corrPlot ? corrPlot.getContext("2d") : null;
       const heightPlot = document.getElementById("height-plot");
@@ -1177,6 +1336,9 @@
         startedAt: null,
         sensorRows: [],
         pixhawkRows: [],
+      };
+      const sensorCsvLoggerState = {
+        recording: false,
       };
       const gpsCsvColumns = [
         "timestamp_iso",
@@ -1910,6 +2072,39 @@
         ctx.stroke();
       };
 
+      const drawIndexedLineSeries = (ctx, rect, values, color, minVal, maxVal, left = 28, top = 28, right = 28, bottom = 28) => {
+        if (!values.length) return;
+        const chartW = Math.max(1, rect.width - left - right);
+        const chartH = Math.max(1, rect.height - top - bottom);
+        const span = Math.max(1e-6, maxVal - minVal);
+        const total = Math.max(1, plotState.times.length);
+        const points = values.map(({ value, idx }) => ({
+          x: clamp(
+            left + (idx / (total - 1 || 1)) * chartW,
+            left,
+            left + chartW
+          ),
+          y: clamp(
+            top + ((maxVal - value) / span) * chartH,
+            top,
+            top + chartH
+          ),
+        }));
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 1; i += 1) {
+          const midX = (points[i].x + points[i + 1].x) / 2;
+          const midY = (points[i].y + points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, midX, midY);
+        }
+        if (points.length > 1) {
+          ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+        }
+        ctx.stroke();
+      };
+
       const drawStatLabel = (ctx, x, y, text, color = "#111") => {
         ctx.fillStyle = "rgba(255,255,255,0.92)";
         const width = Math.max(48, ctx.measureText(text).width + 10);
@@ -2280,6 +2475,159 @@
         gpsTrajCtx.fillRect(rect.width - 210, 8, 14, 4);
         gpsTrajCtx.fillStyle = "#111";
         gpsTrajCtx.fillText("X: Longitude  Y: Latitude", rect.width - 190, 32);
+      };
+
+      const drawGpsLatPlot = () => {
+        const rect = resizeCanvas(gpsLatPlot, gpsLatCtx);
+        if (!rect) return;
+
+        const finiteSensorLat = plotState.gpsSensorLat
+          .map((value, idx) => ({ value, idx }))
+          .filter((point) => Number.isFinite(point.value));
+        const finitePixLat = plotState.gpsPortLat
+          .map((value, idx) => ({ value, idx }))
+          .filter((point) => Number.isFinite(point.value));
+        const valuesForRange = [
+          ...finiteSensorLat.map((point) => point.value),
+          ...finitePixLat.map((point) => point.value),
+        ];
+        if (!valuesForRange.length) return;
+
+        const [minVal, maxVal] = autoRange(valuesForRange, {
+          minSpan: 0.00002,
+          padRatio: 0.15,
+          padMin: 0.00001,
+        });
+        drawAxes(gpsLatCtx, rect, 28);
+        drawYScaleLabels(gpsLatCtx, rect, 28, 28, 28, 28, minVal, maxVal, 5, "");
+        const durationSec = plotState.times.length > 1
+          ? (plotState.times[plotState.times.length - 1] - plotState.times[0]) / 1000
+          : 1;
+        drawXScaleLabels(gpsLatCtx, rect, 28, 28, 28, 28, -durationSec, 0, 5, " s");
+
+        drawIndexedLineSeries(gpsLatCtx, rect, finiteSensorLat, "#16a34a", minVal, maxVal);
+        drawIndexedLineSeries(gpsLatCtx, rect, finitePixLat, "#2563eb", minVal, maxVal);
+
+        gpsLatCtx.fillStyle = "#111";
+        gpsLatCtx.font = "11px sans-serif";
+        gpsLatCtx.fillText("GPS Sensor Latitude", rect.width - 186, 20);
+        gpsLatCtx.fillStyle = "#16a34a";
+        gpsLatCtx.fillRect(rect.width - 206, 12, 14, 4);
+        gpsLatCtx.fillStyle = "#111";
+        gpsLatCtx.fillText("Pixhawk Port Latitude", rect.width - 186, 40);
+        gpsLatCtx.fillStyle = "#2563eb";
+        gpsLatCtx.fillRect(rect.width - 206, 34, 14, 4);
+
+        const lastSensor = finiteSensorLat.at(-1)?.value;
+        const lastPix = finitePixLat.at(-1)?.value;
+        if (Number.isFinite(lastSensor)) {
+          drawStatLabel(gpsLatCtx, 8, 12, `sensor ${lastSensor.toFixed(7)}`, "#16a34a");
+        }
+        if (Number.isFinite(lastPix)) {
+          drawStatLabel(gpsLatCtx, 8, 34, `pixhawk ${lastPix.toFixed(7)}`, "#2563eb");
+        }
+      };
+
+      const drawGpsLonPlot = () => {
+        const rect = resizeCanvas(gpsLonPlot, gpsLonCtx);
+        if (!rect) return;
+
+        const finiteSensorLon = plotState.gpsSensorLon
+          .map((value, idx) => ({ value, idx }))
+          .filter((point) => Number.isFinite(point.value));
+        const finitePixLon = plotState.gpsPortLon
+          .map((value, idx) => ({ value, idx }))
+          .filter((point) => Number.isFinite(point.value));
+        const valuesForRange = [
+          ...finiteSensorLon.map((point) => point.value),
+          ...finitePixLon.map((point) => point.value),
+        ];
+        if (!valuesForRange.length) return;
+
+        const [minVal, maxVal] = autoRange(valuesForRange, {
+          minSpan: 0.00002,
+          padRatio: 0.15,
+          padMin: 0.00001,
+        });
+        drawAxes(gpsLonCtx, rect, 28);
+        drawYScaleLabels(gpsLonCtx, rect, 28, 28, 28, 28, minVal, maxVal, 5, "");
+        const durationSec = plotState.times.length > 1
+          ? (plotState.times[plotState.times.length - 1] - plotState.times[0]) / 1000
+          : 1;
+        drawXScaleLabels(gpsLonCtx, rect, 28, 28, 28, 28, -durationSec, 0, 5, " s");
+
+        drawIndexedLineSeries(gpsLonCtx, rect, finiteSensorLon, "#16a34a", minVal, maxVal);
+        drawIndexedLineSeries(gpsLonCtx, rect, finitePixLon, "#2563eb", minVal, maxVal);
+
+        gpsLonCtx.fillStyle = "#111";
+        gpsLonCtx.font = "11px sans-serif";
+        gpsLonCtx.fillText("GPS Sensor Longitude", rect.width - 190, 20);
+        gpsLonCtx.fillStyle = "#16a34a";
+        gpsLonCtx.fillRect(rect.width - 210, 12, 14, 4);
+        gpsLonCtx.fillStyle = "#111";
+        gpsLonCtx.fillText("Pixhawk Port Longitude", rect.width - 190, 40);
+        gpsLonCtx.fillStyle = "#2563eb";
+        gpsLonCtx.fillRect(rect.width - 210, 34, 14, 4);
+
+        const lastSensor = finiteSensorLon.at(-1)?.value;
+        const lastPix = finitePixLon.at(-1)?.value;
+        if (Number.isFinite(lastSensor)) {
+          drawStatLabel(gpsLonCtx, 8, 12, `sensor ${lastSensor.toFixed(7)}`, "#16a34a");
+        }
+        if (Number.isFinite(lastPix)) {
+          drawStatLabel(gpsLonCtx, 8, 34, `pixhawk ${lastPix.toFixed(7)}`, "#2563eb");
+        }
+      };
+
+      const drawGpsAltPlot = () => {
+        const rect = resizeCanvas(gpsAltPlot, gpsAltCtx);
+        if (!rect) return;
+
+        const finiteSensorAlt = plotState.gpsSensorHeight
+          .map((value, idx) => ({ value, idx }))
+          .filter((point) => Number.isFinite(point.value));
+        const finitePixAlt = plotState.gpsPortFinalHeight
+          .map((value, idx) => ({ value, idx }))
+          .filter((point) => Number.isFinite(point.value));
+        const valuesForRange = [
+          ...finiteSensorAlt.map((point) => point.value),
+          ...finitePixAlt.map((point) => point.value),
+        ];
+        if (!valuesForRange.length) return;
+
+        const [minVal, maxVal] = autoRange(valuesForRange, {
+          minSpan: 0.2,
+          padRatio: 0.15,
+          padMin: 0.05,
+        });
+        drawAxes(gpsAltCtx, rect, 28);
+        drawYScaleLabels(gpsAltCtx, rect, 28, 28, 28, 28, minVal, maxVal, 3, " m");
+        const durationSec = plotState.times.length > 1
+          ? (plotState.times[plotState.times.length - 1] - plotState.times[0]) / 1000
+          : 1;
+        drawXScaleLabels(gpsAltCtx, rect, 28, 28, 28, 28, -durationSec, 0, 5, " s");
+
+        drawIndexedLineSeries(gpsAltCtx, rect, finiteSensorAlt, "#16a34a", minVal, maxVal);
+        drawIndexedLineSeries(gpsAltCtx, rect, finitePixAlt, "#2563eb", minVal, maxVal);
+
+        gpsAltCtx.fillStyle = "#111";
+        gpsAltCtx.font = "11px sans-serif";
+        gpsAltCtx.fillText("GPS Sensor Altitude", rect.width - 196, 20);
+        gpsAltCtx.fillStyle = "#16a34a";
+        gpsAltCtx.fillRect(rect.width - 216, 12, 14, 4);
+        gpsAltCtx.fillStyle = "#111";
+        gpsAltCtx.fillText("Pixhawk Port Altitude", rect.width - 196, 40);
+        gpsAltCtx.fillStyle = "#2563eb";
+        gpsAltCtx.fillRect(rect.width - 216, 34, 14, 4);
+
+        const lastSensor = finiteSensorAlt.at(-1)?.value;
+        const lastPix = finitePixAlt.at(-1)?.value;
+        if (Number.isFinite(lastSensor)) {
+          drawStatLabel(gpsAltCtx, 8, 12, `sensor ${lastSensor.toFixed(2)} m`, "#16a34a");
+        }
+        if (Number.isFinite(lastPix)) {
+          drawStatLabel(gpsAltCtx, 8, 34, `pixhawk ${lastPix.toFixed(2)} m`, "#2563eb");
+        }
       };
 
 
@@ -2704,6 +3052,26 @@
           const gpsPortFinalAltitudeM = asFiniteNumber(
             data.outputs?.gps_port?.alt_m
           );
+          captureAutoCalibSample({
+            tMs: Date.now(),
+            rawLat: gpsSensorLat,
+            rawLon: gpsSensorLon,
+            rawAlt: gpsSensorAltitudeM,
+            sentLat: gpsPortLat,
+            sentLon: gpsPortLon,
+            sentAlt: gpsPortFinalAltitudeM,
+          });
+          captureVoAutoCalibSample({
+            tMs: Date.now(),
+            rawLat: gpsSensorLat,
+            rawLon: gpsSensorLon,
+            sentLat: gpsPortLat,
+            sentLon: gpsPortLon,
+            voX: asFiniteNumber(data.camera?.x),
+            voY: asFiniteNumber(data.camera?.y),
+            voDx: asFiniteNumber(data.camera?.dx),
+            voDy: asFiniteNumber(data.camera?.dy),
+          });
           const finalAltitudeOffsetM = asFiniteNumber(
             data.optical_altitude_offset_m,
             data.final_altitude_offset_m
@@ -2727,6 +3095,7 @@
           const vx = filterSignal(filterState.vx, rawVx, 0.18, isOptical ? 0.02 : 0.005, isOptical ? 0.25 : 0.08);
           const vy = filterSignal(filterState.vy, rawVy, 0.18, isOptical ? 0.02 : 0.005, isOptical ? 0.25 : 0.08);
           const altitude = filterSignal(filterState.height, rawAltitude, 0.22, 0.0, 0.08);
+          updateVoCalibrationUi(altitude);
           // Use optical sensor meters directly for all height graphs (no smoothing/offset/fallback in graph data).
           const sharedHeightForPlots = opticalHeightM;
           const lastBarometerHeight = plotState.barometerHeight[plotState.barometerHeight.length - 1];
@@ -2944,6 +3313,9 @@
           drawPosPlot();
           drawVoPosPlot();
           drawGpsTrajectoryPlot();
+          drawGpsLatPlot();
+          drawGpsLonPlot();
+          drawGpsAltPlot();
           drawCorrPlot();
           drawHeightPlot();
           drawOpticalHeightPlot();
@@ -2971,6 +3343,25 @@
       const clientRecStatusEl = document.getElementById("client-rec-status");
       const gpsLogToggleBtn = document.getElementById("gps-log-toggle-btn");
       const gpsLogStatusEl = document.getElementById("gps-log-status");
+      const sensorCsvStartBtn = document.getElementById("sensor-csv-start-btn");
+      const sensorCsvStopBtn = document.getElementById("sensor-csv-stop-btn");
+      const sensorCsvDownloadBtn = document.getElementById("sensor-csv-download-btn");
+      const sensorCsvStatusEl = document.getElementById("sensor-csv-status");
+      const ofScaleStatusEl = document.getElementById("of-scale-status");
+      const ofEnvSelect = document.getElementById("of-env-select");
+      const ofLightSelect = document.getElementById("of-light-select");
+      const ofScaleInput = document.getElementById("of-scale-input");
+      const ofScaleWriteBtn = document.getElementById("of-scale-write-btn");
+      const voScaleStatusEl = document.getElementById("vo-scale-status");
+      const voScaleEnvSelect = document.getElementById("vo-scale-env-select");
+      const voScaleLightSelect = document.getElementById("vo-scale-light-select");
+      const voScaleAltSelect = document.getElementById("vo-scale-alt-select");
+      const voScaleInput = document.getElementById("vo-scale-input");
+      const voScaleWriteBtn = document.getElementById("vo-scale-write-btn");
+      const voAutoCalibBtn = document.getElementById("vo-auto-calib-btn");
+      const voAutoCalibStatusEl = document.getElementById("vo-auto-calib-status");
+      const autoCalibBtn = document.getElementById("auto-calib-btn");
+      const autoCalibStatusEl = document.getElementById("auto-calib-status");
       const voHeadingButtons = Array.from(document.querySelectorAll("#vo-heading-buttons button"));
       const gpsAutoBtn = document.getElementById("gps-auto-btn");
       const gpsVariableBtn = document.getElementById("gps-variable-btn");
@@ -3013,6 +3404,570 @@
       };
       const setGpsLogStatus = (text) => {
         if (gpsLogStatusEl) gpsLogStatusEl.textContent = text;
+      };
+      const setSensorCsvStatus = (text) => {
+        if (sensorCsvStatusEl) sensorCsvStatusEl.textContent = text;
+      };
+      const opticalScaleState = {
+        profiles: null,
+        active: { feature: "high", lighting: "high", altitude: "A" },
+        options: {
+          features: ["high", "low"],
+          lightings: ["high", "med", "low"],
+          altitudes: ["A", "B", "C"],
+        },
+        currentScale: 1.0,
+      };
+      const setOpticalScaleStatus = (text) => {
+        if (ofScaleStatusEl) ofScaleStatusEl.textContent = text;
+      };
+      const setVoScaleStatus = (text) => {
+        if (voScaleStatusEl) voScaleStatusEl.textContent = text;
+      };
+      const setVoAutoCalibStatus = (text) => {
+        if (voAutoCalibStatusEl) voAutoCalibStatusEl.textContent = text;
+      };
+      const VO_SCALE_STORAGE_KEY = "navisar_vo_scale_profiles_v1";
+      const VO_SCALE_ALT_BANDS = ["0-8", "8-50", "50-100", "100-150", "150-200", "200-250", "250-300"];
+      const createVoScaleProfiles = (baseScale = 1.0) => ({
+        high: {
+          high: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          med: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          low: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+        },
+        low: {
+          high: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          med: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          low: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+        },
+      });
+      const loadVoScaleStateFromStorage = (baseScale = 1.0) => {
+        try {
+          const raw = localStorage.getItem(VO_SCALE_STORAGE_KEY);
+          if (!raw) return {
+            profiles: createVoScaleProfiles(baseScale),
+            active: { feature: "high", lighting: "high", altitude: "0-8" },
+          };
+          const parsed = JSON.parse(raw) || {};
+          const profiles = createVoScaleProfiles(baseScale);
+          for (const feature of ["high", "low"]) {
+            for (const lighting of ["high", "med", "low"]) {
+              for (const alt of VO_SCALE_ALT_BANDS) {
+                const val = Number(parsed?.profiles?.[feature]?.[lighting]?.[alt]);
+                if (Number.isFinite(val)) profiles[feature][lighting][alt] = val;
+              }
+            }
+          }
+          const activeFeature = ["high", "low"].includes(parsed?.active?.feature)
+            ? parsed.active.feature
+            : "high";
+          const activeLighting = ["high", "med", "low"].includes(parsed?.active?.lighting)
+            ? parsed.active.lighting
+            : "high";
+          const activeAltitude = VO_SCALE_ALT_BANDS.includes(parsed?.active?.altitude)
+            ? parsed.active.altitude
+            : "0-8";
+          return { profiles, active: { feature: activeFeature, lighting: activeLighting, altitude: activeAltitude } };
+        } catch (_) {
+          return {
+            profiles: createVoScaleProfiles(baseScale),
+            active: { feature: "high", lighting: "high", altitude: "0-8" },
+          };
+        }
+      };
+      const saveVoScaleStateToStorage = (state) => {
+        try {
+          localStorage.setItem(VO_SCALE_STORAGE_KEY, JSON.stringify(state));
+        } catch (_) {
+          // ignore storage failures
+        }
+      };
+      const voScaleState = {
+        profiles: createVoScaleProfiles(1.0),
+        active: { feature: "high", lighting: "high", altitude: "0-8" },
+        currentScale: 1.0,
+      };
+      const setAutoCalibStatus = (text) => {
+        if (autoCalibStatusEl) autoCalibStatusEl.textContent = text;
+      };
+      const inferVoBandFromAltitude = (altM) => {
+        if (!Number.isFinite(altM)) return null;
+        if (altM >= 0 && altM < 8) return "0-8";
+        if (altM >= 8 && altM < 50) return "8-50";
+        if (altM >= 50 && altM < 100) return "50-100";
+        if (altM >= 100 && altM < 150) return "100-150";
+        if (altM >= 150 && altM < 200) return "150-200";
+        if (altM >= 200 && altM < 250) return "200-250";
+        if (altM >= 250 && altM <= 300) return "250-300";
+        return null;
+      };
+      const updateVoCalibrationUi = (altM) => {
+        if (!Number.isFinite(altM)) return;
+        inferVoBandFromAltitude(altM);
+      };
+      const isValidGpsCoordGlobal = (latVal, lonVal) => (
+        Number.isFinite(latVal)
+        && Number.isFinite(lonVal)
+        && Math.abs(latVal) <= 90
+        && Math.abs(lonVal) <= 180
+        && !(Math.abs(latVal) < 1e-7 && Math.abs(lonVal) < 1e-7)
+      );
+      const autoCalibState = {
+        running: false,
+        startedAtMs: null,
+        samples: [],
+      };
+      const voAutoCalibState = {
+        running: false,
+        startedAtMs: null,
+        samples: [],
+      };
+      const toLocalEnMeters = (lat, lon, refLat, refLon) => {
+        if (!isValidGpsCoordGlobal(lat, lon) || !isValidGpsCoordGlobal(refLat, refLon)) {
+          return null;
+        }
+        return {
+          north: (lat - refLat) * 110540.0,
+          east: (lon - refLon) * 111320.0 * Math.cos((refLat * Math.PI) / 180.0),
+        };
+      };
+      const linearSlope = (xVals, yVals) => {
+        let num = 0;
+        let den = 0;
+        const n = Math.min(xVals.length, yVals.length);
+        for (let i = 0; i < n; i += 1) {
+          const x = Number(xVals[i]);
+          const y = Number(yVals[i]);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          num += x * y;
+          den += x * x;
+        }
+        return Math.abs(den) < 1e-9 ? 1.0 : (num / den);
+      };
+      const rmse = (vals) => {
+        const finite = vals.filter((v) => Number.isFinite(v));
+        if (!finite.length) return null;
+        const sum = finite.reduce((acc, v) => acc + v * v, 0);
+        return Math.sqrt(sum / finite.length);
+      };
+      const estimateHz = (samples, prefix) => {
+        const dts = [];
+        let prev = null;
+        for (const s of samples) {
+          const lat = Number(s[`${prefix}Lat`]);
+          const lon = Number(s[`${prefix}Lon`]);
+          if (!isValidGpsCoordGlobal(lat, lon)) continue;
+          if (prev && Math.abs(lat - prev.lat) < 1e-9 && Math.abs(lon - prev.lon) < 1e-9) continue;
+          if (prev) {
+            const dt = (s.tMs - prev.tMs) / 1000.0;
+            if (dt > 0.005 && dt < 5.0) dts.push(dt);
+          }
+          prev = { lat, lon, tMs: s.tMs };
+        }
+        if (!dts.length) return null;
+        dts.sort((a, b) => a - b);
+        const mid = dts[Math.floor(dts.length / 2)];
+        return mid > 0 ? 1.0 / mid : null;
+      };
+      const captureAutoCalibSample = (sample) => {
+        if (!autoCalibState.running) return;
+        autoCalibState.samples.push(sample);
+        if (autoCalibState.samples.length > 12000) autoCalibState.samples.shift();
+      };
+      const captureVoAutoCalibSample = (sample) => {
+        if (!voAutoCalibState.running) return;
+        voAutoCalibState.samples.push(sample);
+        if (voAutoCalibState.samples.length > 12000) voAutoCalibState.samples.shift();
+      };
+      const computeAutoCalibResult = () => {
+        const valid = autoCalibState.samples.filter((s) =>
+          isValidGpsCoordGlobal(s.rawLat, s.rawLon) && isValidGpsCoordGlobal(s.sentLat, s.sentLon)
+        );
+        if (valid.length < 30) {
+          return { ok: false, error: "not enough points (need at least 30)" };
+        }
+        const rawRef = valid[0];
+        const sentRef = valid[0];
+        const rawE = [];
+        const rawN = [];
+        const sentE = [];
+        const sentN = [];
+        const errBefore = [];
+        for (const s of valid) {
+          const r = toLocalEnMeters(s.rawLat, s.rawLon, rawRef.rawLat, rawRef.rawLon);
+          const p = toLocalEnMeters(s.sentLat, s.sentLon, sentRef.sentLat, sentRef.sentLon);
+          if (!r || !p) continue;
+          rawE.push(r.east);
+          rawN.push(r.north);
+          sentE.push(p.east);
+          sentN.push(p.north);
+          errBefore.push(Math.hypot(r.east - p.east, r.north - p.north));
+        }
+        if (rawE.length < 20) {
+          return { ok: false, error: "trajectory conversion failed" };
+        }
+        const kLon = clamp(linearSlope(sentE, rawE), 0.2, 5.0);
+        const kLat = clamp(linearSlope(sentN, rawN), 0.2, 5.0);
+        const errAfter = [];
+        let span = 0;
+        for (let i = 0; i < rawE.length; i += 1) {
+          const re = rawE[i];
+          const rn = rawN[i];
+          const se = sentE[i] * kLon;
+          const sn = sentN[i] * kLat;
+          errAfter.push(Math.hypot(re - se, rn - sn));
+          span = Math.max(span, Math.hypot(re, rn));
+        }
+        let altDelta = 0.0;
+        let altCount = 0;
+        for (const s of valid) {
+          if (Number.isFinite(s.rawAlt) && Number.isFinite(s.sentAlt)) {
+            altDelta += (s.rawAlt - s.sentAlt);
+            altCount += 1;
+          }
+        }
+        altDelta = altCount > 0 ? altDelta / altCount : 0.0;
+        const rmseBefore = rmse(errBefore);
+        const rmseAfter = rmse(errAfter);
+        const baseline = Math.max(1.0, span);
+        const accuracy = Number.isFinite(rmseAfter)
+          ? clamp((1.0 - rmseAfter / baseline) * 100.0, 0, 100)
+          : 0;
+        const rawHz = estimateHz(valid, "raw");
+        const sentHz = estimateHz(valid, "sent");
+        return {
+          ok: true,
+          count: valid.length,
+          kLat,
+          kLon,
+          altDelta,
+          rmseBefore,
+          rmseAfter,
+          accuracy,
+          rawHz,
+          sentHz,
+          suggestedHz: Number.isFinite(rawHz) ? Math.round(rawHz) : (Number.isFinite(sentHz) ? Math.round(sentHz) : null),
+        };
+      };
+      const startAutoCalib = () => {
+        autoCalibState.running = true;
+        autoCalibState.startedAtMs = Date.now();
+        autoCalibState.samples = [];
+        if (autoCalibBtn) autoCalibBtn.textContent = "Finish Auto Calib";
+        setAutoCalibStatus("Auto calib: started. Lift drone and draw any shape for 20-40s, then click Finish.");
+      };
+      const finishAutoCalib = async () => {
+        autoCalibState.running = false;
+        if (autoCalibBtn) autoCalibBtn.textContent = "Start Auto Calib";
+        const result = computeAutoCalibResult();
+        if (!result.ok) {
+          setAutoCalibStatus(`Auto calib: failed - ${result.error}`);
+          return;
+        }
+        const nextLat = clamp(Number(gpsTuningState.lat_scale) * result.kLat, 0.5, 2.0);
+        const nextLon = clamp(Number(gpsTuningState.lon_scale) * result.kLon, 0.5, 2.0);
+        const nextAlt = clamp(Number(gpsTuningState.alt_offset_m) + result.altDelta, -5.0, 5.0);
+        await pushCalibrationTuning({
+          lat_scale: nextLat,
+          lon_scale: nextLon,
+          alt_offset_m: nextAlt,
+        });
+        const freqMsg = Number.isFinite(result.rawHz) && Number.isFinite(result.sentHz)
+          ? `raw=${result.rawHz.toFixed(2)}Hz sent=${result.sentHz.toFixed(2)}Hz suggested=${result.suggestedHz || "--"}Hz`
+          : "frequency estimate unavailable";
+        setAutoCalibStatus(
+          `Auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | tuning lat=${nextLat.toFixed(3)} lon=${nextLon.toFixed(3)} alt=${nextAlt.toFixed(3)} | ${freqMsg}`
+        );
+      };
+      const computeVoAutoCalibResult = () => {
+        const valid = voAutoCalibState.samples.filter((s) =>
+          isValidGpsCoordGlobal(s.rawLat, s.rawLon) && isValidGpsCoordGlobal(s.sentLat, s.sentLon)
+        );
+        if (valid.length < 30) {
+          return { ok: false, error: "not enough points (need at least 30)" };
+        }
+        const totalVoMotion = valid.reduce((acc, s) => {
+          const dx = Number(s.voDx);
+          const dy = Number(s.voDy);
+          if (!Number.isFinite(dx) || !Number.isFinite(dy)) return acc;
+          return acc + Math.hypot(dx, dy);
+        }, 0);
+        if (totalVoMotion < 1.0) {
+          return { ok: false, error: "VO drift motion too small; draw a clearer square path" };
+        }
+        const rawRef = valid[0];
+        const sentRef = valid[0];
+        const rawE = [];
+        const rawN = [];
+        const sentE = [];
+        const sentN = [];
+        const errBefore = [];
+        for (const s of valid) {
+          const r = toLocalEnMeters(s.rawLat, s.rawLon, rawRef.rawLat, rawRef.rawLon);
+          const p = toLocalEnMeters(s.sentLat, s.sentLon, sentRef.sentLat, sentRef.sentLon);
+          if (!r || !p) continue;
+          rawE.push(r.east);
+          rawN.push(r.north);
+          sentE.push(p.east);
+          sentN.push(p.north);
+          errBefore.push(Math.hypot(r.east - p.east, r.north - p.north));
+        }
+        if (rawE.length < 20) {
+          return { ok: false, error: "trajectory conversion failed" };
+        }
+        const kLon = clamp(linearSlope(sentE, rawE), 0.2, 5.0);
+        const kLat = clamp(linearSlope(sentN, rawN), 0.2, 5.0);
+        const scaleFactor = (kLat + kLon) * 0.5;
+        const errAfter = [];
+        let span = 0;
+        for (let i = 0; i < rawE.length; i += 1) {
+          const re = rawE[i];
+          const rn = rawN[i];
+          const se = sentE[i] * kLon;
+          const sn = sentN[i] * kLat;
+          errAfter.push(Math.hypot(re - se, rn - sn));
+          span = Math.max(span, Math.hypot(re, rn));
+        }
+        const rmseBefore = rmse(errBefore);
+        const rmseAfter = rmse(errAfter);
+        const baseline = Math.max(1.0, span);
+        const accuracy = Number.isFinite(rmseAfter)
+          ? clamp((1.0 - rmseAfter / baseline) * 100.0, 0, 100)
+          : 0;
+        const rawHz = estimateHz(valid, "raw");
+        const sentHz = estimateHz(valid, "sent");
+        return {
+          ok: true,
+          count: valid.length,
+          kLat,
+          kLon,
+          scaleFactor,
+          rmseBefore,
+          rmseAfter,
+          accuracy,
+          rawHz,
+          sentHz,
+          suggestedHz: Number.isFinite(rawHz) ? Math.round(rawHz) : (Number.isFinite(sentHz) ? Math.round(sentHz) : null),
+        };
+      };
+      const startVoAutoCalib = () => {
+        voAutoCalibState.running = true;
+        voAutoCalibState.startedAtMs = Date.now();
+        voAutoCalibState.samples = [];
+        if (voAutoCalibBtn) voAutoCalibBtn.textContent = "Finish VO Auto Calib";
+        setVoAutoCalibStatus(
+          "VO auto calib: started. Please lift drone and draw a square shape clearly, then click Finish."
+        );
+      };
+      const finishVoAutoCalib = async () => {
+        voAutoCalibState.running = false;
+        if (voAutoCalibBtn) voAutoCalibBtn.textContent = "Start VO Auto Calib";
+        const result = computeVoAutoCalibResult();
+        if (!result.ok) {
+          setVoAutoCalibStatus(`VO auto calib: failed - ${result.error}`);
+          return;
+        }
+        const nextLat = clamp(Number(gpsTuningState.lat_scale) * result.kLat, 0.5, 2.0);
+        const nextLon = clamp(Number(gpsTuningState.lon_scale) * result.kLon, 0.5, 2.0);
+        await pushCalibrationTuning({
+          lat_scale: nextLat,
+          lon_scale: nextLon,
+          alt_offset_m: Number(gpsTuningState.alt_offset_m),
+        });
+        const freqMsg = Number.isFinite(result.rawHz) && Number.isFinite(result.sentHz)
+          ? `raw=${result.rawHz.toFixed(2)}Hz sent=${result.sentHz.toFixed(2)}Hz suggested=${result.suggestedHz || "--"}Hz`
+          : "frequency estimate unavailable";
+        setVoAutoCalibStatus(
+          `VO auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | scale_factor=${result.scaleFactor.toFixed(3)} (lat=${result.kLat.toFixed(3)} lon=${result.kLon.toFixed(3)}) | ${freqMsg}`
+        );
+      };
+      const getProfileScale = (feature, lighting, altitude) => {
+        const profiles = opticalScaleState.profiles || {};
+        const val = profiles?.[feature]?.[lighting]?.[altitude];
+        const num = Number(val);
+        if (Number.isFinite(num)) return num;
+        const fallback = Number(opticalScaleState.currentScale);
+        return Number.isFinite(fallback) ? fallback : 1.0;
+      };
+      const getVoProfileScale = (feature, lighting, altitude) => {
+        const val = Number(voScaleState?.profiles?.[feature]?.[lighting]?.[altitude]);
+        if (Number.isFinite(val)) return val;
+        return Number.isFinite(voScaleState.currentScale) ? voScaleState.currentScale : 1.0;
+      };
+      const fillSelect = (el, values, selected, labelPrefix) => {
+        if (!el) return;
+        const list = Array.isArray(values) ? values : [];
+        el.innerHTML = list
+          .map((v) => `<option value="${v}">${labelPrefix}: ${String(v).toUpperCase()}</option>`)
+          .join("");
+        const useVal = list.includes(selected) ? selected : (list[0] || "");
+        if (useVal) el.value = useVal;
+      };
+      const renderOpticalScaleControls = () => {
+        const features = opticalScaleState.options?.features || ["high", "low"];
+        const lightings = opticalScaleState.options?.lightings || ["high", "med", "low"];
+        const activeFeature = opticalScaleState.active?.feature || features[0];
+        const activeLighting = opticalScaleState.active?.lighting || lightings[0];
+        fillSelect(ofEnvSelect, features, activeFeature, "Environment");
+        fillSelect(ofLightSelect, lightings, activeLighting, "Lighting");
+        const activeAltitude = opticalScaleState.active?.altitude || "A";
+        const scale = getProfileScale(
+          ofEnvSelect ? ofEnvSelect.value : activeFeature,
+          ofLightSelect ? ofLightSelect.value : activeLighting,
+          activeAltitude
+        );
+        if (ofScaleInput) ofScaleInput.value = scale.toFixed(3);
+      };
+      const renderVoScaleControls = () => {
+        const features = ["high", "low"];
+        const lightings = ["high", "med", "low"];
+        const activeFeature = voScaleState.active?.feature || "high";
+        const activeLighting = voScaleState.active?.lighting || "high";
+        const activeAltitude = voScaleState.active?.altitude || "0-8";
+        fillSelect(voScaleEnvSelect, features, activeFeature, "Environment");
+        fillSelect(voScaleLightSelect, lightings, activeLighting, "Lighting");
+        if (voScaleAltSelect && VO_SCALE_ALT_BANDS.includes(activeAltitude)) {
+          voScaleAltSelect.value = activeAltitude;
+        }
+        const scale = getVoProfileScale(
+          voScaleEnvSelect ? voScaleEnvSelect.value : activeFeature,
+          voScaleLightSelect ? voScaleLightSelect.value : activeLighting,
+          voScaleAltSelect ? voScaleAltSelect.value : activeAltitude
+        );
+        voScaleState.currentScale = scale;
+        if (voScaleInput) voScaleInput.value = scale.toFixed(3);
+      };
+      const updateOpticalScaleInputFromSelection = () => {
+        if (!ofScaleInput || !ofEnvSelect || !ofLightSelect) return;
+        const activeAltitude = opticalScaleState.active?.altitude || "A";
+        const scale = getProfileScale(ofEnvSelect.value, ofLightSelect.value, activeAltitude);
+        ofScaleInput.value = scale.toFixed(3);
+      };
+      const updateVoScaleInputFromSelection = () => {
+        if (!voScaleInput || !voScaleEnvSelect || !voScaleLightSelect || !voScaleAltSelect) return;
+        const scale = getVoProfileScale(voScaleEnvSelect.value, voScaleLightSelect.value, voScaleAltSelect.value);
+        voScaleInput.value = scale.toFixed(3);
+      };
+      const writeOpticalScaleSelection = async () => {
+        if (!ofEnvSelect || !ofLightSelect || !ofScaleInput || !ofScaleWriteBtn) return;
+        const value = Number(ofScaleInput.value);
+        if (!Number.isFinite(value)) {
+          setOpticalScaleStatus("Optical scale: invalid numeric value");
+          return;
+        }
+        const activeAltitude = opticalScaleState.active?.altitude || "A";
+        ofScaleWriteBtn.disabled = true;
+        try {
+          const res = await fetch(opticalFlowScaleUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              feature: ofEnvSelect.value,
+              lighting: ofLightSelect.value,
+              altitude: activeAltitude,
+              scale: value,
+              set_active: true,
+            }),
+          });
+          const payload = await res.json();
+          if (res.ok && payload?.ok) {
+            opticalScaleState.profiles = payload?.profiles || opticalScaleState.profiles;
+            opticalScaleState.active = payload?.active || opticalScaleState.active;
+            opticalScaleState.options = payload?.options || opticalScaleState.options;
+            opticalScaleState.currentScale = Number.isFinite(Number(payload?.current_scale))
+              ? Number(payload.current_scale)
+              : opticalScaleState.currentScale;
+            renderOpticalScaleControls();
+            setOpticalScaleStatus(
+              `Optical scale: active=${opticalScaleState.active.feature}/${opticalScaleState.active.lighting}/${opticalScaleState.active.altitude} current=${opticalScaleState.currentScale.toFixed(3)}`
+            );
+          } else {
+            setOpticalScaleStatus(`Optical scale: write failed (${payload?.error || "unknown error"})`);
+          }
+        } catch (_) {
+          setOpticalScaleStatus("Optical scale: write failed (endpoint unavailable)");
+        } finally {
+          ofScaleWriteBtn.disabled = false;
+        }
+      };
+      const writeVoScaleSelection = async () => {
+        if (!voScaleEnvSelect || !voScaleLightSelect || !voScaleAltSelect || !voScaleInput || !voScaleWriteBtn) return;
+        const scale = Number(voScaleInput.value);
+        if (!Number.isFinite(scale)) {
+          setVoScaleStatus("VO scale: invalid numeric value");
+          return;
+        }
+        const feature = voScaleEnvSelect.value;
+        const lighting = voScaleLightSelect.value;
+        const altitude = voScaleAltSelect.value;
+        voScaleWriteBtn.disabled = true;
+        try {
+          voScaleState.profiles[feature][lighting][altitude] = scale;
+          voScaleState.active = { feature, lighting, altitude };
+          voScaleState.currentScale = scale;
+          saveVoScaleStateToStorage({
+            profiles: voScaleState.profiles,
+            active: voScaleState.active,
+          });
+          await pushCalibrationTuning({
+            lat_scale: scale,
+            lon_scale: scale,
+            alt_offset_m: Number(gpsTuningState.alt_offset_m),
+          });
+          renderVoScaleControls();
+          setVoScaleStatus(
+            `VO scale: active=${feature}/${lighting}/${altitude} current=${scale.toFixed(3)}`
+          );
+        } catch (_) {
+          setVoScaleStatus("VO scale: write failed");
+        } finally {
+          voScaleWriteBtn.disabled = false;
+        }
+      };
+      const refreshOpticalScaleState = async () => {
+        try {
+          const res = await fetch(opticalFlowScaleUrl, { cache: "no-store" });
+          const payload = await res.json();
+          if (res.ok && payload?.ok) {
+            opticalScaleState.profiles = payload?.profiles || opticalScaleState.profiles;
+            opticalScaleState.active = payload?.active || opticalScaleState.active;
+            opticalScaleState.options = payload?.options || opticalScaleState.options;
+            opticalScaleState.currentScale = Number.isFinite(Number(payload?.current_scale))
+              ? Number(payload.current_scale)
+              : opticalScaleState.currentScale;
+            renderOpticalScaleControls();
+            setOpticalScaleStatus(
+              `Optical scale: active=${opticalScaleState.active.feature}/${opticalScaleState.active.lighting}/${opticalScaleState.active.altitude} current=${opticalScaleState.currentScale.toFixed(3)}`
+            );
+          } else {
+            setOpticalScaleStatus("Optical scale: unavailable");
+          }
+        } catch (_) {
+          setOpticalScaleStatus("Optical scale: unavailable");
+        }
+      };
+      const initVoScaleState = () => {
+        const initialScale = Number.isFinite(Number(gpsTuningState?.lat_scale))
+          ? Number(gpsTuningState.lat_scale)
+          : 1.0;
+        const loaded = loadVoScaleStateFromStorage(initialScale);
+        voScaleState.profiles = loaded.profiles;
+        voScaleState.active = loaded.active;
+        const activeScale = getVoProfileScale(
+          loaded.active.feature,
+          loaded.active.lighting,
+          loaded.active.altitude
+        );
+        voScaleState.currentScale = activeScale;
+        renderVoScaleControls();
+        setVoScaleStatus(
+          `VO scale: active=${loaded.active.feature}/${loaded.active.lighting}/${loaded.active.altitude} current=${activeScale.toFixed(3)}`
+        );
+      };
+      const updateSensorCsvButtons = (recording, hasSession) => {
+        if (sensorCsvStartBtn) sensorCsvStartBtn.disabled = recording;
+        if (sensorCsvStopBtn) sensorCsvStopBtn.disabled = !recording;
+        if (sensorCsvDownloadBtn) sensorCsvDownloadBtn.disabled = !Boolean(hasSession);
       };
 
       const setGpsLogButton = () => {
@@ -3095,6 +4050,67 @@
         appendLog(
           `gps csv logger stopped | sensor=${gpsCsvLoggerState.sensorRows.length} pixhawk=${gpsCsvLoggerState.pixhawkRows.length}`
         );
+      };
+
+      const refreshSensorCsvState = async () => {
+        try {
+          const res = await fetch("/sensor-csv/status", { cache: "no-store" });
+          const payload = await res.json();
+          const recording = Boolean(payload?.recording);
+          const sessionId = payload?.session_id || "--";
+          const points = Number.isFinite(Number(payload?.data_points)) ? Number(payload.data_points) : 0;
+          setSensorCsvStatus(
+            `Sensor CSV: ${recording ? "recording" : "idle"} | session=${sessionId} | points=${points}`
+          );
+          sensorCsvLoggerState.recording = recording;
+          updateSensorCsvButtons(recording, !!payload?.session_id);
+        } catch (_) {
+          setSensorCsvStatus("Sensor CSV: unavailable");
+          if (sensorCsvStartBtn) sensorCsvStartBtn.disabled = true;
+          if (sensorCsvStopBtn) sensorCsvStopBtn.disabled = true;
+          if (sensorCsvDownloadBtn) sensorCsvDownloadBtn.disabled = true;
+        }
+      };
+
+      const startSensorCsvLogger = async () => {
+        try {
+          const res = await fetch("/sensor-csv/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const payload = await res.json();
+          if (payload?.ok) {
+            appendLog("sensor csv recording started");
+            await refreshSensorCsvState();
+          }
+        } catch (_) {
+          appendLog("sensor csv start failed");
+          setSensorCsvStatus("Sensor CSV: start failed");
+        }
+      };
+
+      const stopSensorCsvLogger = async () => {
+        try {
+          const res = await fetch("/sensor-csv/stop", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+          });
+          const payload = await res.json();
+          if (payload?.ok) {
+            appendLog("sensor csv recording stopped");
+            await refreshSensorCsvState();
+          }
+        } catch (_) {
+          appendLog("sensor csv stop failed");
+        }
+      };
+
+      const downloadSensorCsv = () => {
+        const link = document.createElement("a");
+        link.href = `/sensor-csv/download?t=${Date.now()}`;
+        link.click();
       };
 
       const queueClientWrite = (op) => {
@@ -3343,6 +4359,45 @@
       if (clientRecDownloadBtn) {
         clientRecDownloadBtn.addEventListener("click", downloadClientRecorder);
       }
+      if (sensorCsvStartBtn) {
+        sensorCsvStartBtn.addEventListener("click", startSensorCsvLogger);
+      }
+      if (sensorCsvStopBtn) {
+        sensorCsvStopBtn.addEventListener("click", stopSensorCsvLogger);
+      }
+      if (sensorCsvDownloadBtn) {
+        sensorCsvDownloadBtn.addEventListener("click", downloadSensorCsv);
+      }
+      if (ofEnvSelect) ofEnvSelect.addEventListener("change", updateOpticalScaleInputFromSelection);
+      if (ofLightSelect) ofLightSelect.addEventListener("change", updateOpticalScaleInputFromSelection);
+      if (ofScaleWriteBtn) ofScaleWriteBtn.addEventListener("click", writeOpticalScaleSelection);
+      if (voScaleEnvSelect) voScaleEnvSelect.addEventListener("change", updateVoScaleInputFromSelection);
+      if (voScaleLightSelect) voScaleLightSelect.addEventListener("change", updateVoScaleInputFromSelection);
+      if (voScaleAltSelect) voScaleAltSelect.addEventListener("change", updateVoScaleInputFromSelection);
+      if (voScaleWriteBtn) voScaleWriteBtn.addEventListener("click", writeVoScaleSelection);
+      if (autoCalibBtn) {
+        autoCalibBtn.addEventListener("click", async () => {
+          if (autoCalibState.running) {
+            await finishAutoCalib();
+          } else {
+            startAutoCalib();
+          }
+        });
+      }
+      if (voAutoCalibBtn) {
+        voAutoCalibBtn.addEventListener("click", async () => {
+          if (voAutoCalibState.running) {
+            await finishVoAutoCalib();
+          } else {
+            const currentMode = String(document.getElementById("mode")?.textContent || "").trim().toLowerCase();
+            if (currentMode.startsWith("optical_flow")) {
+              setVoAutoCalibStatus("VO auto calib: switch to VO mode first (VO GPS/VO MAV).");
+              return;
+            }
+            startVoAutoCalib();
+          }
+        });
+      }
       updateClientRecButtons();
       if (gpsLogToggleBtn) {
         gpsLogToggleBtn.addEventListener("click", () => {
@@ -3355,6 +4410,8 @@
       }
       setGpsLogButton();
       setGpsLogStatus("GPS logger: idle");
+      setSensorCsvStatus("Sensor CSV: idle");
+      updateSensorCsvButtons(false, false);
 
       const updateGpsOriginUi = () => {
         const isAuto = gpsOriginMode.value === "auto";
@@ -3763,6 +4820,9 @@
       updateGpsOriginUi();
       refreshGpsOriginState();
       refreshBlackboxState();
+      refreshSensorCsvState();
+      refreshOpticalScaleState();
+      initVoScaleState();
       if (voStream) {
         streamState.useSim = true;
         setCameraMode(true);
@@ -3815,11 +4875,16 @@
       setInterval(refreshGpsFormatState, 2000);
       setInterval(refreshGpsOriginState, 2000);
       setInterval(refreshBlackboxState, 2000);
+      setInterval(refreshSensorCsvState, 2000);
+      setInterval(refreshOpticalScaleState, 2000);
       window.addEventListener("resize", () => {
         fitCamCanvas();
         drawVelPlot();
         drawPosPlot();
         drawVoPosPlot();
+        drawGpsLatPlot();
+        drawGpsLonPlot();
+        drawGpsAltPlot();
         drawCorrPlot();
         drawHeightPlot();
         drawOpticalHeightPlot();

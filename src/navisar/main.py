@@ -5,6 +5,8 @@ import sys
 import time
 import math
 import json
+import csv
+import re
 import socket
 import subprocess
 import threading
@@ -319,6 +321,30 @@ def _persist_calibration_tuning(
     }
 
 
+def _persist_optical_flow_scale_profiles(pixhawk_config_path, scale_state):
+    """Persist optical-flow scale profiles into config/pixhawk.yaml."""
+    payload = scale_state.snapshot()
+    path = Path(pixhawk_config_path)
+    with _CONFIG_WRITE_LOCK:
+        cfg = _load_yaml(path)
+        if not isinstance(cfg, dict):
+            cfg = {}
+        optical_cfg = cfg.get("optical_flow")
+        if not isinstance(optical_cfg, dict):
+            optical_cfg = {}
+        optical_cfg["scale_profiles"] = payload["profiles"]
+        optical_cfg["active_scale_profile"] = payload["active"]
+        cfg["optical_flow"] = optical_cfg
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as handle:
+            yaml.safe_dump(cfg, handle, sort_keys=False)
+    return {
+        "scale_profiles": payload["profiles"],
+        "active_scale_profile": payload["active"],
+    }
+
+
 def _persist_gps_origin(pixhawk_config_path, lat, lon, alt_m):
     """Persist GPS origin into config/pixhawk.yaml."""
     path = Path(pixhawk_config_path)
@@ -374,6 +400,82 @@ def _safe_float(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _sanitize_csv_key(value):
+    text = str(value).strip()
+    text = text.replace(" ", "_")
+    text = re.sub(r"[^0-9a-zA-Z_]+", "_", text)
+    text = re.sub(r"_+", "_", text).strip("_")
+    return text or "value"
+
+
+def _flatten_to_csv_row(value, prefix="", out=None):
+    if out is None:
+        out = {}
+    if isinstance(value, dict):
+        for k, v in value.items():
+            key = _sanitize_csv_key(k)
+            next_prefix = key if not prefix else f"{prefix}_{key}"
+            _flatten_to_csv_row(v, next_prefix, out)
+        return out
+    if isinstance(value, (list, tuple)):
+        if not value:
+            out[prefix] = ""
+            return out
+        for i, item in enumerate(value):
+            next_prefix = f"{prefix}_{i}"
+            _flatten_to_csv_row(item, next_prefix, out)
+        return out
+    if isinstance(value, (float, int)):
+        if isinstance(value, float) and not math.isfinite(value):
+            out[prefix] = ""
+        else:
+            out[prefix] = value
+        return out
+    if isinstance(value, bool):
+        out[prefix] = int(value)
+        return out
+    if value is None:
+        out[prefix] = ""
+        return out
+    out[prefix] = value
+    return out
+
+
+def _build_sensor_csv_flat_payload(payload):
+    flat = {}
+    if not isinstance(payload, dict):
+        return flat
+
+    raw_sections = {
+        "sensors",
+        "compass",
+        "raw",
+    }
+
+    for top_key, top_val in payload.items():
+        top_key_safe = _sanitize_csv_key(top_key)
+        if top_key_safe in raw_sections and isinstance(top_val, dict):
+            if top_key_safe == "sensors":
+                for sensor_name, sensor_payload in top_val.items():
+                    sensor_key = _sanitize_csv_key(sensor_name)
+                    _flatten_to_csv_row(sensor_payload, f"raw_{sensor_key}", flat)
+            else:
+                _flatten_to_csv_row(top_val, f"raw_{top_key_safe}", flat)
+        else:
+            _flatten_to_csv_row(top_val, f"syn_{top_key_safe}", flat)
+
+    return flat
+
+
+def _normalise_csv_value(value):
+    if isinstance(value, (dict, list, tuple)):
+        try:
+            return json.dumps(value, separators=(",", ":"))
+        except Exception:
+            return ""
+    return value
 
 
 def _capture_startup_baro_offset_max(barometer_driver, duration_s=3.0, poll_s=0.05):
@@ -475,6 +577,173 @@ class ModeState:
     def get(self):
         with self._lock:
             return self._mode
+
+
+class OpticalFlowScaleProfileState:
+    """Thread-safe storage for optical-flow scale profile matrix."""
+
+    FEATURE_MODES = ("high", "low")
+    LIGHTING_MODES = ("high", "med", "low")
+    ALTITUDE_BANDS = ("A", "B", "C")
+
+    def __init__(self, profiles=None, active_profile=None, fallback_scale=1.0):
+        self._lock = threading.Lock()
+        self._fallback_scale = self._coerce_scale(fallback_scale)
+        self._profiles = self._normalize_profiles(
+            profiles if isinstance(profiles, dict) else None,
+            self._fallback_scale,
+        )
+        self._active_profile = self._normalize_active_profile(active_profile)
+
+    @staticmethod
+    def _coerce_scale(value):
+        try:
+            scale = float(value)
+        except (TypeError, ValueError):
+            return 1.0
+        if not (scale >= 0.0):
+            return 0.0
+        return max(0.0, min(20.0, scale))
+
+    @classmethod
+    def _normalize_profiles(cls, profiles, fallback_scale):
+        normalized = {}
+        for feature in cls.FEATURE_MODES:
+            feature_data = {}
+            src_feature = profiles.get(feature, {}) if isinstance(profiles, dict) else {}
+            if not isinstance(src_feature, dict):
+                src_feature = {}
+            for lighting in cls.LIGHTING_MODES:
+                feature_data[lighting] = {}
+                src_lighting = src_feature.get(lighting, {})
+                if not isinstance(src_lighting, dict):
+                    src_lighting = {}
+                for altitude_band in cls.ALTITUDE_BANDS:
+                    feature_data[lighting][altitude_band] = cls._coerce_scale(
+                        src_lighting.get(altitude_band, fallback_scale)
+                    )
+            normalized[feature] = feature_data
+        return normalized
+
+    @classmethod
+    def _normalize_active_profile(cls, active_profile):
+        profile = {
+            "feature": cls.FEATURE_MODES[0],
+            "lighting": cls.LIGHTING_MODES[0],
+            "altitude": cls.ALTITUDE_BANDS[0],
+        }
+        if not isinstance(active_profile, dict):
+            return profile
+        feature = str(active_profile.get("feature", profile["feature"])).strip().lower()
+        lighting = str(active_profile.get("lighting", profile["lighting"])).strip().lower()
+        altitude = str(active_profile.get("altitude", profile["altitude"])).strip().upper()
+        if feature in cls.FEATURE_MODES:
+            profile["feature"] = feature
+        if lighting in cls.LIGHTING_MODES:
+            profile["lighting"] = lighting
+        if altitude in cls.ALTITUDE_BANDS:
+            profile["altitude"] = altitude
+        return profile
+
+    def snapshot(self):
+        with self._lock:
+            return {
+                "profiles": {
+                    feature: {
+                        lighting: dict(altitudes)
+                        for lighting, altitudes in feature_data.items()
+                    }
+                    for feature, feature_data in self._profiles.items()
+                },
+                "active": dict(self._active_profile),
+                "current_scale": self._profiles.get(self._active_profile["feature"], {}).get(
+                    self._active_profile["lighting"], {}
+                ).get(
+                    self._active_profile["altitude"], self._fallback_scale
+                ),
+                "options": {
+                    "features": list(OpticalFlowScaleProfileState.FEATURE_MODES),
+                    "lightings": list(OpticalFlowScaleProfileState.LIGHTING_MODES),
+                    "altitudes": list(OpticalFlowScaleProfileState.ALTITUDE_BANDS),
+                },
+            }
+
+    def set_profiles(self, profiles, active_profile=None):
+        with self._lock:
+            self._profiles = self._normalize_profiles(
+                profiles if isinstance(profiles, dict) else None,
+                self._fallback_scale,
+            )
+            if active_profile is not None:
+                self._active_profile = self._normalize_active_profile(active_profile)
+
+    def set_active(self, active_profile):
+        with self._lock:
+            self._active_profile = self._normalize_active_profile(active_profile)
+
+    def set_fallback_scale(self, fallback_scale):
+        with self._lock:
+            self._fallback_scale = self._coerce_scale(fallback_scale)
+            self._profiles = self._normalize_profiles(self._profiles, self._fallback_scale)
+
+    def get_current_scale(self, fallback_scale=None):
+        with self._lock:
+            fallback = (
+                self._coerce_scale(fallback_scale) if fallback_scale is not None else self._fallback_scale
+            )
+            return self._profiles.get(self._active_profile["feature"], {}).get(
+                self._active_profile["lighting"], {}
+            ).get(self._active_profile["altitude"], fallback)
+
+    def set_profile_scale(self, feature, lighting, altitude, scale):
+        feature_value = str(feature or "").strip().lower()
+        lighting_value = str(lighting or "").strip().lower()
+        altitude_value = str(altitude or "").strip().upper()
+        normalized_scale = self._coerce_scale(scale)
+        with self._lock:
+            if feature_value not in self.FEATURE_MODES:
+                return False
+            if lighting_value not in self.LIGHTING_MODES:
+                return False
+            if altitude_value not in self.ALTITUDE_BANDS:
+                return False
+            self._profiles[feature_value][lighting_value][altitude_value] = normalized_scale
+            return True
+
+    def update_profiles(self, profiles):
+        if not isinstance(profiles, dict):
+            return False
+        changed = False
+        for feature in self.FEATURE_MODES:
+            feature_block = profiles.get(feature, {}) if isinstance(profiles, dict) else {}
+            if not isinstance(feature_block, dict):
+                continue
+            for lighting in self.LIGHTING_MODES:
+                lighting_block = feature_block.get(lighting, {})
+                if not isinstance(lighting_block, dict):
+                    continue
+                for altitude in self.ALTITUDE_BANDS:
+                    if altitude not in lighting_block:
+                        continue
+                    try:
+                        normalized_scale = self._coerce_scale(lighting_block.get(altitude))
+                    except Exception:
+                        continue
+                    if self._profiles.get(feature, {}).get(lighting, {}).get(altitude) != normalized_scale:
+                        self._profiles[feature][lighting][altitude] = normalized_scale
+                        changed = True
+        return changed
+
+
+    @classmethod
+    def from_config(cls, optical_flow_cfg, fallback_scale):
+        if not isinstance(optical_flow_cfg, dict):
+            optical_flow_cfg = {}
+        return cls(
+            profiles=optical_flow_cfg.get("scale_profiles"),
+            active_profile=optical_flow_cfg.get("active_scale_profile"),
+            fallback_scale=fallback_scale,
+        )
 
 
 class FrameState:
@@ -655,6 +924,148 @@ class BlackBoxRecorder:
             return tmp_path, download_name
 
 
+class SensorCsvRecorder:
+    """Thread-safe CSV recorder for complete dashboard payload snapshots."""
+
+    def __init__(self, root_dir):
+        self._lock = threading.Lock()
+        self._root_dir = Path(root_dir)
+        self._root_dir.mkdir(parents=True, exist_ok=True)
+        self._recording = False
+        self._session_id = None
+        self._session_dir = None
+        self._csv_path = None
+        self._meta_path = None
+        self._csv_file = None
+        self._csv_writer = None
+        self._fieldnames = None
+        self._started_at = None
+        self._stopped_at = None
+        self._row_count = 0
+        self._last_session_dir = None
+
+    def _session_status_locked(self):
+        return {
+            "recording": self._recording,
+            "session_id": self._session_id,
+            "started_at": self._started_at,
+            "stopped_at": self._stopped_at,
+            "data_points": self._row_count,
+            "csv_file": str(self._csv_path) if self._csv_path else None,
+        }
+
+    def start(self):
+        with self._lock:
+            if self._recording:
+                return self._session_status_locked()
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            base_id = f"sensor_csv_{stamp}"
+            session_id = base_id
+            idx = 1
+            session_dir = self._root_dir / session_id
+            while session_dir.exists():
+                idx += 1
+                session_id = f"{base_id}_{idx}"
+                session_dir = self._root_dir / session_id
+            session_dir.mkdir(parents=True, exist_ok=False)
+            self._session_id = session_id
+            self._session_dir = session_dir
+            self._csv_path = session_dir / "sensor_data.csv"
+            self._meta_path = session_dir / "session_meta.json"
+            self._csv_file = self._csv_path.open("w", encoding="utf-8", newline="")
+            self._csv_writer = None
+            self._fieldnames = None
+            self._recording = True
+            self._started_at = time.time()
+            self._stopped_at = None
+            self._row_count = 0
+            self._last_session_dir = session_dir
+            return self._session_status_locked()
+
+    def stop(self):
+        with self._lock:
+            if not self._recording:
+                return self._session_status_locked()
+            self._recording = False
+            self._stopped_at = time.time()
+            try:
+                if self._csv_writer:
+                    self._csv_file.flush()
+            except Exception:
+                pass
+            try:
+                if self._csv_file:
+                    self._csv_file.flush()
+                    self._csv_file.close()
+            finally:
+                self._csv_file = None
+                self._csv_writer = None
+            self._write_meta_locked()
+            return self._session_status_locked()
+
+    def status(self):
+        with self._lock:
+            return self._session_status_locked()
+
+    def _write_meta_locked(self):
+        if not self._meta_path:
+            return
+        payload = self._session_status_locked()
+        try:
+            self._meta_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        except Exception:
+            return
+
+    def log_data(self, payload):
+        with self._lock:
+            if not self._recording or self._csv_file is None:
+                return
+            payload = payload if isinstance(payload, dict) else {}
+            flat = _build_sensor_csv_flat_payload(payload)
+            flat = {k: _normalise_csv_value(v) for k, v in flat.items()}
+            base = {
+                "server_ts": time.time(),
+                "server_timestamp_iso": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "payload_timestamp": payload.get("timestamp"),
+            }
+            row = {**base, **flat}
+            row["payload_json"] = json.dumps(payload, separators=(",", ":"))
+            if self._fieldnames is None:
+                self._fieldnames = sorted(row.keys())
+                if "payload_json" not in self._fieldnames:
+                    self._fieldnames.append("payload_json")
+                if self._fieldnames and self._fieldnames[-1] != "payload_json":
+                    self._fieldnames = [name for name in self._fieldnames if name != "payload_json"]
+                    self._fieldnames.append("payload_json")
+                self._fieldnames = list(self._fieldnames)
+                try:
+                    self._csv_writer = csv.DictWriter(
+                        self._csv_file,
+                        fieldnames=self._fieldnames,
+                        extrasaction="ignore",
+                    )
+                    self._csv_writer.writeheader()
+                except Exception:
+                    return
+            try:
+                self._csv_writer.writerow(row)
+                self._csv_file.flush()
+                self._row_count += 1
+            except Exception:
+                return
+            self._write_meta_locked()
+
+    def download_csv(self):
+        with self._lock:
+            session_dir = self._session_dir if self._session_dir is not None else self._last_session_dir
+            if session_dir is None or not session_dir.exists():
+                return None, None
+            csv_path = session_dir / "sensor_data.csv"
+            if not csv_path.exists():
+                return None, None
+            return csv_path, f"{session_dir.name}_sensor_data.csv"
+
+
 def _normalize_gps_format(value):
     fmt = str(value or "").strip().lower().replace("+", "_")
     if fmt == "nmea_ubx":
@@ -673,6 +1084,7 @@ def _make_dashboard_handler(
     set_gps_origin,
     frame_state,
     blackbox_recorder,
+    sensor_csv_recorder,
     root_dir,
     allowed_modes,
     allowed_gps_formats,
@@ -681,6 +1093,7 @@ def _make_dashboard_handler(
     calibration_gps_graph_enabled,
     calibration_tuning_state,
     calibration_tuning_defaults,
+    optical_flow_scale_state,
 ):
     class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -809,6 +1222,19 @@ def _make_dashboard_handler(
                         "lon_scale": float(calibration_tuning_defaults["lon_scale"]),
                         "alt_offset_m": float(calibration_tuning_defaults["alt_offset_m"]),
                     },
+                }
+                data = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if req_path.startswith("/optical-flow-scale"):
+                payload = {
+                    "ok": True,
+                    **optical_flow_scale_state.snapshot(),
                 }
                 data = json.dumps(payload).encode("utf-8")
                 self.send_response(200)
@@ -987,6 +1413,41 @@ def _make_dashboard_handler(
                 self.end_headers()
                 self.wfile.write(blob)
                 return
+            if req_path.startswith("/sensor-csv/status"):
+                payload = sensor_csv_recorder.status()
+                data = json.dumps(payload).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            if req_path.startswith("/sensor-csv/download"):
+                csv_path, download_name = sensor_csv_recorder.download_csv()
+                if csv_path is None:
+                    data = json.dumps(
+                        {"ok": False, "error": "no sensor csv session available"}
+                    ).encode("utf-8")
+                    self.send_response(404)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+                blob = csv_path.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv")
+                self.send_header(
+                    "Content-Disposition",
+                    f'attachment; filename="{download_name}"',
+                )
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(blob)))
+                self.end_headers()
+                self.wfile.write(blob)
+                return
             if req_path.startswith("/video"):
                 self.send_response(200)
                 self.send_header("Age", "0")
@@ -1032,8 +1493,10 @@ def _make_dashboard_handler(
                 and not self.path.startswith("/gps-origin")
                 and not self.path.startswith("/persist")
                 and not self.path.startswith("/calibration-tuning")
+                and not self.path.startswith("/optical-flow-scale")
                 and not self.path.startswith("/service")
                 and not self.path.startswith("/blackbox")
+                and not self.path.startswith("/sensor-csv")
             ):
                 return super().do_POST()
             parsed = urlparse(self.path)
@@ -1316,6 +1779,113 @@ def _make_dashboard_handler(
                     }
                 ).encode("utf-8")
                 self.send_response(200)
+            elif req_path.startswith("/optical-flow-scale"):
+                feature = payload.get("feature")
+                lighting = payload.get("lighting")
+                altitude = payload.get("altitude")
+                scale_raw = payload.get("scale")
+                set_active = payload.get("set_active", True)
+                active_payload = payload.get("active")
+                profiles_payload = payload.get("profiles")
+
+                profiles_updated = False
+                active_updated = False
+
+                if isinstance(profiles_payload, dict):
+                    profiles_updated = optical_flow_scale_state.update_profiles(profiles_payload)
+
+                if feature is not None or lighting is not None or altitude is not None or "scale" in payload:
+                    if feature is None or lighting is None or altitude is None or "scale" not in payload:
+                        data = json.dumps(
+                            {
+                                "ok": False,
+                                "error": "feature, lighting, altitude and scale are required for single profile update",
+                            }
+                        ).encode("utf-8")
+                        self.send_response(400)
+                    else:
+                        try:
+                            new_scale = float(scale_raw)
+                        except (TypeError, ValueError):
+                            data = json.dumps(
+                                {
+                                    "ok": False,
+                                    "error": "scale must be numeric",
+                                }
+                            ).encode("utf-8")
+                            self.send_response(400)
+                        else:
+                            updated = optical_flow_scale_state.set_profile_scale(
+                                feature,
+                                lighting,
+                                altitude,
+                                new_scale,
+                            )
+                            if updated:
+                                profiles_updated = True
+                                if bool(set_active):
+                                    before = optical_flow_scale_state.snapshot()["active"]
+                                    optical_flow_scale_state.set_active(
+                                        {
+                                            "feature": feature,
+                                            "lighting": lighting,
+                                            "altitude": altitude,
+                                        }
+                                    )
+                                    after = optical_flow_scale_state.snapshot()["active"]
+                                    active_updated = before != after
+
+                if active_payload is not None:
+                    if not isinstance(active_payload, dict):
+                        data = json.dumps(
+                            {
+                                "ok": False,
+                                "error": "active must be an object",
+                            }
+                        ).encode("utf-8")
+                        self.send_response(400)
+                    else:
+                        before = optical_flow_scale_state.snapshot()["active"]
+                        optical_flow_scale_state.set_active(
+                            {
+                                "feature": active_payload.get("feature", before["feature"]),
+                                "lighting": active_payload.get("lighting", before["lighting"]),
+                                "altitude": active_payload.get("altitude", before["altitude"]),
+                            }
+                        )
+                        after = optical_flow_scale_state.snapshot()["active"]
+                        active_updated = before != after or active_updated
+
+                if "data" not in locals():
+                    if profiles_updated or active_updated:
+                        try:
+                            persisted = _persist_optical_flow_scale_profiles(
+                                pixhawk_config_path=pixhawk_config_path,
+                                scale_state=optical_flow_scale_state,
+                            )
+                        except Exception as exc:
+                            data = json.dumps(
+                                {
+                                    "ok": False,
+                                    "error": str(exc),
+                                }
+                            ).encode("utf-8")
+                            self.send_response(500)
+                        else:
+                            payload = optical_flow_scale_state.snapshot()
+                            payload["ok"] = True
+                            payload["persisted"] = persisted
+                            data = json.dumps(payload).encode("utf-8")
+                            self.send_response(200)
+                    else:
+                        data = json.dumps(
+                            {
+                                "ok": True,
+                                "message": "no change",
+                                "scale_state": optical_flow_scale_state.snapshot(),
+                            }
+                        ).encode("utf-8")
+                        self.send_response(200)
             elif req_path.startswith("/service"):
                 action = str(payload.get("action", "")).strip().lower()
                 if action not in {"start", "stop"}:
@@ -1357,6 +1927,14 @@ def _make_dashboard_handler(
                 self.send_response(200)
             elif req_path.startswith("/blackbox/stop"):
                 status = blackbox_recorder.stop()
+                data = json.dumps({"ok": True, "status": status}).encode("utf-8")
+                self.send_response(200)
+            elif req_path.startswith("/sensor-csv/start"):
+                status = sensor_csv_recorder.start()
+                data = json.dumps({"ok": True, "status": status}).encode("utf-8")
+                self.send_response(200)
+            elif req_path.startswith("/sensor-csv/stop"):
+                status = sensor_csv_recorder.stop()
                 data = json.dumps({"ok": True, "status": status}).encode("utf-8")
                 self.send_response(200)
             else:
@@ -1415,6 +1993,7 @@ def start_dashboard_server(
     set_gps_origin,
     frame_state,
     blackbox_recorder,
+    sensor_csv_recorder,
     root_dir,
     host,
     port,
@@ -1425,6 +2004,7 @@ def start_dashboard_server(
     calibration_gps_graph_enabled,
     calibration_tuning_state,
     calibration_tuning_defaults,
+    optical_flow_scale_state,
     open_browser=True,
 ):
     handler = _make_dashboard_handler(
@@ -1436,6 +2016,7 @@ def start_dashboard_server(
         set_gps_origin,
         frame_state,
         blackbox_recorder,
+        sensor_csv_recorder,
         root_dir,
         allowed_modes,
         allowed_gps_formats,
@@ -1444,6 +2025,7 @@ def start_dashboard_server(
         calibration_gps_graph_enabled,
         calibration_tuning_state,
         calibration_tuning_defaults,
+        optical_flow_scale_state,
     )
     server = http.server.ThreadingHTTPServer((host, port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -1479,12 +2061,33 @@ def _build_intrinsics(camera_cfg):
     return img_width, img_height, k, dist_coeffs
 
 
+def _iter_candidate_mavlink_devices(pixhawk_cfg):
+    configured = str(pixhawk_cfg.get("device", MAVLINK_DEVICE)).strip()
+    if configured.startswith("/dev/tty/ACM"):
+        configured = configured.replace("/dev/tty/", "/dev/tty")
+    candidates = []
+    seen = set()
+
+    if configured:
+        candidates.append(configured)
+        seen.add(configured)
+
+    for i in range(10):
+        path = f"/dev/ttyACM{i}"
+        if path not in seen:
+            seen.add(path)
+            candidates.append(path)
+
+    for path in candidates:
+        yield path
+
+
 def _init_mavlink_interface(pixhawk_cfg, use_barometer, use_mavlink=None):
     """Create and configure the MAVLink interface if enabled."""
     if use_mavlink is None:
         use_mavlink = pixhawk_cfg.get("use_mavlink", USE_MAVLINK)
     attitude_rate_hz = float(pixhawk_cfg.get("attitude_rate_hz", ATTITUDE_RATE_HZ))
-    mavlink_device = pixhawk_cfg.get("device", MAVLINK_DEVICE)
+    mavlink_device = str(pixhawk_cfg.get("device", MAVLINK_DEVICE)).strip() or MAVLINK_DEVICE
     mavlink_baud = int(pixhawk_cfg.get("baud", MAVLINK_BAUD))
     mavlink_source = pixhawk_cfg.get("mavlink_source", {})
     mavlink_source_sysid = int(mavlink_source.get("system_id", 200))
@@ -1522,34 +2125,55 @@ def _init_mavlink_interface(pixhawk_cfg, use_barometer, use_mavlink=None):
         barometer_messages = default_baro_msgs
     mavlink_interface = None
     if use_mavlink or use_barometer:
-        try:
-            mavlink_interface = MavlinkInterface(
-                mavlink_device,
-                baud=mavlink_baud,
-                source_system=mavlink_source_sysid,
-                source_component=mavlink_source_compid,
-                rangefinder_component=mavlink_rangefinder_compid,
+        tried = []
+        for candidate_device in _iter_candidate_mavlink_devices(pixhawk_cfg):
+            tried.append(candidate_device)
+            try:
+                mavlink_interface = MavlinkInterface(
+                    candidate_device,
+                    baud=mavlink_baud,
+                    source_system=mavlink_source_sysid,
+                    source_component=mavlink_source_compid,
+                    rangefinder_component=mavlink_rangefinder_compid,
+                )
+                print(f"Pixhawk connected on {candidate_device}")
+                mavlink_interface.request_message_interval(
+                    msg_id=mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,
+                    rate_hz=attitude_rate_hz,
+                )
+                mavlink_interface.request_message_interval(
+                    msg_id=mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU,
+                    rate_hz=IMU_RATE_HZ,
+                )
+                if use_barometer:
+                    mavlink_interface.set_barometer_message_types(barometer_messages)
+                    for msg_name in barometer_messages:
+                        msg_id = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{msg_name}", None)
+                        if msg_id is not None:
+                            mavlink_interface.request_message_interval(
+                                msg_id=msg_id,
+                                rate_hz=barometer_rate_hz,
+                            )
+                break
+            except Exception as exc:
+                print(f"MAVLink probe failed on {candidate_device}: {exc}")
+                continue
+        else:
+            print(
+                "Warning: Configured MAVLink device not available; trying fallback ports."
+                f" (configured: {mavlink_device})"
             )
-            print("Pixhawk connected")
-            mavlink_interface.request_message_interval(
-                msg_id=mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,
-                rate_hz=attitude_rate_hz,
-            )
-            mavlink_interface.request_message_interval(
-                msg_id=mavutil.mavlink.MAVLINK_MSG_ID_RAW_IMU,
-                rate_hz=IMU_RATE_HZ,
-            )
-            if use_barometer:
-                mavlink_interface.set_barometer_message_types(barometer_messages)
-                for msg_name in barometer_messages:
-                    msg_id = getattr(mavutil.mavlink, f"MAVLINK_MSG_ID_{msg_name}", None)
-                    if msg_id is not None:
-                        mavlink_interface.request_message_interval(
-                            msg_id=msg_id,
-                            rate_hz=barometer_rate_hz,
-                        )
-        except Exception as exc:
-            print(f"Warning: MAVLink not available ({exc}); using fallback height.")
+            if not mavlink_device or not mavlink_device.startswith("/dev/ttyACM"):
+                print(
+                    "Warning: MAVLink not available on configured device or /dev/ttyACM0-ACM9; "
+                    f"using fallback height. Tried: {', '.join(tried) or 'none'}"
+                )
+            else:
+                print(
+                    "Warning: MAVLink not available on configured device or /dev/ttyACM0-ACM9; "
+                    f"using fallback height. Tried: {', '.join(tried) or 'none'}"
+                )
+            
     return mavlink_interface
 
 
@@ -1854,6 +2478,7 @@ def main():
     mode_state = ModeState(output_mode)
     frame_state = FrameState()
     blackbox_recorder = BlackBoxRecorder(_repo_root() / "blackbox_logs")
+    sensor_csv_recorder = SensorCsvRecorder(_repo_root() / "sensor_csv_logs")
     gps_input_cfg = pixhawk_cfg.get("gps_input", {})
     gps_input_enabled = bool(gps_input_cfg.get("enabled", True))
     gps_input_port = gps_input_cfg.get("port")
@@ -1907,6 +2532,11 @@ def main():
         except (TypeError, ValueError):
             print("Warning: optical_flow.max_flow_raw must be numeric; ignoring.")
             optical_max_flow_raw = None
+
+    optical_flow_scale_state = OpticalFlowScaleProfileState.from_config(
+        optical_cfg,
+        fallback_scale=1.0,
+    )
     optical_reader = None
     last_optical_flow = {"value": None}
     mavlink_interface = None
@@ -2166,6 +2796,7 @@ def main():
                 selector.set_gps_origin,
                 frame_state,
                 blackbox_recorder,
+                sensor_csv_recorder,
                 dashboard_root,
                 DASHBOARD_HOST,
                 DASHBOARD_PORT,
@@ -2180,6 +2811,7 @@ def main():
                     "alt_offset_m": alt_offset_state,
                 },
                 tuning_defaults,
+                optical_flow_scale_state,
                 open_browser=_can_auto_open_browser(),
             )
             server_urls = getattr(dashboard_server, "navisar_urls", None) or [
@@ -2780,6 +3412,7 @@ def main():
         optical_flow_mav_cfg.get("stationary_quality_min", 40)
     )
     flow_speed_scale = float(optical_flow_mav_cfg.get("speed_scale", 1.0))
+    optical_flow_scale_state.set_fallback_scale(flow_speed_scale)
     alt_smoothing_alpha = float(optical_cfg.get("altitude_smoothing_alpha", 0.18))
     alt_jump_limit_m = float(optical_cfg.get("altitude_jump_limit_m", 0.06))
     alt_deadband_m = float(optical_cfg.get("altitude_deadband_m", 0.004))
@@ -2800,6 +3433,7 @@ def main():
         alt_deadband_m = 0.0
         alt_min_m = -1000.0
         alt_max_m = 1000.0
+        optical_flow_scale_state.set_fallback_scale(flow_speed_scale)
         print(
             "Optical flow data mode: raw_tool (raw-like output and no smoothing/clamping)"
         )
@@ -2813,7 +3447,7 @@ def main():
         stationary_speed_mps=flow_stationary_speed_mps,
         stationary_samples=flow_stationary_samples,
         stationary_quality_min=flow_stationary_quality_min,
-        speed_scale=flow_speed_scale,
+        speed_scale=optical_flow_scale_state.get_current_scale(flow_speed_scale),
         altitude_smoothing_alpha=alt_smoothing_alpha,
         altitude_jump_limit_m=alt_jump_limit_m,
         altitude_deadband_m=alt_deadband_m,
@@ -3204,6 +3838,9 @@ def main():
                 mavlink_interface,
             )
         elif active_output_mode == "optical_flow_gps_port":
+            optical_flow_gps_port_mode.set_speed_scale(
+                1.0 if optical_raw_mode else optical_flow_scale_state.get_current_scale()
+            )
             optical_flow_gps_port_mode.set_gps_calibration(
                 lat_scale=float(lat_scale_state.get()),
                 lon_scale=float(lon_scale_state.get()),
@@ -3393,6 +4030,7 @@ def main():
                 }
             dashboard_state.update(dashboard_payload)
             blackbox_recorder.log_data(dashboard_payload)
+            sensor_csv_recorder.log_data(dashboard_payload)
 
         if now - last_report["time"] >= 1.0:
             position = selector.get_position(now)
@@ -3537,6 +4175,9 @@ def main():
                 else:
                     optical_compass_heading_deg = _safe_float(
                         last_compass_in.get("heading_deg")
+                    )
+                    optical_flow_gps_port_mode.set_speed_scale(
+                        1.0 if optical_raw_mode else optical_flow_scale_state.get_current_scale()
                     )
                     optical_flow_gps_port_mode.set_gps_calibration(
                         lat_scale=float(lat_scale_state.get()),

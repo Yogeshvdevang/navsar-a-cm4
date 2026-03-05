@@ -81,6 +81,13 @@ class OpticalFlowGpsPortMode:
         if alt_offset_m is not None:
             self.alt_offset_m = float(alt_offset_m)
 
+    def set_speed_scale(self, speed_scale):
+        """Update runtime optical-flow speed scale."""
+        try:
+            self.speed_scale = _clamp(float(speed_scale), 0.0, 20.0)
+        except (TypeError, ValueError):
+            return
+
     def _warn(self, now, message):
         if now - self._last_warn >= self.warn_interval_s:
             print(message)
