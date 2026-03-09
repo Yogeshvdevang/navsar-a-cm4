@@ -71,8 +71,11 @@ class GpsMavlinkMode:
             return
 
         lat, lon, alt_m = enu_to_gps(x_m, y_m, z_m, origin)
+        barometer_altitude_m = None
         if alt_override_m is not None:
             alt_m = alt_override_m
+            barometer_altitude_m = float(alt_override_m)
+        use_barometer_altitude = barometer_altitude_m is not None
         fix_type = self.fix_type
         satellites = self.satellites
         if gps_fix:
@@ -82,7 +85,7 @@ class GpsMavlinkMode:
             if _finite(fix_lat) and _finite(fix_lon):
                 lat = float(fix_lat)
                 lon = float(fix_lon)
-            if _finite(fix_alt):
+            if (not use_barometer_altitude) and _finite(fix_alt):
                 alt_m = float(fix_alt)
             fix_type = int(gps_fix.get("fix_type", fix_type))
             sats = gps_fix.get("sats")
@@ -129,11 +132,35 @@ class GpsMavlinkMode:
             raw_bytes = payload_for_dashboard.pop("raw", None)
             if raw_bytes is not None:
                 payload_for_dashboard["raw_hex"] = _bytes_hex(raw_bytes)
+        hdop = payload_for_dashboard.get("hdop") if payload_for_dashboard else None
+        vdop = payload_for_dashboard.get("vdop") if payload_for_dashboard else None
+        horiz_accuracy = (
+            payload_for_dashboard.get("horiz_accuracy")
+            if payload_for_dashboard
+            else None
+        )
+        vert_accuracy = (
+            payload_for_dashboard.get("vert_accuracy")
+            if payload_for_dashboard
+            else None
+        )
+        speed_accuracy = (
+            payload_for_dashboard.get("speed_accuracy")
+            if payload_for_dashboard
+            else (0.5 if speed_accuracy_mps is None else speed_accuracy_mps)
+        )
+        satellites_visible = (
+            payload_for_dashboard.get("satellites_visible")
+            if payload_for_dashboard
+            else satellites
+        )
         self.last_payload = {
             "time_s": now,
             "lat": lat,
             "lon": lon,
             "alt_m": alt_m,
+            "barometer_altitude_m": barometer_altitude_m,
+            "altitude_source": "barometer" if use_barometer_altitude else "gps_or_fused",
             "vn": vy_enu,
             "ve": vx_enu,
             "vd": -vz_enu,
@@ -141,8 +168,23 @@ class GpsMavlinkMode:
             "satellites": satellites,
             "speed_mps": speed_mps,
             "heading_deg": heading_deg,
+            "course_deg": heading_deg,
+            "vel_n_mps": vy_enu,
+            "vel_e_mps": vx_enu,
+            "vel_d_mps": -vz_enu,
             "raw_hex": _bytes_hex(raw_payload["raw"]) if raw_payload else None,
-            "speed_accuracy_mps": speed_accuracy_mps,
+            "speed_accuracy_mps": speed_accuracy,
+            "speed_accuracy": speed_accuracy,
+            "hdop": hdop,
+            "vdop": vdop,
+            "pdop": None,
+            "horizontal_accuracy_m": horiz_accuracy,
+            "vertical_accuracy_m": vert_accuracy,
+            "satellites_visible": satellites_visible,
+            "mavlink_time_usec": payload_for_dashboard.get("time_usec") if payload_for_dashboard else None,
+            "mavlink_time_week": payload_for_dashboard.get("time_week") if payload_for_dashboard else None,
+            "mavlink_time_week_ms": payload_for_dashboard.get("time_week_ms") if payload_for_dashboard else None,
+            "message_hex": _bytes_hex(raw_payload["raw"]) if raw_payload else None,
             "yaw_cdeg": yaw_cdeg,
             "yaw_deg": yaw_deg,
             "payload": payload_for_dashboard,

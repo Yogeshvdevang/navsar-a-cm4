@@ -475,6 +475,44 @@ def _build_sensor_csv_flat_payload(payload):
         else:
             _flatten_to_csv_row(top_val, f"syn_{top_key_safe}", flat)
 
+    return _add_csv_aliases(flat)
+
+
+def _add_csv_aliases(flat):
+    """Add stable alias columns for commonly used CSV sensor/output groups."""
+    if not isinstance(flat, dict):
+        return flat
+
+    def _copy_prefixed(src_prefix, dst_prefix):
+        for key, value in list(flat.items()):
+            if not key.startswith(src_prefix):
+                continue
+            alias_key = f"{dst_prefix}{key[len(src_prefix):]}"
+            if alias_key not in flat:
+                flat[alias_key] = value
+
+    # Raw sensor aliases.
+    _copy_prefixed("raw_gps_input_", "raw_gps_parameter_")
+    _copy_prefixed("raw_barometer_", "raw_barometer_parameter_")
+    _copy_prefixed("raw_imu_", "raw_imu_parameter_")
+    _copy_prefixed("raw_attitude_", "raw_attitude_parameter_")
+    _copy_prefixed("raw_optical_flow_", "raw_optical_flow_parameter_")
+    _copy_prefixed("raw_compass_", "raw_compass_parameter_")
+    _copy_prefixed("raw_raw_", "raw_camera_drift_parameter_")
+
+    # Camera drift aliases used by dashboards/scripts.
+    if "syn_camera_dx" in flat and "syn_camera_drift_x" not in flat:
+        flat["syn_camera_drift_x"] = flat["syn_camera_dx"]
+    if "syn_camera_dy" in flat and "syn_camera_drift_y" not in flat:
+        flat["syn_camera_drift_y"] = flat["syn_camera_dy"]
+    if "syn_camera_dz" in flat and "syn_camera_drift_z" not in flat:
+        flat["syn_camera_drift_z"] = flat["syn_camera_dz"]
+
+    # Final serialized output sent to Pixhawk GPS port.
+    _copy_prefixed("syn_outputs_gps_port_", "syn_pixhawk_port_parameter_")
+    if "syn_outputs_gps_port" in flat and "syn_pixhawk_port_parameter" not in flat:
+        flat["syn_pixhawk_port_parameter"] = flat["syn_outputs_gps_port"]
+
     return flat
 
 
@@ -485,6 +523,64 @@ def _normalise_csv_value(value):
         except Exception:
             return ""
     return value
+
+
+def _build_six_parameters_payload(payload, default_timestamp=None):
+    """Normalize final GPS output payload into a strict six-parameter view."""
+    if not isinstance(payload, dict):
+        return None
+    lat = _safe_float(payload.get("lat"))
+    lon = _safe_float(payload.get("lon"))
+    alt = _safe_float(payload.get("alt_m"))
+    vel_n = _safe_float(payload.get("vel_n_mps"))
+    if vel_n is None:
+        vel_n = _safe_float(payload.get("vn"))
+    vel_e = _safe_float(payload.get("vel_e_mps"))
+    if vel_e is None:
+        vel_e = _safe_float(payload.get("ve"))
+    vel_d = _safe_float(payload.get("vel_d_mps"))
+    if vel_d is None:
+        vel_d = _safe_float(payload.get("vd"))
+
+    heading = _safe_float(payload.get("heading_deg"))
+    course = _safe_float(payload.get("course_deg"))
+    fix_type = payload.get("fix_type")
+    sats = payload.get("satellites")
+    if sats is None:
+        sats = payload.get("satellites_visible")
+
+    ts = (
+        payload.get("ubx_timestamp_utc")
+        or payload.get("timestamp_utc")
+        or payload.get("time_s")
+        or default_timestamp
+    )
+    ubx_hex = payload.get("ubx_pvt_hex")
+    if ubx_hex is None and isinstance(payload.get("ubx"), dict):
+        ubx_hex = payload.get("ubx", {}).get("pvt_hex")
+    if ubx_hex is None:
+        ubx_hex = payload.get("raw_hex")
+
+    return {
+        "timestamp": ts,
+        "latitude": lat,
+        "longitude": lon,
+        "altitude_m": alt,
+        "velocity_north_mps": vel_n,
+        "velocity_east_mps": vel_e,
+        "velocity_down_mps": vel_d,
+        "heading_deg": heading,
+        "course_deg": course,
+        "fix_type": fix_type,
+        "satellites": sats,
+        "hdop": _safe_float(payload.get("hdop")),
+        "vdop": _safe_float(payload.get("vdop")),
+        "pdop": _safe_float(payload.get("pdop")),
+        "horizontal_accuracy_m": _safe_float(payload.get("horizontal_accuracy_m")),
+        "vertical_accuracy_m": _safe_float(payload.get("vertical_accuracy_m")),
+        "speed_accuracy_mps": _safe_float(payload.get("speed_accuracy_mps")),
+        "ubx_message_hex": ubx_hex,
+    }
 
 
 def _capture_startup_baro_offset_max(barometer_driver, duration_s=3.0, poll_s=0.05):
@@ -3870,8 +3966,22 @@ def main():
             last_source["value"] = source
 
         alt_override_m = None
+        barometer_altitude_m_direct = None
         vz_override_mps = None
         if barometer_driver is not None:
+            # Absolute barometer altitude (meters). This is the value shown as raw_alt_m.
+            baro_abs_alt_m = _safe_float(getattr(barometer_driver, "raw_alt_m", None))
+            if baro_abs_alt_m is not None:
+                barometer_altitude_m_direct = float(baro_abs_alt_m)
+            else:
+                # Fallback only when raw absolute altitude is unavailable.
+                height_source_raw = barometer_driver.current_m
+                if height_source_raw is None:
+                    height_source_raw = barometer_driver.get_height_m()
+                if height_source_raw is not None:
+                    barometer_altitude_m_direct = float(height_source_raw)
+
+            # Keep existing behavior for generic altitude override paths.
             height_source = barometer_driver.current_m
             if height_source is None:
                 height_source = barometer_driver.get_height_m()
@@ -3922,10 +4032,12 @@ def main():
             last_runtime_mode["active"] = active_output_mode
             last_runtime_mode["drive"] = drive_source
 
-        # Compass yaw used by VPS->GPS paths (existing behavior).
+        # Compass yaw used by VPS->GPS MAVLink path (config-gated behavior).
         compass_heading_deg = None
         if vps_gps_use_compass_yaw:
             compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
+        # GPS port path: always prefer compass heading when available.
+        compass_heading_for_port = _safe_float(last_compass_in.get("heading_deg"))
         # Optical-flow GPS integration should always use compass heading when available.
         optical_compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
         vo_scale_value = max(0.1, min(5.0, float(vo_scale_state.get())))
@@ -3966,9 +4078,15 @@ def main():
                 y_vo_output,
                 z_f,
                 selector.gps_origin(),
-                alt_override_m=alt_override_m,
-                heading_deg=compass_heading_deg if compass_heading_deg is not None else runtime_heading_deg,
+                alt_override_m=barometer_altitude_m_direct,
+                heading_deg=(
+                    compass_heading_for_port
+                    if compass_heading_for_port is not None
+                    else runtime_heading_deg
+                ),
                 heading_only=False,
+                apply_final_altitude_offset=False,
+                use_origin_altitude=False,
             )
         elif active_output_mode == "gps_passthrough":
             gps_passthrough_mode.handle(now)
@@ -4016,6 +4134,55 @@ def main():
             gps_origin = selector.gps_origin()
             gps_local = selector.gps_local()
             drift_m = selector.drift_m()
+            vo_gps_port_preview = None
+            if gps_origin is not None:
+                vo_lat, vo_lon = selector.local_to_ll(x_vo_output, y_vo_output, gps_origin)
+                vo_vel_e_mps = _safe_float(vx_cam)
+                vo_vel_n_mps = _safe_float(vy_cam)
+                vo_vel_d_mps = 0.0
+                vo_course_deg = _heading_from_velocity(vo_vel_e_mps, vo_vel_n_mps)
+                vo_heading_deg = (
+                    compass_heading_for_port
+                    if compass_heading_for_port is not None
+                    else (runtime_heading_deg if runtime_heading_deg is not None else vo_course_deg)
+                )
+                vo_alt_m = (
+                    _safe_float(barometer_altitude_m_direct)
+                    if barometer_altitude_m_direct is not None
+                    else _safe_float(alt_override_m)
+                )
+                hdop_guess = 1.3
+                if gps_output_min_sats >= 18:
+                    hdop_guess = 0.7
+                elif gps_output_min_sats >= 15:
+                    hdop_guess = 1.0
+                vo_gps_port_preview = {
+                    "time_s": _safe_float(now),
+                    "lat": _safe_float(vo_lat),
+                    "lon": _safe_float(vo_lon),
+                    "alt_m": vo_alt_m,
+                    "vel_n_mps": vo_vel_n_mps,
+                    "vel_e_mps": vo_vel_e_mps,
+                    "vel_d_mps": vo_vel_d_mps,
+                    "heading_deg": _safe_float(vo_heading_deg),
+                    "course_deg": _safe_float(vo_course_deg),
+                    "fix_type": int(vps_gps_fix_type),
+                    "satellites": int(gps_output_min_sats),
+                    "hdop": _safe_float(hdop_guess),
+                    "vdop": _safe_float(hdop_guess),
+                    "pdop": _safe_float(hdop_guess),
+                    "horizontal_accuracy_m": _safe_float(float(gps_output_ubx_h_acc_mm) / 1000.0),
+                    "vertical_accuracy_m": _safe_float(float(gps_output_ubx_v_acc_mm) / 1000.0),
+                    "speed_accuracy_mps": _safe_float(speed_accuracy_mps),
+                }
+            optical_flow_gps_port_six = _build_six_parameters_payload(
+                optical_flow_gps_port_mode.last_payload,
+                default_timestamp=_safe_float(now),
+            )
+            vo_gps_port_six = _build_six_parameters_payload(
+                vo_gps_port_preview,
+                default_timestamp=_safe_float(now),
+            )
             odom_ned = {
                 "x": _safe_float(y_f),
                 "y": _safe_float(x_f),
@@ -4187,6 +4354,8 @@ def main():
                         "gps_passthrough": gps_passthrough_mode.last_payload,
                         "optical_flow_mavlink": optical_flow_mode.last_payload,
                         "optical_flow_gps_port": optical_flow_gps_port_mode.last_payload,
+                        "optical_flow_gps_port_six_parameters": optical_flow_gps_port_six,
+                        "vo_gps_port_six_parameters": vo_gps_port_six,
                     },
                 }
             dashboard_state.update(dashboard_payload)

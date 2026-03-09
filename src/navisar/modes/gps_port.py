@@ -57,6 +57,7 @@ class GpsPortMode:
         heading_deg=None,
         heading_only=False,
         apply_final_altitude_offset=True,
+        use_origin_altitude=True,
     ):
         """Send GPS sentences over serial if ready."""
         if origin is None:
@@ -72,7 +73,9 @@ class GpsPortMode:
         if alt_override_m is None:
             self._warn(now, "GPS->PORT: barometer altitude unavailable; skipping send.")
             return
-        alt_base = 0.0 if origin[2] is None else float(origin[2])
+        alt_base = 0.0
+        if use_origin_altitude and origin[2] is not None:
+            alt_base = float(origin[2])
         final_offset_m = self.final_altitude_offset_m if apply_final_altitude_offset else 0.0
         alt_m = alt_base + float(alt_override_m) + final_offset_m
         if abs(alt_m) < 1e-3:
@@ -128,6 +131,11 @@ class GpsPortMode:
         if nmea_payload or ubx_payload:
             speed_mps, computed_heading_deg = speed_course_from_enu(vx_enu, vy_enu)
             heading_deg = heading_override if heading_override is not None else computed_heading_deg
+            sats_value = None
+            if ubx_payload and ubx_payload.get("sats") is not None:
+                sats_value = ubx_payload.get("sats")
+            elif nmea_payload and nmea_payload.get("sats") is not None:
+                sats_value = nmea_payload.get("sats")
             self.last_payload = {
                 "time_s": now,
                 "lat": lat,
@@ -137,6 +145,21 @@ class GpsPortMode:
                 "vy_enu": vy_enu,
                 "speed_mps": speed_mps,
                 "heading_deg": heading_deg,
+                "course_deg": ubx_payload.get("course_deg") if ubx_payload else heading_deg,
+                "vel_n_mps": ubx_payload.get("vel_n_mps") if ubx_payload else vy_enu,
+                "vel_e_mps": ubx_payload.get("vel_e_mps") if ubx_payload else vx_enu,
+                "vel_d_mps": ubx_payload.get("vel_d_mps") if ubx_payload else 0.0,
+                "fix_type": ubx_payload.get("fix_type") if ubx_payload else None,
+                "satellites": sats_value,
+                "hdop": ubx_payload.get("hdop") if ubx_payload else None,
+                "vdop": ubx_payload.get("vdop") if ubx_payload else None,
+                "pdop": ubx_payload.get("pdop") if ubx_payload else None,
+                "horizontal_accuracy_m": ubx_payload.get("h_acc_m") if ubx_payload else None,
+                "vertical_accuracy_m": ubx_payload.get("v_acc_m") if ubx_payload else None,
+                "speed_accuracy_mps": ubx_payload.get("speed_acc_mps") if ubx_payload else None,
+                "ubx_timestamp_utc": ubx_payload.get("timestamp_utc") if ubx_payload else None,
+                "ubx_gps_week": ubx_payload.get("gps_week") if ubx_payload else None,
+                "ubx_time_of_week_ms": ubx_payload.get("time_of_week_ms") if ubx_payload else None,
                 "nmea": {
                     "gga_hex": _bytes_hex(nmea_payload["gga"]) if nmea_payload else None,
                     "rmc_hex": _bytes_hex(nmea_payload["rmc"]) if nmea_payload else None,
