@@ -105,6 +105,7 @@ fi
 echo "[4/6] Installing Python dependencies..."
 "$PIP_BIN" install --upgrade pip
 "$PIP_BIN" install -r "$ROOT_DIR/requirements.txt"
+"$PIP_BIN" install --upgrade --force-reinstall "numpy<2" "opencv-python<4.11"
 "$PIP_BIN" install smbus2
 
 echo "[5/6] Making runner script executable..."

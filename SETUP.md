@@ -68,6 +68,7 @@ sudo apt install -y libcamera-apps python3-libcamera python3-picamera2 python3-v
 python3 -m venv --system-site-packages venv
 source venv/bin/activate
 pip install -r requirements.txt
+pip install --upgrade --force-reinstall "numpy<2" "opencv-python<4.11"
 pip install smbus2
 
 # 4) Install autostart services
