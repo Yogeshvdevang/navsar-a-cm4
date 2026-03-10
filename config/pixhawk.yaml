@@ -101,13 +101,13 @@ compass:
   heading_jump_reject_deg: 20.0
 gps_output:
   enabled: true
-  format: nmea
+  format: ubx
   port: /dev/ttyAMA0
   baud: 230400
   rate_hz: 10
   heading_mode: send
   ubx_h_acc_mm: 500
-  ubx_v_acc_mm: 500
+  ubx_v_acc_mm: 100
   fix_quality: 1
   min_sats: 10
   max_sats: 20

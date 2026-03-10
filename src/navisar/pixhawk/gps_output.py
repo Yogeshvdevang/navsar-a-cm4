@@ -355,7 +355,7 @@ class UbxSerialEmitter:
         flags = 0x07
         p_acc_cm = 250
         payload = struct.pack(
-            "<IihBBiiiIiiiIHBBI",
+            "<IihBBIiiiIIHBBII",
             time_of_week_ms,  # iTOW
             0,  # fTOW
             int(week),  # week
@@ -367,7 +367,6 @@ class UbxSerialEmitter:
             p_acc_cm,  # pAcc
             0,  # ecefVX
             0,  # ecefVY
-            0,  # ecefVZ
             50,  # sAcc
             int(p_dop_01),  # pDOP (0.01)
             0,  # reserved1
@@ -420,6 +419,7 @@ class UbxSerialEmitter:
         lat_deg,
         lon_deg,
         alt_m,
+        nav_pvt_alt_mm_override,
         vel_n_mm,
         vel_e_mm,
         vel_d_mm,
@@ -441,7 +441,10 @@ class UbxSerialEmitter:
 
         lat_1e7 = int(lat_deg * 1e7)
         lon_1e7 = int(lon_deg * 1e7)
-        alt_mm = int(alt_m * 1000)
+        if nav_pvt_alt_mm_override is None:
+            alt_mm = int(alt_m * 1000)
+        else:
+            alt_mm = int(nav_pvt_alt_mm_override)
         h_msl_mm = alt_mm
 
         heading_1e5 = 0 if heading_deg is None else int(heading_deg * 1e5)
@@ -491,13 +494,10 @@ class UbxSerialEmitter:
         vx_e,
         vy_n,
         ekf_ok=True,
+        nav_pvt_alt_mm_override=None,
         course_deg_override=None,
         force_heading=False,
         include_heading=True,
-        fix_type_override=None,
-        h_acc_mm_override=None,
-        v_acc_mm_override=None,
-        p_dop_01_override=None,
     ):
         """Send UBX messages for current state."""
         self._drain_incoming()
@@ -530,14 +530,7 @@ class UbxSerialEmitter:
         else:
             course_deg = None
         sats = self._fake_sats.update(ekf_ok=ekf_ok)
-        effective_fix_type = self.fix_type if fix_type_override is None else int(fix_type_override)
-        effective_h_acc_mm = self.h_acc_mm if h_acc_mm_override is None else max(1, int(h_acc_mm_override))
-        effective_v_acc_mm = self.v_acc_mm if v_acc_mm_override is None else max(1, int(v_acc_mm_override))
-        p_dop_01 = (
-            int(hdop_from_sats(sats) * 100)
-            if p_dop_01_override is None
-            else max(1, int(p_dop_01_override))
-        )
+        p_dop_01 = int(hdop_from_sats(sats) * 100)
         now = _dt.datetime.utcnow()
         gps_epoch = _dt.datetime(1980, 1, 6)
         gps_offset_s = 18.0
@@ -557,6 +550,7 @@ class UbxSerialEmitter:
             lat,
             lon,
             alt_m,
+            nav_pvt_alt_mm_override,
             vel_n_mm,
             vel_e_mm,
             vel_d_mm,
@@ -565,18 +559,18 @@ class UbxSerialEmitter:
             sats,
             time_of_week_ms,
             now.timetuple(),
-            effective_fix_type,
+            self.fix_type,
             p_dop_01,
-            effective_h_acc_mm,
-            effective_v_acc_mm,
+            self.h_acc_mm,
+            self.v_acc_mm,
         )
         posllh = self._create_nav_posllh(
             lat,
             lon,
             alt_m,
             time_of_week_ms,
-            effective_h_acc_mm,
-            effective_v_acc_mm,
+            self.h_acc_mm,
+            self.v_acc_mm,
         )
         velned = self._create_nav_velned(
             vel_n_mm,
@@ -586,8 +580,8 @@ class UbxSerialEmitter:
             course_deg,
             time_of_week_ms,
         )
-        sol = self._create_nav_sol(sats, time_of_week_ms, gps_week, effective_fix_type, p_dop_01)
-        status = self._create_nav_status(time_of_week_ms, effective_fix_type)
+        sol = self._create_nav_sol(sats, time_of_week_ms, gps_week, self.fix_type, p_dop_01)
+        status = self._create_nav_status(time_of_week_ms, self.fix_type)
         dop = self._create_nav_dop(time_of_week_ms, p_dop_01)
         self._ser.write(pvt)
         self._ser.write(posllh)
@@ -617,15 +611,15 @@ class UbxSerialEmitter:
             "timestamp_utc": now.isoformat() + "Z",
             "gps_week": gps_week,
             "time_of_week_ms": time_of_week_ms,
-            "fix_type": int(effective_fix_type),
+            "fix_type": int(self.fix_type),
             "vel_n_mps": vel_n_mm / 1000.0,
             "vel_e_mps": vel_e_mm / 1000.0,
             "vel_d_mps": vel_d_mm / 1000.0,
             "hdop": p_dop_01 / 100.0,
             "vdop": p_dop_01 / 100.0,
             "pdop": p_dop_01 / 100.0,
-            "h_acc_m": float(effective_h_acc_mm) / 1000.0,
-            "v_acc_m": float(effective_v_acc_mm) / 1000.0,
+            "h_acc_m": float(self.h_acc_mm) / 1000.0,
+            "v_acc_m": float(self.v_acc_mm) / 1000.0,
             "speed_acc_mps": 1.0,
         }
         return self._last_payload

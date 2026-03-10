@@ -7,14 +7,14 @@ from datetime import datetime
 # ================== CONFIG ==================
 SERIAL_PORT = "/dev/ttyAMA0"  # "/dev/ttyUSB0"   #"/dev/ttyAMA2"    #"COM30"   # change if needed
 BAUDRATE = 230400
-UPDATE_RATE_HZ = 10      # 5-10 Hz works well
+UPDATE_RATE_HZ = 5      # 5-10 Hz works well
 
 # Start location
 lat = 12.971600         # degrees
 lon = 77.594600         # degrees
 alt = 920.0             # meters
 
-speed_mps = 1        # fake ground speed
+speed_mps = 1.5         # fake ground speed
 heading_deg = 90.0      # east
 num_sats = 10
 # ============================================
