@@ -25,7 +25,11 @@ import yaml
 
 
 from navisar.sensors.camera import SharedCamera, create_camera_driver
-from navisar.sensors.compass import CompassReader, load_calibration_file
+from navisar.sensors.compass import (
+    CompassReader,
+    heading_from_milligauss,
+    load_calibration_file,
+)
 from navisar.sensors.gps_serial import (
     GpsSerialReader,
     find_gps_port_and_baud,
@@ -2925,6 +2929,16 @@ def main():
     gps_output_port = gps_output_cfg.get("port", GPS_OUTPUT_PORT)
     gps_output_baud = int(gps_output_cfg.get("baud", GPS_OUTPUT_BAUD))
     gps_output_rate_hz = float(gps_output_cfg.get("rate_hz", GPS_OUTPUT_RATE_HZ))
+    gps_output_heading_mode = (
+        str(gps_output_cfg.get("heading_mode", "send")).strip().lower() or "send"
+    )
+    if gps_output_heading_mode not in {"send", "none"}:
+        print(
+            "Warning: unsupported gps_output.heading_mode "
+            f"'{gps_output_heading_mode}', falling back to send."
+        )
+        gps_output_heading_mode = "send"
+    gps_output_send_heading = gps_output_heading_mode == "send"
     gps_output_fix_quality = int(
         gps_output_cfg.get("fix_quality", GPS_OUTPUT_FIX_QUALITY)
     )
@@ -3201,8 +3215,14 @@ def main():
     compass_rate_hz = float(compass_cfg.get("rate_hz", 10.0))
     compass_print = bool(compass_cfg.get("print", False))
     compass_bus = int(compass_cfg.get("i2c_bus", 1))
+    compass_mode = str(compass_cfg.get("mode", "i2c")).strip().lower() or "i2c"
     compass_send_mavlink = bool(compass_cfg.get("send_mavlink", True))
     compass_calibration = dict(compass_cfg.get("calibration", {}))
+    if compass_mode not in {"i2c", "mavlink_compass"}:
+        print(
+            f"Warning: unsupported compass mode '{compass_mode}', falling back to i2c."
+        )
+        compass_mode = "i2c"
     compass_calibration_file = compass_cfg.get("calibration_file")
     if compass_calibration_file:
         calibration_path = Path(str(compass_calibration_file)).expanduser()
@@ -3227,40 +3247,72 @@ def main():
     if compass_enabled:
         if mavlink_interface is None:
             print("Warning: compass enabled but MAVLink is not available.")
-        try:
-            compass_reader = CompassReader(
-                preferred_bus=compass_bus,
-                calibration=compass_calibration,
-            )
+        if compass_mode == "mavlink_compass":
             compass_meta = {
-                "bus": compass_reader.bus_index,
-                "addr": compass_reader.addr,
+                "bus": None,
+                "addr": None,
+                "source": "mavlink_compass",
+                "message_type": None,
             }
-            print(
-                f"Compass enabled on I2C bus {compass_reader.bus_index} "
-                f"(addr=0x{compass_reader.addr:02X})"
-            )
-        except Exception as exc:
-            print(f"Warning: compass not available ({exc})")
-            compass_reader = None
+            print("Compass enabled in MAVLink mode.")
+        else:
+            try:
+                compass_reader = CompassReader(
+                    preferred_bus=compass_bus,
+                    calibration=compass_calibration,
+                )
+                compass_meta = {
+                    "bus": compass_reader.bus_index,
+                    "addr": compass_reader.addr,
+                    "source": "i2c",
+                    "message_type": None,
+                }
+                print(
+                    f"Compass enabled on I2C bus {compass_reader.bus_index} "
+                    f"(addr=0x{compass_reader.addr:02X})"
+                )
+            except Exception as exc:
+                print(f"Warning: compass not available ({exc})")
+                compass_reader = None
     compass_interval_s = 1.0 / compass_rate_hz if compass_rate_hz > 0 else 0.0
     last_compass_time = {"time": 0.0}
     last_compass_error = {"time": 0.0}
     last_compass_in = {"heading_deg": None, "x_mg": None, "y_mg": None, "z_mg": None}
     last_compass_out = {"time_boot_ms": None, "x_mg": None, "y_mg": None, "z_mg": None}
     if "compass_meta" not in locals():
-        compass_meta = {"bus": None, "addr": None}
+        compass_meta = {
+            "bus": None,
+            "addr": None,
+            "source": compass_mode,
+            "message_type": None,
+        }
 
     def _update_compass(now):
         if (
-            compass_reader is None
+            not compass_enabled
             or compass_interval_s <= 0.0
             or now - last_compass_time["time"] < compass_interval_s
         ):
             return
         last_compass_time["time"] = now
         try:
-            heading, (x_mg, y_mg, z_mg) = compass_reader.read_milligauss()
+            if compass_mode == "mavlink_compass":
+                if mavlink_interface is None:
+                    return
+                compass_sample = mavlink_interface.recv_compass()
+                if compass_sample is None:
+                    return
+                heading, (x_mg, y_mg, z_mg) = heading_from_milligauss(
+                    compass_sample["x_mg"],
+                    compass_sample["y_mg"],
+                    compass_sample["z_mg"],
+                    calibration=compass_calibration,
+                )
+                compass_meta["message_type"] = compass_sample.get("message_type")
+            else:
+                if compass_reader is None:
+                    return
+                heading, (x_mg, y_mg, z_mg) = compass_reader.read_milligauss()
             if compass_heading_jump_reject is not None:
                 prev_heading = last_compass_in.get("heading_deg")
                 if prev_heading is not None:
@@ -3283,7 +3335,11 @@ def main():
                 }
             )
             time_boot_ms = int(now * 1000) % (2**32)
-            if compass_send_mavlink and mavlink_interface is not None:
+            if (
+                compass_mode == "i2c"
+                and compass_send_mavlink
+                and mavlink_interface is not None
+            ):
                 mavlink_interface.send_compass(
                     x_mg, y_mg, z_mg, time_boot_ms=time_boot_ms
                 )
@@ -3297,7 +3353,7 @@ def main():
                 )
             if compass_print:
                 print(
-                    f"Compass: heading={heading:6.2f} deg "
+                    f"Compass[{compass_mode}]: heading={heading:6.2f} deg "
                     f"mag=({x_mg:.1f},{y_mg:.1f},{z_mg:.1f})"
                 )
         except Exception as exc:
@@ -4036,8 +4092,8 @@ def main():
         compass_heading_deg = None
         if vps_gps_use_compass_yaw:
             compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
-        # GPS port path: always prefer compass heading when available.
-        compass_heading_for_port = _safe_float(last_compass_in.get("heading_deg"))
+        # VO GPS port path should use compass heading when available.
+        vo_compass_heading_for_port = _safe_float(last_compass_in.get("heading_deg"))
         # Optical-flow GPS integration should always use compass heading when available.
         optical_compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
         vo_scale_value = max(0.1, min(5.0, float(vo_scale_state.get())))
@@ -4080,10 +4136,11 @@ def main():
                 selector.gps_origin(),
                 alt_override_m=barometer_altitude_m_direct,
                 heading_deg=(
-                    compass_heading_for_port
-                    if compass_heading_for_port is not None
+                    vo_compass_heading_for_port
+                    if vo_compass_heading_for_port is not None
                     else runtime_heading_deg
                 ),
+                send_heading=gps_output_send_heading,
                 heading_only=False,
                 apply_final_altitude_offset=False,
                 use_origin_altitude=False,
@@ -4127,6 +4184,7 @@ def main():
                 selector.gps_origin(),
                 alt_override_m=optical_alt_override_m,
                 heading_deg=optical_compass_heading_deg,
+                send_heading=gps_output_send_heading,
                 heading_only=False,
             )
 
@@ -4142,8 +4200,8 @@ def main():
                 vo_vel_d_mps = 0.0
                 vo_course_deg = _heading_from_velocity(vo_vel_e_mps, vo_vel_n_mps)
                 vo_heading_deg = (
-                    compass_heading_for_port
-                    if compass_heading_for_port is not None
+                    vo_compass_heading_for_port
+                    if vo_compass_heading_for_port is not None
                     else (runtime_heading_deg if runtime_heading_deg is not None else vo_course_deg)
                 )
                 vo_alt_m = (
@@ -4309,6 +4367,8 @@ def main():
                         else None,
                     },
                     "compass": {
+                        "source": compass_meta.get("source"),
+                        "message_type": compass_meta.get("message_type"),
                         "bus": _safe_float(compass_meta["bus"]),
                         "addr": _safe_float(compass_meta["addr"]),
                         "incoming": {
@@ -4520,6 +4580,7 @@ def main():
                         selector.gps_origin(),
                         alt_override_m=alt_override_m,
                         heading_deg=optical_compass_heading_deg,
+                        send_heading=gps_output_send_heading,
                         heading_only=False,
                     )
 
@@ -4630,6 +4691,8 @@ def main():
                                 "optical_flow": sample.to_dict() if sample else None,
                             },
                             "compass": {
+                                "source": compass_meta.get("source"),
+                                "message_type": compass_meta.get("message_type"),
                                 "bus": _safe_float(compass_meta["bus"]),
                                 "addr": _safe_float(compass_meta["addr"]),
                                 "incoming": {

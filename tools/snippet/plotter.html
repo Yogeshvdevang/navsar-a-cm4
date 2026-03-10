@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sensor Plotter</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
+      :root {
+        --bg-1: #f2ede4;
+        --bg-2: #d9e2df;
+        --ink: #1c1a17;
+        --muted: #5a5753;
+        --panel: #f8f4ee;
+        --panel-2: #efe8df;
+        --accent: #e07a42;
+        --accent-2: #2b8c7b;
+        --grid: rgba(30, 30, 30, 0.08);
+        --ring: rgba(224, 122, 66, 0.2);
+        --shadow: 0 18px 45px rgba(19, 18, 16, 0.2);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at 20% 10%, #fff7ec 0%, var(--bg-1) 40%, var(--bg-2) 100%);
+        min-height: 100vh;
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 24px 56px;
+        display: grid;
+        gap: 22px;
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px;
+        justify-content: space-between;
+      }
+
+      header h1 {
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin: 0;
+        font-size: clamp(1.5rem, 2.2vw, 2.3rem);
+      }
+
+      header p {
+        margin: 6px 0 0;
+        color: var(--muted);
+      }
+
+      .status-pill {
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--ring);
+        background: rgba(255, 255, 255, 0.65);
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #c1b9ad;
+        box-shadow: 0 0 0 4px rgba(193, 185, 173, 0.25);
+      }
+
+      .dot.on {
+        background: var(--accent-2);
+        box-shadow: 0 0 0 6px rgba(43, 140, 123, 0.2);
+      }
+
+      .layout {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: minmax(0, 3fr) minmax(0, 1.3fr);
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(28, 26, 23, 0.08);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .panel::before {
+        content: "";
+        position: absolute;
+        inset: -40% auto auto -20%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(224, 122, 66, 0.22), transparent 60%);
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      .chart-wrap {
+        position: relative;
+        height: 420px;
+        background: linear-gradient(145deg, #f6f1e8, #f0e8dd);
+        border-radius: 16px;
+        border: 1px solid rgba(28, 26, 23, 0.06);
+        overflow: hidden;
+      }
+
+      canvas {
+        width: 100%;
+        height: 100%;
+      }
+
+      .controls {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+
+      label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      input[type="text"],
+      textarea,
+      select {
+        width: 100%;
+        border-radius: 12px;
+        padding: 10px 12px;
+        border: 1px solid rgba(28, 26, 23, 0.2);
+        background: #fffdf8;
+        font-family: "JetBrains Mono", "Courier New", monospace;
+        font-size: 0.9rem;
+      }
+
+      textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      .btn {
+        border: none;
+        border-radius: 999px;
+        padding: 10px 18px;
+        background: var(--accent);
+        color: #fffaf4;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: 0 10px 22px rgba(224, 122, 66, 0.25);
+      }
+
+      .btn.secondary {
+        background: #2d2a25;
+        box-shadow: 0 8px 18px rgba(45, 42, 37, 0.25);
+      }
+
+      .btn:active {
+        transform: translateY(1px);
+      }
+
+      .series-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .series-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: var(--panel-2);
+        border: 1px solid rgba(28, 26, 23, 0.08);
+        font-size: 0.92rem;
+        justify-content: space-between;
+      }
+
+      .series-item span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+
+      .value {
+        font-family: "JetBrains Mono", "Courier New", monospace;
+        font-weight: 500;
+      }
+
+      .table-wrap {
+        max-height: 240px;
+        overflow: auto;
+        border-radius: 12px;
+        border: 1px solid rgba(28, 26, 23, 0.08);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+
+      th,
+      td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(28, 26, 23, 0.08);
+        text-align: left;
+      }
+
+      th {
+        background: #f3ede4;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+
+      .hint {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 960px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Sensor Plotter</h1>
+          <p>Live HTML plotter for all numeric fields coming from your sensors.</p>
+        </div>
+        <div class="status-pill">
+          <span id="conn-dot" class="dot"></span>
+          <span id="conn-text">idle</span>
+        </div>
+      </header>
+
+      <section class="layout">
+        <div class="panel">
+          <div class="chart-wrap">
+            <canvas id="plot"></canvas>
+          </div>
+          <div class="controls">
+            <div>
+              <label for="ws-url">WebSocket URL (optional)</label>
+              <input id="ws-url" type="text" placeholder="ws://localhost:8765" />
+            </div>
+            <div>
+              <label>Controls</label>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;">
+                <button id="connect-btn" class="btn">Connect WS</button>
+                <button id="sse-btn" class="btn secondary">Connect Stream</button>
+                <button id="serial-btn" class="btn secondary">Connect Serial</button>
+                <button id="simulate-btn" class="btn secondary">Simulate</button>
+              </div>
+            </div>
+            <div>
+              <label for="window-seconds">Window (seconds)</label>
+              <input id="window-seconds" type="text" value="30" />
+            </div>
+          </div>
+          <div class="controls">
+            <div>
+              <label for="json-input">Paste JSON (one per line)</label>
+              <textarea id="json-input" placeholder='{"time_ms":123,"distance_mm":734,"strength":12}'></textarea>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button id="ingest-btn" class="btn">Add Lines</button>
+                <button id="clear-btn" class="btn secondary">Clear</button>
+              </div>
+              <p class="hint">
+                Web Serial works only on https or http://localhost. Use Edge/Chrome.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 style="margin-top: 0;">DATA</h3>
+          <div id="series-list" class="series-list"></div>
+
+          <h3 style="margin-top: 22px;">Recent Records</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr id="table-head"></tr>
+              </thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        times: [],
+        series: new Map(),
+        colors: [
+          "#e07a42",
+          "#2b8c7b",
+          "#6c4ed9",
+          "#d93d63",
+          "#2f6fb0",
+          "#b78a3c",
+          "#4b9b2c",
+          "#c95f3c",
+        ],
+        maxPoints: 800,
+        records: [],
+        socket: null,
+        sse: null,
+        serialPort: null,
+        serialReader: null,
+        serialCancel: null,
+        simulation: null,
+      };
+
+      const plot = document.getElementById("plot");
+      const seriesList = document.getElementById("series-list");
+      const tableHead = document.getElementById("table-head");
+      const tableBody = document.getElementById("table-body");
+      const connDot = document.getElementById("conn-dot");
+      const connText = document.getElementById("conn-text");
+
+      function updateStatus(isOn, text) {
+        connDot.classList.toggle("on", isOn);
+        connText.textContent = text;
+      }
+
+      function pickTimestamp(record) {
+        const keys = ["time_ms", "timestamp", "time", "t"];
+        for (const key of keys) {
+          if (typeof record[key] === "number") {
+            return record[key] * (key === "time_ms" ? 1 : 1000);
+          }
+        }
+        return Date.now();
+      }
+
+      function addSeriesKey(key) {
+        if (state.series.has(key)) {
+          return;
+        }
+        const color = state.colors[state.series.size % state.colors.length];
+        state.series.set(key, { color, values: Array(state.times.length).fill(NaN), enabled: true });
+      }
+
+      function ingestRecord(record) {
+        if (!record || typeof record !== "object") {
+          return;
+        }
+        const time = pickTimestamp(record);
+        state.times.push(time);
+        for (const key of Object.keys(record)) {
+          if (["time", "t", "timestamp", "time_ms"].includes(key)) {
+            continue;
+          }
+          if (typeof record[key] !== "number") {
+            continue;
+          }
+          addSeriesKey(key);
+        }
+        for (const [key, series] of state.series.entries()) {
+          const value = record[key];
+          series.values.push(typeof value === "number" ? value : NaN);
+        }
+
+        if (state.times.length > state.maxPoints) {
+          state.times.shift();
+          for (const series of state.series.values()) {
+            series.values.shift();
+          }
+        }
+
+        state.records.push(record);
+        if (state.records.length > 30) {
+          state.records.shift();
+        }
+
+        refreshSeriesList();
+        refreshTable();
+        drawPlot();
+      }
+
+      const fieldOrder = [
+        "distance_mm",
+        "distance_cm",
+        "height_m",
+        "strength",
+        "precision",
+        "dis_status",
+        "flow_vx",
+        "flow_vy",
+        "flow_quality",
+        "flow_status",
+        "speed_x",
+        "speed_y",
+      ];
+      const fieldLabels = {
+        distance_mm: "DISTANCE",
+        distance_cm: "DIST_CM",
+        height_m: "HEIGHT_M",
+        strength: "STRENGTH",
+        precision: "PRECISION",
+        dis_status: "DIST_STATUS",
+        flow_vx: "FLOW_VX",
+        flow_vy: "FLOW_VY",
+        flow_quality: "FLOW_QUAL",
+        flow_status: "FLOW_STA",
+        speed_x: "SPEED_X",
+        speed_y: "SPEED_Y",
+      };
+
+      for (const key of fieldOrder) {
+        addSeriesKey(key);
+      }
+
+      function refreshSeriesList() {
+        seriesList.innerHTML = "";
+        const keys = fieldOrder.concat(
+          Array.from(state.series.keys()).filter((key) => !fieldOrder.includes(key))
+        );
+        for (const key of keys) {
+          const series = state.series.get(key);
+          if (!series) {
+            continue;
+          }
+          const latest = series.values[series.values.length - 1];
+          const item = document.createElement("div");
+          item.className = "series-item";
+          const left = document.createElement("span");
+          const swatch = document.createElement("span");
+          swatch.className = "swatch";
+          swatch.style.background = series.color;
+          left.appendChild(swatch);
+          const label = document.createElement("strong");
+          label.textContent = fieldLabels[key] || key;
+          left.appendChild(label);
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = series.enabled;
+          checkbox.addEventListener("change", () => {
+            series.enabled = checkbox.checked;
+            drawPlot();
+          });
+          const value = document.createElement("span");
+          value.className = "value";
+          value.textContent = Number.isFinite(latest) ? latest.toFixed(2) : "--";
+          item.appendChild(left);
+          item.appendChild(value);
+          item.appendChild(checkbox);
+          seriesList.appendChild(item);
+        }
+      }
+
+      function refreshTable() {
+        const latest = state.records[state.records.length - 1];
+        if (!latest) {
+          tableHead.innerHTML = "";
+          tableBody.innerHTML = "";
+          return;
+        }
+        const keys = ["time_ms", "timestamp", "time", "t"]
+          .filter((key) => key in latest)
+          .concat(Object.keys(latest).filter((key) => !["time_ms", "timestamp", "time", "t"].includes(key)));
+        tableHead.innerHTML = keys.map((key) => `<th>${key}</th>`).join("");
+        tableBody.innerHTML = state.records
+          .slice()
+          .reverse()
+          .map((record) => {
+            const cells = keys.map((key) => {
+              const value = record[key];
+              if (typeof value === "number") {
+                return `<td>${value.toFixed(2)}</td>`;
+              }
+              return `<td>${value ?? ""}</td>`;
+            });
+            return `<tr>${cells.join("")}</tr>`;
+          })
+          .join("");
+      }
+
+      function drawPlot() {
+        const ctx = plot.getContext("2d");
+        const rect = plot.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        plot.width = rect.width * dpr;
+        plot.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        const padding = { left: 46, right: 16, top: 16, bottom: 32 };
+        const w = rect.width - padding.left - padding.right;
+        const h = rect.height - padding.top - padding.bottom;
+        ctx.save();
+        ctx.translate(padding.left, padding.top);
+
+        ctx.strokeStyle = "rgba(28,26,23,0.08)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i += 1) {
+          const y = (h / 5) * i;
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        if (!state.times.length) {
+          ctx.fillStyle = "rgba(28,26,23,0.45)";
+          ctx.font = "14px 'Space Grotesk'";
+          ctx.fillText("Waiting for data...", w / 2 - 60, h / 2);
+          ctx.restore();
+          return;
+        }
+
+        const windowSeconds = Math.max(1, Number.parseFloat(document.getElementById("window-seconds").value) || 30);
+        const latestTime = state.times[state.times.length - 1];
+        const startTime = latestTime - windowSeconds * 1000;
+        let startIndex = 0;
+        while (startIndex < state.times.length && state.times[startIndex] < startTime) {
+          startIndex += 1;
+        }
+
+        let min = Infinity;
+        let max = -Infinity;
+        for (const series of state.series.values()) {
+          if (!series.enabled) {
+            continue;
+          }
+          for (let i = startIndex; i < series.values.length; i += 1) {
+            const v = series.values[i];
+            if (Number.isFinite(v)) {
+              min = Math.min(min, v);
+              max = Math.max(max, v);
+            }
+          }
+        }
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+          min = 0;
+          max = 1;
+        }
+        const pad = min === max ? 1 : (max - min) * 0.12;
+        min -= pad;
+        max += pad;
+
+        const span = Math.max(1, latestTime - Math.max(startTime, state.times[0]));
+
+        for (const [key, series] of state.series.entries()) {
+          if (!series.enabled) {
+            continue;
+          }
+          ctx.beginPath();
+          let moved = false;
+          for (let i = startIndex; i < series.values.length; i += 1) {
+            const v = series.values[i];
+            if (!Number.isFinite(v)) {
+              moved = false;
+              continue;
+            }
+            const t = state.times[i];
+            const x = ((t - startTime) / span) * w;
+            const y = h - ((v - min) / (max - min)) * h;
+            if (!moved) {
+              ctx.moveTo(x, y);
+              moved = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          ctx.strokeStyle = series.color;
+          ctx.lineWidth = key.toLowerCase().includes("quality") ? 2.2 : 1.6;
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "rgba(28,26,23,0.5)";
+        ctx.font = "11px 'JetBrains Mono'";
+        ctx.fillText(`${windowSeconds}s window`, 0, h + 20);
+        ctx.fillText(`min ${min.toFixed(1)}`, 0, h + 34);
+        ctx.fillText(`max ${max.toFixed(1)}`, w - 80, h + 34);
+
+        ctx.restore();
+      }
+
+      function parseLines(text) {
+        const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        for (const line of lines) {
+          try {
+            ingestRecord(JSON.parse(line));
+          } catch (err) {
+            console.warn("Invalid JSON line", line);
+          }
+        }
+      }
+
+      function connectSocket() {
+        const url = document.getElementById("ws-url").value.trim();
+        if (!url) {
+          updateStatus(false, "missing url");
+          return;
+        }
+        if (state.socket) {
+          state.socket.close();
+        }
+        const socket = new WebSocket(url);
+        state.socket = socket;
+        updateStatus(false, "connecting...");
+        socket.addEventListener("open", () => updateStatus(true, "connected"));
+        socket.addEventListener("message", (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            ingestRecord(data);
+          } catch (err) {
+            console.warn("Invalid socket payload", err);
+          }
+        });
+        socket.addEventListener("close", () => updateStatus(false, "disconnected"));
+        socket.addEventListener("error", () => updateStatus(false, "error"));
+      }
+
+      function connectSSE() {
+        if (state.sse) {
+          state.sse.close();
+        }
+        const es = new EventSource("/stream");
+        state.sse = es;
+        updateStatus(false, "connecting stream...");
+        es.addEventListener("open", () => updateStatus(true, "stream connected"));
+        es.addEventListener("message", (event) => {
+          try {
+            ingestRecord(JSON.parse(event.data));
+          } catch (err) {
+            console.warn("Invalid stream payload", err);
+          }
+        });
+        es.addEventListener("error", () => updateStatus(false, "stream error"));
+      }
+
+      function checksumOk(raw) {
+        if (raw.length < 2) {
+          return false;
+        }
+        let sum = 0;
+        for (let i = 0; i < raw.length - 1; i += 1) {
+          sum = (sum + raw[i]) & 0xff;
+        }
+        return sum === raw[raw.length - 1];
+      }
+
+      function makeMicoLinkDecoder() {
+        const MICOLINK_MSG_HEAD = 0xef;
+        const MICOLINK_MAX_PAYLOAD_LEN = 64;
+        const MICOLINK_MSG_ID_RANGE_SENSOR = 0x51;
+        const MICOLINK_RANGE_PAYLOAD_LEN = 0x14;
+        const decoder = {
+          status: 0,
+          devId: 0,
+          sysId: 0,
+          msgId: 0,
+          seq: 0,
+          length: 0,
+          payload: [],
+          raw: [],
+          reset() {
+            this.status = 0;
+            this.devId = 0;
+            this.sysId = 0;
+            this.msgId = 0;
+            this.seq = 0;
+            this.length = 0;
+            this.payload = [];
+            this.raw = [];
+          },
+          parseByte(byte) {
+            if (this.status === 0) {
+              if (byte === MICOLINK_MSG_HEAD) {
+                this.raw = [byte];
+                this.status = 1;
+              }
+              return null;
+            }
+            if (this.status === 1) {
+              this.devId = byte;
+              this.raw.push(byte);
+              this.status = 2;
+              return null;
+            }
+            if (this.status === 2) {
+              this.sysId = byte;
+              this.raw.push(byte);
+              this.status = 3;
+              return null;
+            }
+            if (this.status === 3) {
+              this.msgId = byte;
+              this.raw.push(byte);
+              this.status = 4;
+              return null;
+            }
+            if (this.status === 4) {
+              this.seq = byte;
+              this.raw.push(byte);
+              this.status = 5;
+              return null;
+            }
+            if (this.status === 5) {
+              this.length = byte;
+              this.raw.push(byte);
+              if (this.length === 0) {
+                this.status = 7;
+              } else if (this.length > MICOLINK_MAX_PAYLOAD_LEN) {
+                this.reset();
+              } else {
+                this.payload = [];
+                this.status = 6;
+              }
+              return null;
+            }
+            if (this.status === 6) {
+              this.payload.push(byte);
+              this.raw.push(byte);
+              if (this.payload.length === this.length) {
+                this.status = 7;
+              }
+              return null;
+            }
+            if (this.status === 7) {
+              this.raw.push(byte);
+              if (checksumOk(this.raw)) {
+                const decoded = this.decodeMessage();
+                this.reset();
+                return decoded;
+              }
+              this.reset();
+              return null;
+            }
+            return null;
+          },
+          decodeMessage() {
+            if (this.msgId !== MICOLINK_MSG_ID_RANGE_SENSOR) {
+              return null;
+            }
+            if (this.length !== MICOLINK_RANGE_PAYLOAD_LEN || this.payload.length !== MICOLINK_RANGE_PAYLOAD_LEN) {
+              return null;
+            }
+            const data = new Uint8Array(this.payload);
+            const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+            let offset = 0;
+            const time_ms = view.getUint32(offset, true);
+            offset += 4;
+            const distance_mm = view.getUint32(offset, true);
+            offset += 4;
+            const strength = view.getUint8(offset);
+            offset += 1;
+            const precision = view.getUint8(offset);
+            offset += 1;
+            const distance_status = view.getUint8(offset);
+            offset += 1;
+            offset += 1;
+            const flow_vel_x = view.getInt16(offset, true);
+            offset += 2;
+            const flow_vel_y = view.getInt16(offset, true);
+            offset += 2;
+            const flow_quality = view.getUint8(offset);
+            offset += 1;
+            const flow_status = view.getUint8(offset);
+            return {
+              time_ms,
+              distance_mm,
+              strength,
+              precision,
+              distance_status,
+              flow_vel_x,
+              flow_vel_y,
+              flow_quality,
+              flow_status,
+            };
+          },
+        };
+        return decoder;
+      }
+
+      async function connectSerial() {
+        if (!("serial" in navigator)) {
+          updateStatus(false, "Web Serial not supported");
+          return;
+        }
+        try {
+          if (state.serialReader) {
+            await state.serialReader.cancel();
+          }
+          if (state.serialPort) {
+            await state.serialPort.close();
+          }
+          const port = await navigator.serial.requestPort();
+          await port.open({ baudRate: 115200 });
+          state.serialPort = port;
+          updateStatus(true, "serial connected");
+          const decoder = makeMicoLinkDecoder();
+          const reader = port.readable.getReader();
+          state.serialReader = reader;
+          state.serialCancel = false;
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done || state.serialCancel) {
+              break;
+            }
+            if (!value) {
+              continue;
+            }
+            for (const byte of value) {
+              const parsed = decoder.parseByte(byte);
+              if (parsed) {
+                ingestRecord(parsed);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Serial error", err);
+          updateStatus(false, "serial error");
+        }
+      }
+
+      function startSimulation() {
+        if (state.simulation) {
+          clearInterval(state.simulation);
+        }
+        let t = 0;
+        state.simulation = setInterval(() => {
+          t += 0.1;
+          ingestRecord({
+            time_ms: Date.now(),
+            distance_mm: 800 + Math.sin(t) * 220 + Math.random() * 40,
+            strength: 12 + Math.sin(t * 0.4) * 6,
+            precision: 6 + Math.cos(t * 0.5) * 3,
+            flow_vel_x: Math.sin(t * 1.4) * 20,
+            flow_vel_y: Math.cos(t * 1.2) * 18,
+            flow_quality: 50 + Math.sin(t * 0.7) * 20,
+          });
+        }, 100);
+        updateStatus(true, "simulating");
+      }
+
+      document.getElementById("connect-btn").addEventListener("click", connectSocket);
+      document.getElementById("sse-btn").addEventListener("click", connectSSE);
+      document.getElementById("serial-btn").addEventListener("click", connectSerial);
+      document.getElementById("simulate-btn").addEventListener("click", startSimulation);
+      document.getElementById("ingest-btn").addEventListener("click", () => {
+        parseLines(document.getElementById("json-input").value);
+      });
+      document.getElementById("clear-btn").addEventListener("click", () => {
+        state.times = [];
+        state.series.clear();
+        state.records = [];
+        refreshSeriesList();
+        refreshTable();
+        drawPlot();
+      });
+
+      window.addEventListener("resize", drawPlot);
+      drawPlot();
+    </script>
+  </body>
+</html>

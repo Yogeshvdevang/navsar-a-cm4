@@ -55,6 +55,7 @@ class GpsPortMode:
         alt_override_m=None,
         nav_pvt_alt_mm_override=None,
         heading_deg=None,
+        send_heading=True,
         heading_only=False,
         apply_final_altitude_offset=True,
         use_origin_altitude=True,
@@ -95,7 +96,9 @@ class GpsPortMode:
         vy_enu = _clamp(vy_enu, -MAX_GPS_SPEED_MPS, MAX_GPS_SPEED_MPS)
         vz_enu = _clamp(vz_enu, -MAX_GPS_SPEED_MPS, MAX_GPS_SPEED_MPS)
 
-        heading_override = float(heading_deg) if _finite(heading_deg) else None
+        heading_override = (
+            float(heading_deg) if send_heading and _finite(heading_deg) else None
+        )
         if heading_only and heading_override is None:
             self._warn(now, "GPS->PORT: compass heading unavailable; forcing 0°.")
             heading_override = 0.0
@@ -115,6 +118,7 @@ class GpsPortMode:
                 vy_enu,
                 course_deg_override=course_override,
                 force_heading=heading_only,
+                include_heading=send_heading,
             )
         if self.ubx_emitter is not None and self.ubx_emitter.ready(now):
             course_override = heading_override if heading_only or heading_override is not None else None
@@ -127,10 +131,15 @@ class GpsPortMode:
                 nav_pvt_alt_mm_override=nav_pvt_alt_mm_override,
                 course_deg_override=course_override,
                 force_heading=heading_only,
+                include_heading=send_heading,
             )
         if nmea_payload or ubx_payload:
             speed_mps, computed_heading_deg = speed_course_from_enu(vx_enu, vy_enu)
-            heading_deg = heading_override if heading_override is not None else computed_heading_deg
+            heading_deg = (
+                heading_override
+                if heading_override is not None
+                else (computed_heading_deg if send_heading else None)
+            )
             sats_value = None
             if ubx_payload and ubx_payload.get("sats") is not None:
                 sats_value = ubx_payload.get("sats")
@@ -178,7 +187,11 @@ class GpsPortMode:
 
         if self.print_enabled and (nmea_payload or ubx_payload):
             speed_mps, computed_heading_deg = speed_course_from_enu(vx_enu, vy_enu)
-            heading_deg = heading_override if heading_override is not None else computed_heading_deg
+            heading_deg = (
+                heading_override
+                if heading_override is not None
+                else (computed_heading_deg if send_heading else None)
+            )
             sats_display = None
             if nmea_payload and "sats" in nmea_payload:
                 sats_display = nmea_payload["sats"]
@@ -200,7 +213,7 @@ class GpsPortMode:
                 f"LON : {abs(lon):.7f}° {'E' if lon >= 0 else 'W'}\n"
                 f"ALT : {alt_m:.4f} m\n"
                 f"SPD : {speed_mps:.2f} m/s\n"
-                f"HDG : {heading_deg:.1f}°\n"
+                f"HDG : {'n/a' if heading_deg is None else f'{heading_deg:.1f}°'}\n"
                 f"SATS: {sats_text}\n"
                 f"Sent: {sent_label}"
             )

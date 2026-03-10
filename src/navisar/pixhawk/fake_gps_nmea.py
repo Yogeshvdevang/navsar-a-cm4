@@ -92,9 +92,10 @@ def rmc_sentence(
     lat_str, lat_dir = _format_lat(lat)
     lon_str, lon_dir = _format_lon(lon)
     speed_knots = speed_mps * 1.94384
+    course_field = "" if course_deg is None else f"{float(course_deg):.1f}"
     body = (
         f"GPRMC,{time_str},{status},{lat_str},{lat_dir},"
-        f"{lon_str},{lon_dir},{speed_knots:.1f},{course_deg:.1f},{date_str},,,A"
+        f"{lon_str},{lon_dir},{speed_knots:.1f},{course_field},{date_str},,,A"
     )
     return _wrap_nmea(body)
 

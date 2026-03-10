@@ -250,6 +250,30 @@ class MavlinkInterface:
             "time_s": float(time_s),
         }
 
+    def recv_compass(self):
+        """Receive one MAVLink magnetometer message and return parsed xyz data."""
+        msg = self.recv_match_safe(
+            type=["RAW_IMU", "HIGHRES_IMU", "SCALED_IMU", "SCALED_IMU2", "SCALED_IMU3"],
+            blocking=False,
+        )
+        if msg is None:
+            return None
+        time_usec = getattr(msg, "time_usec", None)
+        time_boot_ms = getattr(msg, "time_boot_ms", None)
+        if time_usec is not None:
+            time_s = float(time_usec) * 1e-6
+        elif time_boot_ms is not None:
+            time_s = float(time_boot_ms) * 1e-3
+        else:
+            time_s = time.time()
+        return {
+            "x_mg": float(getattr(msg, "xmag", 0.0)),
+            "y_mg": float(getattr(msg, "ymag", 0.0)),
+            "z_mg": float(getattr(msg, "zmag", 0.0)),
+            "time_s": float(time_s),
+            "message_type": msg.get_type(),
+        }
+
     def recv_barometer(self):
         """Receive one raw barometer MAVLink message."""
         return self.recv_match_safe(

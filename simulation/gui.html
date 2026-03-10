@@ -157,8 +157,34 @@
         color: var(--muted);
       }
 
+      .manual-calib-form {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .manual-calib-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .manual-calib-grid input {
+        width: 100%;
+        background: #000;
+        color: var(--text);
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
       @media (max-width: 980px) {
         .gps-origin-fields {
+          grid-template-columns: 1fr;
+        }
+
+        .manual-calib-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -754,12 +780,51 @@
           <button id="of-scale-write-btn" class="of-scale-write-btn" type="button">Write</button>
         </div>
       </div>
-      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Auto Calibration</div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">GPS Port Auto Calibration</div>
       <div class="mode-buttons">
-        <button id="auto-calib-btn">Start Auto Calib</button>
+        <button id="auto-calib-btn">Start GPS Port Auto Calib</button>
       </div>
       <div class="gps-origin-note" id="auto-calib-status">
-        Auto calib: idle
+        GPS port auto calib: idle
+      </div>
+      <div class="gps-origin-note" id="auto-calib-result-label">
+        GPS port auto calib values: lat_scale=-- lon_scale=-- alt_offset_m=--
+      </div>
+      <div class="manual-calib-form">
+        <div class="manual-calib-grid">
+          <input id="auto-calib-lat-scale-input" type="number" step="0.001" min="0.50" max="2.00" value="1.000" placeholder="Lat Scale" />
+          <input id="auto-calib-lon-scale-input" type="number" step="0.001" min="0.50" max="2.00" value="1.000" placeholder="Lon Scale" />
+          <input id="auto-calib-alt-offset-input" type="number" step="0.001" min="-5.000" max="5.000" value="0.000" placeholder="Alt Offset (m)" />
+        </div>
+        <div class="mode-buttons">
+          <button id="auto-calib-apply-btn" type="button">Apply GPS Port Manual Calib</button>
+        </div>
+        <div class="gps-origin-note" id="auto-calib-manual-status">
+          GPS port manual calib values: lat_scale=1.000 lon_scale=1.000 alt_offset_m=0.000
+        </div>
+      </div>
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">Optical Flow GPS Auto Calibration</div>
+      <div class="mode-buttons">
+        <button id="optical-auto-calib-btn">Start Optical GPS Auto Calib</button>
+      </div>
+      <div class="gps-origin-note" id="optical-auto-calib-status">
+        Optical GPS auto calib: idle
+      </div>
+      <div class="gps-origin-note" id="optical-auto-calib-result-label">
+        Optical GPS auto calib values: lat_scale=-- lon_scale=-- alt_offset_m=--
+      </div>
+      <div class="manual-calib-form">
+        <div class="manual-calib-grid">
+          <input id="optical-auto-calib-lat-scale-input" type="number" step="0.001" min="0.50" max="2.00" value="1.000" placeholder="Lat Scale" />
+          <input id="optical-auto-calib-lon-scale-input" type="number" step="0.001" min="0.50" max="2.00" value="1.000" placeholder="Lon Scale" />
+          <input id="optical-auto-calib-alt-offset-input" type="number" step="0.001" min="-5.000" max="5.000" value="0.000" placeholder="Alt Offset (m)" />
+        </div>
+        <div class="mode-buttons">
+          <button id="optical-auto-calib-apply-btn" type="button">Apply Optical GPS Manual Calib</button>
+        </div>
+        <div class="gps-origin-note" id="optical-auto-calib-manual-status">
+          Optical GPS manual calib values: lat_scale=1.000 lon_scale=1.000 alt_offset_m=0.000
+        </div>
       </div>
       <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">VO Scale Factor</div>
       <div class="gps-origin-note" id="vo-scale-status">VO scale: idle</div>
@@ -1307,6 +1372,20 @@
       const latScaleValueEl = document.getElementById("lat-scale-value");
       const lonScaleValueEl = document.getElementById("lon-scale-value");
       const altOffsetValueEl = document.getElementById("alt-offset-value");
+      const autoCalibLatScaleInput = document.getElementById("auto-calib-lat-scale-input");
+      const autoCalibLonScaleInput = document.getElementById("auto-calib-lon-scale-input");
+      const autoCalibAltOffsetInput = document.getElementById("auto-calib-alt-offset-input");
+      const autoCalibApplyBtn = document.getElementById("auto-calib-apply-btn");
+      const autoCalibManualStatusEl = document.getElementById("auto-calib-manual-status");
+      const autoCalibResultLabelEl = document.getElementById("auto-calib-result-label");
+      const opticalAutoCalibBtn = document.getElementById("optical-auto-calib-btn");
+      const opticalAutoCalibStatusEl = document.getElementById("optical-auto-calib-status");
+      const opticalAutoCalibLatScaleInput = document.getElementById("optical-auto-calib-lat-scale-input");
+      const opticalAutoCalibLonScaleInput = document.getElementById("optical-auto-calib-lon-scale-input");
+      const opticalAutoCalibAltOffsetInput = document.getElementById("optical-auto-calib-alt-offset-input");
+      const opticalAutoCalibApplyBtn = document.getElementById("optical-auto-calib-apply-btn");
+      const opticalAutoCalibManualStatusEl = document.getElementById("optical-auto-calib-manual-status");
+      const opticalAutoCalibResultLabelEl = document.getElementById("optical-auto-calib-result-label");
       const gpsTuningDefaultBtn = document.getElementById("gps-tuning-default-btn");
       const gpsTuningState = {
         lat_scale: 1.0,
@@ -1317,6 +1396,7 @@
         vo_lon_scale: 1.0,
         syncing: false,
         pendingTimer: null,
+        manualLockUntil: 0,
       };
       const gpsTuningDefaults = {
         lat_scale: 1.0,
@@ -1528,6 +1608,46 @@
         if (gpsCalibrationStatusEl) gpsCalibrationStatusEl.textContent = text;
       };
 
+      const setAutoCalibManualStatus = (text) => {
+        if (autoCalibManualStatusEl) autoCalibManualStatusEl.textContent = text;
+      };
+
+      const setAutoCalibResultLabel = (latScale, lonScale, altOffsetM) => {
+        if (!autoCalibResultLabelEl) return;
+        if (
+          Number.isFinite(Number(latScale))
+          && Number.isFinite(Number(lonScale))
+          && Number.isFinite(Number(altOffsetM))
+        ) {
+          autoCalibResultLabelEl.textContent =
+            `GPS port auto calib values: lat_scale=${Number(latScale).toFixed(3)} lon_scale=${Number(lonScale).toFixed(3)} alt_offset_m=${Number(altOffsetM).toFixed(3)}`;
+          return;
+        }
+        autoCalibResultLabelEl.textContent = "GPS port auto calib values: lat_scale=-- lon_scale=-- alt_offset_m=--";
+      };
+
+      const setOpticalAutoCalibStatus = (text) => {
+        if (opticalAutoCalibStatusEl) opticalAutoCalibStatusEl.textContent = text;
+      };
+
+      const setOpticalAutoCalibManualStatus = (text) => {
+        if (opticalAutoCalibManualStatusEl) opticalAutoCalibManualStatusEl.textContent = text;
+      };
+
+      const setOpticalAutoCalibResultLabel = (latScale, lonScale, altOffsetM) => {
+        if (!opticalAutoCalibResultLabelEl) return;
+        if (
+          Number.isFinite(Number(latScale))
+          && Number.isFinite(Number(lonScale))
+          && Number.isFinite(Number(altOffsetM))
+        ) {
+          opticalAutoCalibResultLabelEl.textContent =
+            `Optical GPS auto calib values: lat_scale=${Number(latScale).toFixed(3)} lon_scale=${Number(lonScale).toFixed(3)} alt_offset_m=${Number(altOffsetM).toFixed(3)}`;
+          return;
+        }
+        opticalAutoCalibResultLabelEl.textContent = "Optical GPS auto calib values: lat_scale=-- lon_scale=-- alt_offset_m=--";
+      };
+
       const clampNumber = (v, min, max) => Math.min(max, Math.max(min, v));
 
       const setTuningUi = (latScale, lonScale, altOffsetM) => {
@@ -1537,9 +1657,33 @@
         if (latScaleInput) latScaleInput.value = Number(latScale).toFixed(3);
         if (lonScaleInput) lonScaleInput.value = Number(lonScale).toFixed(3);
         if (altOffsetInput) altOffsetInput.value = Number(altOffsetM).toFixed(3);
+        if (autoCalibLatScaleInput && !document.activeElement?.isSameNode(autoCalibLatScaleInput)) {
+          autoCalibLatScaleInput.value = Number(latScale).toFixed(3);
+        }
+        if (autoCalibLonScaleInput && !document.activeElement?.isSameNode(autoCalibLonScaleInput)) {
+          autoCalibLonScaleInput.value = Number(lonScale).toFixed(3);
+        }
+        if (autoCalibAltOffsetInput && !document.activeElement?.isSameNode(autoCalibAltOffsetInput)) {
+          autoCalibAltOffsetInput.value = Number(altOffsetM).toFixed(3);
+        }
+        if (opticalAutoCalibLatScaleInput && !document.activeElement?.isSameNode(opticalAutoCalibLatScaleInput)) {
+          opticalAutoCalibLatScaleInput.value = Number(latScale).toFixed(3);
+        }
+        if (opticalAutoCalibLonScaleInput && !document.activeElement?.isSameNode(opticalAutoCalibLonScaleInput)) {
+          opticalAutoCalibLonScaleInput.value = Number(lonScale).toFixed(3);
+        }
+        if (opticalAutoCalibAltOffsetInput && !document.activeElement?.isSameNode(opticalAutoCalibAltOffsetInput)) {
+          opticalAutoCalibAltOffsetInput.value = Number(altOffsetM).toFixed(3);
+        }
         if (latScaleValueEl) latScaleValueEl.textContent = Number(latScale).toFixed(3);
         if (lonScaleValueEl) lonScaleValueEl.textContent = Number(lonScale).toFixed(3);
         if (altOffsetValueEl) altOffsetValueEl.textContent = Number(altOffsetM).toFixed(3);
+        setAutoCalibManualStatus(
+          `GPS port manual calib values: lat_scale=${Number(latScale).toFixed(3)} lon_scale=${Number(lonScale).toFixed(3)} alt_offset_m=${Number(altOffsetM).toFixed(3)}`
+        );
+        setOpticalAutoCalibManualStatus(
+          `Optical GPS manual calib values: lat_scale=${Number(latScale).toFixed(3)} lon_scale=${Number(lonScale).toFixed(3)} alt_offset_m=${Number(altOffsetM).toFixed(3)}`
+        );
       };
 
       const readTuningFromSliders = () => ({
@@ -1560,6 +1704,109 @@
         if (altOffsetInput && altOffsetSlider) {
           const v = clampNumber(Number(altOffsetInput.value), -5.0, 5.0);
           if (Number.isFinite(v)) altOffsetSlider.value = v.toFixed(3);
+        }
+      };
+
+      const readManualAutoCalibInputs = () => ({
+        lat_scale: clampNumber(
+          Number(autoCalibLatScaleInput ? autoCalibLatScaleInput.value : gpsTuningState.lat_scale),
+          0.5,
+          2.0
+        ),
+        lon_scale: clampNumber(
+          Number(autoCalibLonScaleInput ? autoCalibLonScaleInput.value : gpsTuningState.lon_scale),
+          0.5,
+          2.0
+        ),
+        alt_offset_m: clampNumber(
+          Number(autoCalibAltOffsetInput ? autoCalibAltOffsetInput.value : gpsTuningState.alt_offset_m),
+          -5.0,
+          5.0
+        ),
+      });
+
+      const syncMainTuningInputsFromManualAutoCalib = () => {
+        const next = readManualAutoCalibInputs();
+        if (latScaleInput) latScaleInput.value = next.lat_scale.toFixed(3);
+        if (lonScaleInput) lonScaleInput.value = next.lon_scale.toFixed(3);
+        if (altOffsetInput) altOffsetInput.value = next.alt_offset_m.toFixed(3);
+        syncSliderFromInput();
+        applyTuningLocal(next);
+        return next;
+      };
+
+      const readManualOpticalAutoCalibInputs = () => ({
+        lat_scale: clampNumber(
+          Number(opticalAutoCalibLatScaleInput ? opticalAutoCalibLatScaleInput.value : gpsTuningState.lat_scale),
+          0.5,
+          2.0
+        ),
+        lon_scale: clampNumber(
+          Number(opticalAutoCalibLonScaleInput ? opticalAutoCalibLonScaleInput.value : gpsTuningState.lon_scale),
+          0.5,
+          2.0
+        ),
+        alt_offset_m: clampNumber(
+          Number(opticalAutoCalibAltOffsetInput ? opticalAutoCalibAltOffsetInput.value : gpsTuningState.alt_offset_m),
+          -5.0,
+          5.0
+        ),
+      });
+
+      const syncMainTuningInputsFromOpticalAutoCalib = () => {
+        const next = readManualOpticalAutoCalibInputs();
+        if (latScaleInput) latScaleInput.value = next.lat_scale.toFixed(3);
+        if (lonScaleInput) lonScaleInput.value = next.lon_scale.toFixed(3);
+        if (altOffsetInput) altOffsetInput.value = next.alt_offset_m.toFixed(3);
+        syncSliderFromInput();
+        applyTuningLocal(next);
+        return next;
+      };
+
+      const clearPendingCalibrationPush = () => {
+        if (gpsTuningState.pendingTimer) {
+          clearTimeout(gpsTuningState.pendingTimer);
+          gpsTuningState.pendingTimer = null;
+        }
+      };
+
+      const lockManualCalibrationUi = (durationMs = 2500) => {
+        gpsTuningState.manualLockUntil = Date.now() + durationMs;
+      };
+
+      const isManualCalibrationUiLocked = () => Date.now() < Number(gpsTuningState.manualLockUntil || 0);
+
+      const waitForCalibrationSyncIdle = async (timeoutMs = 1500) => {
+        const deadline = Date.now() + timeoutMs;
+        while (gpsTuningState.syncing && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        return !gpsTuningState.syncing;
+      };
+
+      const postCalibrationTuningDirect = async (tuning) => {
+        try {
+          const res = await fetch(calibrationTuningUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              lat_scale: Number(tuning.lat_scale),
+              lon_scale: Number(tuning.lon_scale),
+              alt_offset_m: Number(tuning.alt_offset_m),
+              vo_scale: Number(gpsTuningState.vo_scale),
+              vo_lat_scale: Number(gpsTuningState.vo_lat_scale),
+              vo_lon_scale: Number(gpsTuningState.vo_lon_scale),
+            }),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (res.ok && payload?.ok && payload?.tuning) {
+            applyTuningLocal(payload.tuning);
+            if (payload?.defaults) applyTuningDefaultsLocal(payload.defaults);
+            return { ok: true, payload };
+          }
+          return { ok: false, error: payload?.error || `HTTP ${res.status}`, payload };
+        } catch (err) {
+          return { ok: false, error: err?.message || "endpoint unavailable" };
         }
       };
 
@@ -1663,6 +1910,9 @@
       };
 
       const refreshCalibrationTuning = async () => {
+        if (isManualCalibrationUiLocked()) {
+          return;
+        }
         try {
           const res = await fetch(calibrationTuningUrl, { cache: "no-store" });
           const payload = await res.json();
@@ -3076,12 +3326,14 @@
           const gpsSensorValid = isValidGpsCoord(gpsSensorLatRaw, gpsSensorLonRaw);
           const gpsSensorLat = gpsSensorValid ? gpsSensorLatRaw : NaN;
           const gpsSensorLon = gpsSensorValid ? gpsSensorLonRaw : NaN;
-          const gpsPortOut = data.outputs?.gps_port || data.outputs?.optical_flow_gps_port || {};
+          const gpsPortOut = data.outputs?.gps_port || {};
+          const opticalGpsPortOut = data.outputs?.optical_flow_gps_port || {};
+          const selectedGpsOutput = getPixhawkGpsPortFix(data) || {};
           const gpsPortLatRaw = asFiniteNumber(
-            gpsPortOut?.lat
+            selectedGpsOutput?.lat
           );
           const gpsPortLonRaw = asFiniteNumber(
-            gpsPortOut?.lon
+            selectedGpsOutput?.lon
           );
           const gpsPortValid = isValidGpsCoord(gpsPortLatRaw, gpsPortLonRaw);
           const gpsPortLat = gpsPortValid ? gpsPortLatRaw : NaN;
@@ -3099,11 +3351,23 @@
               `GPS Sensor: lat=${sLatTxt} lon=${sLonTxt} alt=${sAltTxt}m fix=${sFixTxt} hdg=${sHdg}°`;
           }
           plotState.gpsPortHeadingDeg = asFiniteNumber(
-            gpsPortOut?.heading_deg,
+            selectedGpsOutput?.heading_deg,
             plotState.gpsPortHeadingDeg
           );
           const gpsPortFinalAltitudeM = asFiniteNumber(
-            data.outputs?.gps_port?.alt_m
+            selectedGpsOutput?.alt_m
+          );
+          const opticalGpsPortLatRaw = asFiniteNumber(
+            opticalGpsPortOut?.lat
+          );
+          const opticalGpsPortLonRaw = asFiniteNumber(
+            opticalGpsPortOut?.lon
+          );
+          const opticalGpsPortValid = isValidGpsCoord(opticalGpsPortLatRaw, opticalGpsPortLonRaw);
+          const opticalGpsPortLat = opticalGpsPortValid ? opticalGpsPortLatRaw : NaN;
+          const opticalGpsPortLon = opticalGpsPortValid ? opticalGpsPortLonRaw : NaN;
+          const opticalGpsPortFinalAltitudeM = asFiniteNumber(
+            data.outputs?.optical_flow_gps_port?.alt_m
           );
           captureAutoCalibSample({
             tMs: Date.now(),
@@ -3113,6 +3377,15 @@
             sentLat: gpsPortLat,
             sentLon: gpsPortLon,
             sentAlt: gpsPortFinalAltitudeM,
+          });
+          captureOpticalAutoCalibSample({
+            tMs: Date.now(),
+            rawLat: gpsSensorLat,
+            rawLon: gpsSensorLon,
+            rawAlt: gpsSensorAltitudeM,
+            sentLat: opticalGpsPortLat,
+            sentLon: opticalGpsPortLon,
+            sentAlt: opticalGpsPortFinalAltitudeM,
           });
           captureVoAutoCalibSample({
             tMs: Date.now(),
@@ -3573,6 +3846,11 @@
         startedAtMs: null,
         samples: [],
       };
+      const opticalAutoCalibState = {
+        running: false,
+        startedAtMs: null,
+        samples: [],
+      };
       const voAutoCalibState = {
         running: false,
         startedAtMs: null,
@@ -3630,13 +3908,18 @@
         autoCalibState.samples.push(sample);
         if (autoCalibState.samples.length > 12000) autoCalibState.samples.shift();
       };
+      const captureOpticalAutoCalibSample = (sample) => {
+        if (!opticalAutoCalibState.running) return;
+        opticalAutoCalibState.samples.push(sample);
+        if (opticalAutoCalibState.samples.length > 12000) opticalAutoCalibState.samples.shift();
+      };
       const captureVoAutoCalibSample = (sample) => {
         if (!voAutoCalibState.running) return;
         voAutoCalibState.samples.push(sample);
         if (voAutoCalibState.samples.length > 12000) voAutoCalibState.samples.shift();
       };
-      const computeAutoCalibResult = () => {
-        const valid = autoCalibState.samples.filter((s) =>
+      const computeTrajectoryAutoCalibResult = (samples) => {
+        const valid = samples.filter((s) =>
           isValidGpsCoordGlobal(s.rawLat, s.rawLon) && isValidGpsCoordGlobal(s.sentLat, s.sentLon)
         );
         if (valid.length < 30) {
@@ -3705,19 +3988,22 @@
           suggestedHz: Number.isFinite(rawHz) ? Math.round(rawHz) : (Number.isFinite(sentHz) ? Math.round(sentHz) : null),
         };
       };
+      const computeAutoCalibResult = () => computeTrajectoryAutoCalibResult(autoCalibState.samples);
+      const computeOpticalAutoCalibResult = () => computeTrajectoryAutoCalibResult(opticalAutoCalibState.samples);
       const startAutoCalib = () => {
         autoCalibState.running = true;
         autoCalibState.startedAtMs = Date.now();
         autoCalibState.samples = [];
-        if (autoCalibBtn) autoCalibBtn.textContent = "Finish Auto Calib";
-        setAutoCalibStatus("Auto calib: started. Lift drone and draw any shape for 20-40s, then click Finish.");
+        if (autoCalibBtn) autoCalibBtn.textContent = "Finish GPS Port Auto Calib";
+        setAutoCalibStatus("GPS port auto calib: started. Fly 20-40s, then click Finish.");
+        setAutoCalibResultLabel(null, null, null);
       };
       const finishAutoCalib = async () => {
         autoCalibState.running = false;
-        if (autoCalibBtn) autoCalibBtn.textContent = "Start Auto Calib";
+        if (autoCalibBtn) autoCalibBtn.textContent = "Start GPS Port Auto Calib";
         const result = computeAutoCalibResult();
         if (!result.ok) {
-          setAutoCalibStatus(`Auto calib: failed - ${result.error}`);
+          setAutoCalibStatus(`GPS port auto calib: failed - ${result.error}`);
           return;
         }
         const nextLat = clamp(Number(gpsTuningState.lat_scale) * result.kLat, 0.5, 2.0);
@@ -3728,11 +4014,44 @@
           lon_scale: nextLon,
           alt_offset_m: nextAlt,
         });
+        setAutoCalibResultLabel(nextLat, nextLon, nextAlt);
         const freqMsg = Number.isFinite(result.rawHz) && Number.isFinite(result.sentHz)
           ? `raw=${result.rawHz.toFixed(2)}Hz sent=${result.sentHz.toFixed(2)}Hz suggested=${result.suggestedHz || "--"}Hz`
           : "frequency estimate unavailable";
         setAutoCalibStatus(
-          `Auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | tuning lat=${nextLat.toFixed(3)} lon=${nextLon.toFixed(3)} alt=${nextAlt.toFixed(3)} | ${freqMsg}`
+          `GPS port auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | tuning lat=${nextLat.toFixed(3)} lon=${nextLon.toFixed(3)} alt=${nextAlt.toFixed(3)} | ${freqMsg}`
+        );
+      };
+      const startOpticalAutoCalib = () => {
+        opticalAutoCalibState.running = true;
+        opticalAutoCalibState.startedAtMs = Date.now();
+        opticalAutoCalibState.samples = [];
+        if (opticalAutoCalibBtn) opticalAutoCalibBtn.textContent = "Finish Optical GPS Auto Calib";
+        setOpticalAutoCalibStatus("Optical GPS auto calib: started. Fly 20-40s in optical GPS mode, then click Finish.");
+        setOpticalAutoCalibResultLabel(null, null, null);
+      };
+      const finishOpticalAutoCalib = async () => {
+        opticalAutoCalibState.running = false;
+        if (opticalAutoCalibBtn) opticalAutoCalibBtn.textContent = "Start Optical GPS Auto Calib";
+        const result = computeOpticalAutoCalibResult();
+        if (!result.ok) {
+          setOpticalAutoCalibStatus(`Optical GPS auto calib: failed - ${result.error}`);
+          return;
+        }
+        const nextLat = clamp(Number(gpsTuningState.lat_scale) * result.kLat, 0.5, 2.0);
+        const nextLon = clamp(Number(gpsTuningState.lon_scale) * result.kLon, 0.5, 2.0);
+        const nextAlt = clamp(Number(gpsTuningState.alt_offset_m) + result.altDelta, -5.0, 5.0);
+        await pushCalibrationTuning({
+          lat_scale: nextLat,
+          lon_scale: nextLon,
+          alt_offset_m: nextAlt,
+        });
+        setOpticalAutoCalibResultLabel(nextLat, nextLon, nextAlt);
+        const freqMsg = Number.isFinite(result.rawHz) && Number.isFinite(result.sentHz)
+          ? `raw=${result.rawHz.toFixed(2)}Hz sent=${result.sentHz.toFixed(2)}Hz suggested=${result.suggestedHz || "--"}Hz`
+          : "frequency estimate unavailable";
+        setOpticalAutoCalibStatus(
+          `Optical GPS auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | tuning lat=${nextLat.toFixed(3)} lon=${nextLon.toFixed(3)} alt=${nextAlt.toFixed(3)} | ${freqMsg}`
         );
       };
       const computeVoAutoCalibResult = () => {
@@ -4098,7 +4417,14 @@
       };
 
       const getPixhawkGpsPortFix = (data) => {
-        return data?.outputs?.optical_flow_gps_port || data?.outputs?.gps_port || null;
+        const mode = String(data?.mode || "");
+        if (mode === "optical_flow_gps_port") {
+          return data?.outputs?.optical_flow_gps_port || null;
+        }
+        if (mode === "gps_port") {
+          return data?.outputs?.gps_port || null;
+        }
+        return data?.outputs?.gps_port || data?.outputs?.optical_flow_gps_port || null;
       };
 
       const startGpsCsvLogger = () => {
@@ -4462,6 +4788,55 @@
             await finishAutoCalib();
           } else {
             startAutoCalib();
+          }
+        });
+      }
+      if (autoCalibApplyBtn) {
+        autoCalibApplyBtn.addEventListener("click", async () => {
+          clearPendingCalibrationPush();
+          const next = syncMainTuningInputsFromManualAutoCalib();
+          lockManualCalibrationUi();
+          const idle = await waitForCalibrationSyncIdle();
+          if (!idle) {
+            setAutoCalibStatus("GPS port auto calib: manual override failed - calibration sync busy");
+            return;
+          }
+          const result = await postCalibrationTuningDirect(next);
+          if (result?.ok) {
+            setAutoCalibStatus(
+              `GPS port auto calib: manual override applied | lat=${next.lat_scale.toFixed(3)} lon=${next.lon_scale.toFixed(3)} alt=${next.alt_offset_m.toFixed(3)}`
+            );
+          } else {
+            setAutoCalibStatus(`GPS port auto calib: manual override failed - ${result?.error || "unknown error"}`);
+          }
+        });
+      }
+      if (opticalAutoCalibBtn) {
+        opticalAutoCalibBtn.addEventListener("click", async () => {
+          if (opticalAutoCalibState.running) {
+            await finishOpticalAutoCalib();
+          } else {
+            startOpticalAutoCalib();
+          }
+        });
+      }
+      if (opticalAutoCalibApplyBtn) {
+        opticalAutoCalibApplyBtn.addEventListener("click", async () => {
+          clearPendingCalibrationPush();
+          const next = syncMainTuningInputsFromOpticalAutoCalib();
+          lockManualCalibrationUi();
+          const idle = await waitForCalibrationSyncIdle();
+          if (!idle) {
+            setOpticalAutoCalibStatus("Optical GPS auto calib: manual override failed - calibration sync busy");
+            return;
+          }
+          const result = await postCalibrationTuningDirect(next);
+          if (result?.ok) {
+            setOpticalAutoCalibStatus(
+              `Optical GPS auto calib: manual override applied | lat=${next.lat_scale.toFixed(3)} lon=${next.lon_scale.toFixed(3)} alt=${next.alt_offset_m.toFixed(3)}`
+            );
+          } else {
+            setOpticalAutoCalibStatus(`Optical GPS auto calib: manual override failed - ${result?.error || "unknown error"}`);
           }
         });
       }

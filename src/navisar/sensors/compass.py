@@ -129,6 +129,12 @@ def heading_degrees(x, y):
     return (heading + 360.0) % 360.0
 
 
+def heading_from_milligauss(x_mg, y_mg, z_mg, calibration=None):
+    """Apply calibration to milligauss data and return heading plus corrected vector."""
+    mg = apply_calibration((x_mg, y_mg, z_mg), calibration)
+    return heading_degrees(mg[0], mg[1]), mg
+
+
 def raw_to_milligauss(x, y, z, addr):
     """Convert raw readings to milligauss (approximate)."""
     if addr == HMC5883L_ADDR:
@@ -182,6 +188,11 @@ def _apply_calibration(vec, calibration):
         sin_a = math.sin(angle)
         x, y = (x * cos_a - y * sin_a), (x * sin_a + y * cos_a)
     return x, y, z
+
+
+def apply_calibration(vec, calibration):
+    """Apply compass calibration to a 3-axis vector."""
+    return _apply_calibration(vec, calibration)
 
 
 def _triplet_from_dict(values):

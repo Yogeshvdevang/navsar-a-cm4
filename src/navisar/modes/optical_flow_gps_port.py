@@ -120,6 +120,7 @@ class OpticalFlowGpsPortMode:
         origin,
         alt_override_m=None,
         heading_deg=None,
+        send_heading=True,
         heading_only=False,
     ):
         """Integrate optical flow and send GPS sentences over serial."""
@@ -253,6 +254,7 @@ class OpticalFlowGpsPortMode:
             alt_override_m=alt_out_m,
             nav_pvt_alt_mm_override=raw_dist_mm,
             heading_deg=heading_deg,
+            send_heading=send_heading,
             heading_only=heading_only,
             apply_final_altitude_offset=False,
         )

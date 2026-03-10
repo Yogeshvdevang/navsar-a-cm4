@@ -608,3 +608,13 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+"""
+optical_gps_tuning:
+    lat_scale: 2.0
+    lon_scale: 0.5
+    alt_offset_m: 0.0
+    vo_scale: 2.0
+    vo_lat_scale: 2.0
+    vo_lon_scale: 0.5
+    """

@@ -101,33 +101,37 @@ class NmeaSerialEmitter:
         ekf_ok=True,
         course_deg_override=None,
         force_heading=False,
+        include_heading=True,
     ):
         """Generate and send NMEA messages for the current state."""
         speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)
-        if course_deg_override is not None:
-            desired = float(course_deg_override) % 360.0
-            if force_heading:
-                course_deg = desired
-                self._last_course = course_deg
+        if include_heading:
+            if course_deg_override is not None:
+                desired = float(course_deg_override) % 360.0
+                if force_heading:
+                    course_deg = desired
+                    self._last_course = course_deg
+                else:
+                    delta = (desired - self._last_course + 540.0) % 360.0 - 180.0
+                    if abs(delta) > self.max_heading_delta_deg:
+                        course_deg = (
+                            self._last_course
+                            + self.max_heading_delta_deg * (1 if delta > 0 else -1)
+                        ) % 360.0
+                    else:
+                        course_deg = desired
+            elif speed_mps < 0.05:
+                course_deg = self._last_course
             else:
-                delta = (desired - self._last_course + 540.0) % 360.0 - 180.0
+                delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0
                 if abs(delta) > self.max_heading_delta_deg:
                     course_deg = (
                         self._last_course
                         + self.max_heading_delta_deg * (1 if delta > 0 else -1)
                     ) % 360.0
-                else:
-                    course_deg = desired
-        elif speed_mps < 0.05:
-            course_deg = self._last_course
+            self._last_course = course_deg
         else:
-            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0
-            if abs(delta) > self.max_heading_delta_deg:
-                course_deg = (
-                    self._last_course
-                    + self.max_heading_delta_deg * (1 if delta > 0 else -1)
-                ) % 360.0
-        self._last_course = course_deg
+            course_deg = None
         sats = self._fake_sats.update(ekf_ok=ekf_ok)
         hdop = hdop_from_sats(sats)
         gga = gga_sentence(
@@ -273,7 +277,7 @@ class UbxSerialEmitter:
         vel_d_cm = int(vel_d_mm / 10)
         speed_cm = int(speed_mps * 100)
         ground_speed_cm = speed_cm
-        heading_1e5 = int(heading_deg * 1e5)
+        heading_1e5 = 0 if heading_deg is None else int(heading_deg * 1e5)
         s_acc_cm = 50
         c_acc_1e5 = 5000
         payload = struct.pack(
@@ -389,7 +393,7 @@ class UbxSerialEmitter:
             alt_mm = int(nav_pvt_alt_mm_override)
         h_msl_mm = alt_mm
 
-        heading_1e5 = int(heading_deg * 1e5)
+        heading_1e5 = 0 if heading_deg is None else int(heading_deg * 1e5)
         payload = struct.pack(
             "<IHBBBBBBIiBBBBiiiiIIiiiiiIIHBBihH",
             time_of_week_ms,
@@ -439,33 +443,37 @@ class UbxSerialEmitter:
         nav_pvt_alt_mm_override=None,
         course_deg_override=None,
         force_heading=False,
+        include_heading=True,
     ):
         """Send UBX messages for current state."""
         speed_mps, course_deg = speed_course_from_enu(vx_e, vy_n)
-        if course_deg_override is not None:
-            desired = float(course_deg_override) % 360.0
-            if force_heading:
-                course_deg = desired
-                self._last_course = course_deg
+        if include_heading:
+            if course_deg_override is not None:
+                desired = float(course_deg_override) % 360.0
+                if force_heading:
+                    course_deg = desired
+                    self._last_course = course_deg
+                else:
+                    delta = (desired - self._last_course + 540.0) % 360.0 - 180.0
+                    if abs(delta) > self.max_heading_delta_deg:
+                        course_deg = (
+                            self._last_course
+                            + self.max_heading_delta_deg * (1 if delta > 0 else -1)
+                        ) % 360.0
+                    else:
+                        course_deg = desired
+            elif speed_mps < 0.05:
+                course_deg = self._last_course
             else:
-                delta = (desired - self._last_course + 540.0) % 360.0 - 180.0
+                delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0
                 if abs(delta) > self.max_heading_delta_deg:
                     course_deg = (
                         self._last_course
                         + self.max_heading_delta_deg * (1 if delta > 0 else -1)
                     ) % 360.0
-                else:
-                    course_deg = desired
-        elif speed_mps < 0.05:
-            course_deg = self._last_course
+            self._last_course = course_deg
         else:
-            delta = (course_deg - self._last_course + 540.0) % 360.0 - 180.0
-            if abs(delta) > self.max_heading_delta_deg:
-                course_deg = (
-                    self._last_course
-                    + self.max_heading_delta_deg * (1 if delta > 0 else -1)
-                ) % 360.0
-        self._last_course = course_deg
+            course_deg = None
         sats = self._fake_sats.update(ekf_ok=ekf_ok)
         p_dop_01 = int(hdop_from_sats(sats) * 100)
         now = _dt.datetime.utcnow()
