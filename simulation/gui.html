@@ -336,7 +336,7 @@
 
       .compass-panel {
         display: grid;
-        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
         justify-items: center;
         align-items: start;
         gap: 12px;
@@ -903,6 +903,21 @@
                 </div>
               </div>
               <div class="compass-unit">
+                <div class="name">MAVLink Bridge</div>
+                <div class="compass">
+                  <div class="rose" id="compass-mav-rose">
+                    <div class="ring"></div>
+                    <div class="label n">N</div>
+                    <div class="label s">S</div>
+                    <div class="label e">E</div>
+                    <div class="label w">W</div>
+                  </div>
+                  <div class="deg" id="compass-mav-deg">--.-°</div>
+                  <div class="title">HEADING</div>
+                  <div class="needle"></div>
+                </div>
+              </div>
+              <div class="compass-unit">
                 <div class="name">Optical Flow</div>
                 <div class="compass">
                   <div class="rose" id="compass-opt-rose">
@@ -1237,6 +1252,7 @@
         opticalHeightTarget: null,
         currentHeadingDeg: null,
         voHeadingDeg: null,
+        mavHeadingDeg: null,
       };
       const calibrationGpsState = {
         maxPoints: 1200,
@@ -3561,6 +3577,9 @@
 
           const voCompassHeading = compassFusionState.vo.shown;
           const opticalCompassHeading = compassFusionState.optical.shown;
+          const mavlinkBridgeHeading = wrapHeading(asFiniteNumber(
+            data.compass?.bridge?.heading_deg
+          ));
           plotState.voHeadingDeg = asFiniteNumber(voCompassHeading, voMotionHeading, plotState.voHeadingDeg);
           setText("nav-hdg", heading, 1);
 
@@ -3648,6 +3667,7 @@
           drawBarometerHeightBar();
           updateCompassWidget("real", realCompassHeading);
           updateCompassWidget("vo", voCompassHeading);
+          updateCompassWidget("mav", mavlinkBridgeHeading);
           updateCompassWidget("opt", opticalCompassHeading);
 
           // plots handled below

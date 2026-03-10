@@ -3295,6 +3295,14 @@ def main():
     last_compass_time = {"time": 0.0}
     last_compass_error = {"time": 0.0}
     last_compass_in = {"heading_deg": None, "x_mg": None, "y_mg": None, "z_mg": None}
+    last_compass_bridge = {
+        "heading_deg": None,
+        "x_mg": None,
+        "y_mg": None,
+        "z_mg": None,
+        "message_type": None,
+        "time_s": None,
+    }
     last_compass_out = {"time_boot_ms": None, "x_mg": None, "y_mg": None, "z_mg": None}
     if "compass_meta" not in locals():
         compass_meta = {
@@ -3313,6 +3321,50 @@ def main():
             return
         last_compass_time["time"] = now
         try:
+            if mavlink_interface is not None:
+                bridge_sample = mavlink_interface.recv_compass()
+                bridge_heading = None
+                if bridge_sample is not None and (
+                    abs(float(bridge_sample["x_mg"])) > 1e-6
+                    or abs(float(bridge_sample["y_mg"])) > 1e-6
+                ):
+                    bridge_heading = heading_degrees(
+                        bridge_sample["x_mg"],
+                        bridge_sample["y_mg"],
+                    )
+                    last_compass_bridge.update(
+                        {
+                            "heading_deg": bridge_heading,
+                            "x_mg": float(bridge_sample["x_mg"]),
+                            "y_mg": float(bridge_sample["y_mg"]),
+                            "z_mg": float(bridge_sample["z_mg"]),
+                            "message_type": bridge_sample.get("message_type"),
+                            "time_s": _safe_float(bridge_sample.get("time_s")),
+                        }
+                    )
+                elif isinstance(last_attitude.get("value"), dict):
+                    att = last_attitude["value"]
+                    last_compass_bridge.update(
+                        {
+                            "heading_deg": (math.degrees(float(att["yaw"])) + 360.0) % 360.0,
+                            "x_mg": None,
+                            "y_mg": None,
+                            "z_mg": None,
+                            "message_type": "ATTITUDE",
+                            "time_s": _safe_float(att.get("time_s")),
+                        }
+                    )
+                else:
+                    last_compass_bridge.update(
+                        {
+                            "heading_deg": None,
+                            "x_mg": None,
+                            "y_mg": None,
+                            "z_mg": None,
+                            "message_type": None,
+                            "time_s": None,
+                        }
+                    )
             if compass_mode == "mavlink_compass":
                 if mavlink_interface is None:
                     return
@@ -4455,6 +4507,14 @@ def main():
                             "y_mg": _safe_float(last_compass_out["y_mg"]),
                             "z_mg": _safe_float(last_compass_out["z_mg"]),
                         },
+                        "bridge": {
+                            "heading_deg": _safe_float(last_compass_bridge["heading_deg"]),
+                            "x_mg": _safe_float(last_compass_bridge["x_mg"]),
+                            "y_mg": _safe_float(last_compass_bridge["y_mg"]),
+                            "z_mg": _safe_float(last_compass_bridge["z_mg"]),
+                            "message_type": last_compass_bridge.get("message_type"),
+                            "time_s": _safe_float(last_compass_bridge["time_s"]),
+                        },
                     },
                     "fused": {
                         "x": _safe_float(x_f),
@@ -4784,6 +4844,14 @@ def main():
                                     "x_mg": _safe_float(last_compass_out["x_mg"]),
                                     "y_mg": _safe_float(last_compass_out["y_mg"]),
                                     "z_mg": _safe_float(last_compass_out["z_mg"]),
+                                },
+                                "bridge": {
+                                    "heading_deg": _safe_float(last_compass_bridge["heading_deg"]),
+                                    "x_mg": _safe_float(last_compass_bridge["x_mg"]),
+                                    "y_mg": _safe_float(last_compass_bridge["y_mg"]),
+                                    "z_mg": _safe_float(last_compass_bridge["z_mg"]),
+                                    "message_type": last_compass_bridge.get("message_type"),
+                                    "time_s": _safe_float(last_compass_bridge["time_s"]),
                                 },
                             },
                             "fused": {
