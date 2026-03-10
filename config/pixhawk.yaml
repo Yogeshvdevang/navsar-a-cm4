@@ -77,6 +77,16 @@ optical_flow_vo:
   switch_m: 8.0
   optical_flow_output_mode: optical_flow_gps_port
   vo_output_mode: gps_mavlink
+imu:
+  enabled: true # Master switch for optical_gps_port_imu using Pixhawk's built-in IMU over MAVLink.
+  chip: MPU6050 # Legacy field; ignored when using Pixhawk built-in IMU.
+  i2c_bus: 1 # Legacy field; ignored when using Pixhawk built-in IMU.
+  i2c_address: 0x68 # Legacy field; ignored when using Pixhawk built-in IMU.
+  f_pixels: 16.0 # Focal length in pixels for gyro compensation.
+  imu_beta: 0.05 # Complementary fusion weight for accelerometer-derived velocity.
+  gyro_comp_enabled: true # Insert Point A: gyro compensation on optical flow.
+  accel_fuse_enabled: true # Insert Point B: accelerometer fusion on body velocity.
+  tilt_corr_enabled: true # Insert Point C: tilt correction on range altitude.
 compass:
   enabled: true
   mode: i2c
@@ -84,7 +94,7 @@ compass:
   calibration_file: tools/compass_calibration.json
   rate_hz: 10
   print: true
-  send_mavlink: false
+  send_mavlink: true
   heading_offset_deg: 0
   heading_smoothing_alpha: 0.1
   heading_max_delta_deg: 5.0
@@ -94,8 +104,8 @@ gps_output:
   format: ubx
   port: /dev/ttyAMA0
   baud: 230400
-  rate_hz: 10
-  heading_mode: send #none
+  rate_hz: 5
+  heading_mode: send
   ubx_h_acc_mm: 500
   ubx_v_acc_mm: 100
   fix_quality: 1
@@ -106,9 +116,9 @@ gps_output:
   raw_print: true
 gps_passthrough:
   input_port: /dev/ttyAMA5
-  input_baud: 115200
+  input_baud: 230400
   output_port: /dev/ttyAMA0
-  output_baud: 115200
+  output_baud: 230400
   log_dir: data/gps_passthrough_logs
   print: true
 vps_gps:
@@ -129,12 +139,12 @@ calibration:
     min_factor: 0.3
     max_factor: 5.0
   optical_gps_tuning:
-    lat_scale: 0.5
-    lon_scale: 0.5
-    alt_offset_m: -5.0
-    vo_scale: 2.0
-    vo_lat_scale: 2.0
-    vo_lon_scale: 0.5
+    lat_scale: 1.0
+    lon_scale: 1.0
+    alt_offset_m: 0.0
+    vo_scale: 1.0
+    vo_lat_scale: 1.0
+    vo_lon_scale: 1.0
 print_gps_values: false
 print_baro_values: false
 print_sensor_values: true
@@ -153,6 +163,6 @@ gnss_monitor:
     gcs_severity: warning
     min_interval_s: 2.0
 gps_origin:
-  lat: 9.0
-  lon: 56.0
+  lat: 12.0
+  lon: 40.0
   alt: 0.0

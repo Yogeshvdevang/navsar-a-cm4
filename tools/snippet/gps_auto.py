@@ -273,3 +273,8 @@ while True:
     print("-" * 50)
 
     time.sleep(dt)
+
+    """
+    right now do this in optical flow gps port mode 
+take the origin from gps sensor and  vx and vy from the optical flow sensor and from these data calculate the realtime latitude and longitude nothing fancy in this just normal optical flow to gps data into lat longitude 
+    """

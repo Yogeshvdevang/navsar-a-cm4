@@ -44,6 +44,7 @@ from navisar.modes.gps_port import GpsPortMode
 from navisar.modes.gps_passthrough import GpsPassthroughMode
 from navisar.modes.odometry import OdometryMode
 from navisar.modes.optical_flow_gps_port import OpticalFlowGpsPortMode
+from navisar.modes.optical_gps_port_imu import OpticalGpsPortImuMode
 from navisar.modes.optical_flow_mavlink import OpticalFlowMavlinkMode
 from navisar.navigation.state_estimator import PositionSourceSelector
 from navisar.fusion.sensor_fusion import SensorFusion
@@ -136,7 +137,7 @@ ODOMETRY_SEND_INTERVAL_S = 0.04
 ATTITUDE_RATE_HZ = 30.0
 BARO_RATE_HZ = 25.0
 IMU_RATE_HZ = 30.0
-OUTPUT_MODE = "gps_mavlink" # odometry, gps_mavlink, gps_port, gps_passthrough, optical_flow_mavlink, optical_flow_gps_port, optical_flow_then_vo
+OUTPUT_MODE = "gps_mavlink" # odometry, gps_mavlink, gps_port, gps_passthrough, optical_flow_mavlink, optical_flow_gps_port, optical_gps_port_imu, optical_flow_then_vo
 VIO_MODE = "vo"  # vo, vio_imu
 FAKE_GPS_SMOOTH_ALPHA = 0.2
 FAKE_GPS_MAX_STEP_M = 1.5
@@ -1258,6 +1259,11 @@ def _make_dashboard_handler(
                     if isinstance(outputs.get("optical_flow_gps_port"), dict)
                     else {}
                 )
+                of_gps_port_imu_out = (
+                    outputs.get("optical_gps_port_imu")
+                    if isinstance(outputs.get("optical_gps_port_imu"), dict)
+                    else {}
+                )
                 payload = {
                     "enabled": True,
                     "gps_graph_enabled": bool(calibration_gps_graph_enabled),
@@ -1301,6 +1307,12 @@ def _make_dashboard_handler(
                             "lon": _safe_float(of_gps_port_out.get("lon")),
                             "alt_m": _safe_float(of_gps_port_out.get("alt_m")),
                             "heading_deg": _safe_float(of_gps_port_out.get("heading_deg")),
+                        },
+                        "optical_gps_port_imu": {
+                            "lat": _safe_float(of_gps_port_imu_out.get("lat")),
+                            "lon": _safe_float(of_gps_port_imu_out.get("lon")),
+                            "alt_m": _safe_float(of_gps_port_imu_out.get("alt_m")),
+                            "heading_deg": _safe_float(of_gps_port_imu_out.get("heading_deg")),
                         },
                     },
                     "optical_flow": {
@@ -2680,11 +2692,16 @@ def main():
         "gps_passthrough",
         "optical_flow_mavlink",
         "optical_flow_gps_port",
+        "optical_gps_port_imu",
         "optical_flow_then_vo",
     }:
         print(f"Unknown output_mode '{output_mode}', defaulting to '{OUTPUT_MODE}'.")
         output_mode = OUTPUT_MODE
-    optical_modes = {"optical_flow_mavlink", "optical_flow_gps_port"}
+    optical_modes = {
+        "optical_flow_mavlink",
+        "optical_flow_gps_port",
+        "optical_gps_port_imu",
+    }
     allowed_modes = set(optical_modes) | {
         "odometry",
         "gps_mavlink",
@@ -3743,6 +3760,38 @@ def main():
         lon_scale=float(lon_scale_state.get()),
         alt_offset_m=float(alt_offset_state.get()),
     )
+    imu_cfg = pixhawk_cfg.get("imu", {})
+    optical_gps_port_imu_mode = OpticalGpsPortImuMode(
+        gps_port_mode=gps_port_mode,
+        min_quality=flow_min_quality,
+        max_speed_mps=flow_max_speed_mps,
+        deadband_mps=flow_deadband_mps,
+        smoothing_alpha=flow_smoothing_alpha,
+        stationary_speed_mps=flow_stationary_speed_mps,
+        stationary_samples=flow_stationary_samples,
+        stationary_quality_min=flow_stationary_quality_min,
+        speed_scale=optical_flow_scale_state.get_current_scale(flow_speed_scale),
+        altitude_smoothing_alpha=alt_smoothing_alpha,
+        altitude_jump_limit_m=alt_jump_limit_m,
+        altitude_deadband_m=alt_deadband_m,
+        altitude_min_m=alt_min_m,
+        altitude_max_m=alt_max_m,
+        lat_scale=float(lat_scale_state.get()),
+        lon_scale=float(lon_scale_state.get()),
+        alt_offset_m=float(alt_offset_state.get()),
+        imu_enabled=bool(imu_cfg.get("enabled", True)),
+        imu_f_pixels=float(imu_cfg.get("f_pixels", 16.0)),
+        imu_beta=float(imu_cfg.get("imu_beta", 0.05)),
+        gyro_comp_enabled=bool(imu_cfg.get("gyro_comp_enabled", True)),
+        accel_fuse_enabled=bool(imu_cfg.get("accel_fuse_enabled", True)),
+        tilt_corr_enabled=bool(imu_cfg.get("tilt_corr_enabled", True)),
+        imu_provider=lambda: dict(last_imu),
+        attitude_provider=lambda: (
+            dict(last_attitude["value"])
+            if isinstance(last_attitude.get("value"), dict)
+            else None
+        ),
+    )
     odometry_mode = OdometryMode(
         send_interval_s=odom_send_interval_s,
         print_interval_s=print_interval_s,
@@ -4187,8 +4236,31 @@ def main():
                 send_heading=gps_output_send_heading,
                 heading_only=False,
             )
+        elif active_output_mode == "optical_gps_port_imu":
+            optical_gps_port_imu_mode.set_speed_scale(
+                1.0 if optical_raw_mode else optical_flow_scale_state.get_current_scale()
+            )
+            optical_gps_port_imu_mode.set_gps_calibration(
+                lat_scale=float(lat_scale_state.get()),
+                lon_scale=float(lon_scale_state.get()),
+                alt_offset_m=float(alt_offset_state.get()),
+            )
+            optical_gps_port_imu_mode.handle(
+                now,
+                last_optical_flow["value"],
+                selector.gps_origin(),
+                alt_override_m=None,
+                heading_deg=optical_compass_heading_deg,
+                send_heading=gps_output_send_heading,
+                heading_only=False,
+            )
 
         if dashboard_state is not None:
+            active_optical_gps_port_mode = (
+                optical_gps_port_imu_mode
+                if active_output_mode == "optical_gps_port_imu"
+                else optical_flow_gps_port_mode
+            )
             gps_origin = selector.gps_origin()
             gps_local = selector.gps_local()
             drift_m = selector.drift_m()
@@ -4234,7 +4306,7 @@ def main():
                     "speed_accuracy_mps": _safe_float(speed_accuracy_mps),
                 }
             optical_flow_gps_port_six = _build_six_parameters_payload(
-                optical_flow_gps_port_mode.last_payload,
+                active_optical_gps_port_mode.last_payload,
                 default_timestamp=_safe_float(now),
             )
             vo_gps_port_six = _build_six_parameters_payload(
@@ -4414,6 +4486,7 @@ def main():
                         "gps_passthrough": gps_passthrough_mode.last_payload,
                         "optical_flow_mavlink": optical_flow_mode.last_payload,
                         "optical_flow_gps_port": optical_flow_gps_port_mode.last_payload,
+                        "optical_gps_port_imu": optical_gps_port_imu_mode.last_payload,
                         "optical_flow_gps_port_six_parameters": optical_flow_gps_port_six,
                         "vo_gps_port_six_parameters": vo_gps_port_six,
                     },
@@ -4566,19 +4639,24 @@ def main():
                     optical_compass_heading_deg = _safe_float(
                         last_compass_in.get("heading_deg")
                     )
-                    optical_flow_gps_port_mode.set_speed_scale(
+                    active_optical_port_mode = (
+                        optical_gps_port_imu_mode
+                        if current_mode == "optical_gps_port_imu"
+                        else optical_flow_gps_port_mode
+                    )
+                    active_optical_port_mode.set_speed_scale(
                         1.0 if optical_raw_mode else optical_flow_scale_state.get_current_scale()
                     )
-                    optical_flow_gps_port_mode.set_gps_calibration(
+                    active_optical_port_mode.set_gps_calibration(
                         lat_scale=float(lat_scale_state.get()),
                         lon_scale=float(lon_scale_state.get()),
                         alt_offset_m=float(alt_offset_state.get()),
                     )
-                    optical_flow_gps_port_mode.handle(
+                    active_optical_port_mode.handle(
                         now,
                         sample,
                         selector.gps_origin(),
-                        alt_override_m=alt_override_m,
+                        alt_override_m=None if current_mode == "optical_gps_port_imu" else alt_override_m,
                         heading_deg=optical_compass_heading_deg,
                         send_heading=gps_output_send_heading,
                         heading_only=False,
@@ -4738,6 +4816,7 @@ def main():
                                 "gps_passthrough": gps_passthrough_mode.last_payload,
                                 "optical_flow_mavlink": optical_flow_mode.last_payload,
                                 "optical_flow_gps_port": optical_flow_gps_port_mode.last_payload,
+                                "optical_gps_port_imu": optical_gps_port_imu_mode.last_payload,
                             },
                         }
                     )
