@@ -18,7 +18,7 @@ from pathlib import Path
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-SERIAL_PORT = "/dev/ttyUSB0"
+SERIAL_PORT = "/dev/ttyAMA3"
 BAUDRATE = 115200
 DATA_FREQUENCY = 100  # Hz (0 = maximum speed)
 HTTP_HOST = "0.0.0.0"
