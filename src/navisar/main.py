@@ -2527,7 +2527,7 @@ def _camera_signature(camera_cfg):
     format_name = None
     if model in {"opencv", "usb", "generic"}:
         index = camera_cfg.get("index", 0)
-    if model in {"ov9281", "ov9821"}:
+    if model in {"ov9281", "ov9821", "ov5647"}:
         format_name = camera_cfg.get("format", "YUV420")
     return model, index, format_name
 
@@ -3295,14 +3295,6 @@ def main():
     last_compass_time = {"time": 0.0}
     last_compass_error = {"time": 0.0}
     last_compass_in = {"heading_deg": None, "x_mg": None, "y_mg": None, "z_mg": None}
-    last_compass_bridge = {
-        "heading_deg": None,
-        "x_mg": None,
-        "y_mg": None,
-        "z_mg": None,
-        "message_type": None,
-        "time_s": None,
-    }
     last_compass_out = {"time_boot_ms": None, "x_mg": None, "y_mg": None, "z_mg": None}
     if "compass_meta" not in locals():
         compass_meta = {
@@ -3321,50 +3313,6 @@ def main():
             return
         last_compass_time["time"] = now
         try:
-            if mavlink_interface is not None:
-                bridge_sample = mavlink_interface.recv_compass()
-                bridge_heading = None
-                if bridge_sample is not None and (
-                    abs(float(bridge_sample["x_mg"])) > 1e-6
-                    or abs(float(bridge_sample["y_mg"])) > 1e-6
-                ):
-                    bridge_heading = heading_degrees(
-                        bridge_sample["x_mg"],
-                        bridge_sample["y_mg"],
-                    )
-                    last_compass_bridge.update(
-                        {
-                            "heading_deg": bridge_heading,
-                            "x_mg": float(bridge_sample["x_mg"]),
-                            "y_mg": float(bridge_sample["y_mg"]),
-                            "z_mg": float(bridge_sample["z_mg"]),
-                            "message_type": bridge_sample.get("message_type"),
-                            "time_s": _safe_float(bridge_sample.get("time_s")),
-                        }
-                    )
-                elif isinstance(last_attitude.get("value"), dict):
-                    att = last_attitude["value"]
-                    last_compass_bridge.update(
-                        {
-                            "heading_deg": (math.degrees(float(att["yaw"])) + 360.0) % 360.0,
-                            "x_mg": None,
-                            "y_mg": None,
-                            "z_mg": None,
-                            "message_type": "ATTITUDE",
-                            "time_s": _safe_float(att.get("time_s")),
-                        }
-                    )
-                else:
-                    last_compass_bridge.update(
-                        {
-                            "heading_deg": None,
-                            "x_mg": None,
-                            "y_mg": None,
-                            "z_mg": None,
-                            "message_type": None,
-                            "time_s": None,
-                        }
-                    )
             if compass_mode == "mavlink_compass":
                 if mavlink_interface is None:
                     return
@@ -3711,7 +3659,13 @@ def main():
         print(f"SENSORS: {' '.join(baro_parts)} | {' '.join(opt_parts)}")
 
     def select_runtime_heading(active_mode, vx_enu=None, vy_enu=None):
-        """Select heading source: optical flow > VO > compass."""
+        """Select heading source, preferring Pixhawk attitude yaw for GPS outputs."""
+        pixhawk_heading = None
+        att = last_attitude.get("value")
+        if isinstance(att, dict):
+            yaw_rad = _safe_float(att.get("yaw"))
+            if yaw_rad is not None:
+                pixhawk_heading = (math.degrees(yaw_rad) + 360.0) % 360.0
         compass_heading = _safe_float(last_compass_in.get("heading_deg"))
         vo_heading = _heading_from_velocity(
             vx_enu,
@@ -3733,7 +3687,10 @@ def main():
 
         selected = None
         source = "none"
-        if active_mode in optical_modes and optical_heading is not None:
+        if pixhawk_heading is not None:
+            selected = pixhawk_heading
+            source = "pixhawk"
+        elif active_mode in optical_modes and optical_heading is not None:
             selected = optical_heading
             source = "optical_flow"
         elif vo_heading is not None:
@@ -4176,6 +4133,11 @@ def main():
             vx_enu=vx_cam,
             vy_enu=vy_cam,
         )
+        pixhawk_heading_deg = (
+            _safe_float(runtime_heading_deg)
+            if runtime_heading_source == "pixhawk"
+            else None
+        )
         if (
             current_mode != last_runtime_mode["requested"]
             or active_output_mode != last_runtime_mode["active"]
@@ -4192,11 +4154,23 @@ def main():
         # Compass yaw used by VPS->GPS MAVLink path (config-gated behavior).
         compass_heading_deg = None
         if vps_gps_use_compass_yaw:
-            compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
-        # VO GPS port path should use compass heading when available.
-        vo_compass_heading_for_port = _safe_float(last_compass_in.get("heading_deg"))
-        # Optical-flow GPS integration should always use compass heading when available.
-        optical_compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
+            compass_heading_deg = (
+                pixhawk_heading_deg
+                if pixhawk_heading_deg is not None
+                else _safe_float(last_compass_in.get("heading_deg"))
+            )
+        # GPS heading should use Pixhawk yaw whenever it is available.
+        vo_compass_heading_for_port = (
+            pixhawk_heading_deg
+            if pixhawk_heading_deg is not None
+            else _safe_float(last_compass_in.get("heading_deg"))
+        )
+        # Optical-flow GPS integration should use Pixhawk yaw whenever it is available.
+        optical_compass_heading_deg = (
+            pixhawk_heading_deg
+            if pixhawk_heading_deg is not None
+            else _safe_float(last_compass_in.get("heading_deg"))
+        )
         vo_scale_value = max(0.1, min(5.0, float(vo_scale_state.get())))
         vo_height_factor = 1.0
         if vo_height_scaling_enabled:
@@ -4506,14 +4480,6 @@ def main():
                             "x_mg": _safe_float(last_compass_out["x_mg"]),
                             "y_mg": _safe_float(last_compass_out["y_mg"]),
                             "z_mg": _safe_float(last_compass_out["z_mg"]),
-                        },
-                        "bridge": {
-                            "heading_deg": _safe_float(last_compass_bridge["heading_deg"]),
-                            "x_mg": _safe_float(last_compass_bridge["x_mg"]),
-                            "y_mg": _safe_float(last_compass_bridge["y_mg"]),
-                            "z_mg": _safe_float(last_compass_bridge["z_mg"]),
-                            "message_type": last_compass_bridge.get("message_type"),
-                            "time_s": _safe_float(last_compass_bridge["time_s"]),
                         },
                     },
                     "fused": {
@@ -4844,14 +4810,6 @@ def main():
                                     "x_mg": _safe_float(last_compass_out["x_mg"]),
                                     "y_mg": _safe_float(last_compass_out["y_mg"]),
                                     "z_mg": _safe_float(last_compass_out["z_mg"]),
-                                },
-                                "bridge": {
-                                    "heading_deg": _safe_float(last_compass_bridge["heading_deg"]),
-                                    "x_mg": _safe_float(last_compass_bridge["x_mg"]),
-                                    "y_mg": _safe_float(last_compass_bridge["y_mg"]),
-                                    "z_mg": _safe_float(last_compass_bridge["z_mg"]),
-                                    "message_type": last_compass_bridge.get("message_type"),
-                                    "time_s": _safe_float(last_compass_bridge["time_s"]),
                                 },
                             },
                             "fused": {

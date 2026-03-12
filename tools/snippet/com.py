@@ -14,8 +14,8 @@ except ImportError:
 
 
 I2C_BUS = 1
-COMPASS_ADDR = 0x0C
-HERTZ = 15
+COMPASS_ADDR = 0x1E  #0x0C
+HERTZ = 10
 HEADING_WINDOW = 7
 
 

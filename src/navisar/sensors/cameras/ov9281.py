@@ -1,10 +1,10 @@
-"""OV9281 camera driver using Picamera2."""
+"""CSI camera driver using Picamera2."""
 
 from navisar.sensors.cameras.base import BaseCamera
 
 
 class OV9281Camera(BaseCamera):
-    """Picamera2-backed driver for the OV9281 sensor."""
+    """Picamera2-backed driver for supported CSI sensors."""
     def __init__(self, width=640, height=400, format_name="YUV420"):
         """Configure Picamera2 with the requested format/size."""
         self.width = width
@@ -13,9 +13,26 @@ class OV9281Camera(BaseCamera):
         try:
             from picamera2 import Picamera2
         except Exception as exc:  # pragma: no cover - hardware dependency
-            raise ImportError("Picamera2 is required for the OV9281 camera.") from exc
+            raise ImportError("Picamera2 is required for CSI camera models.") from exc
 
-        self._picam2 = Picamera2()
+        camera_info = []
+        try:
+            camera_info = Picamera2.global_camera_info() or []
+        except Exception:
+            camera_info = []
+        if not camera_info:
+            raise RuntimeError(
+                "No camera detected by Picamera2 (global_camera_info returned 0 cameras). "
+                "Check /boot/firmware/config.txt overlays, CSI cable orientation, and reboot. "
+                "If you are using a USB webcam, set model: opencv in config/camera.yaml."
+            )
+        try:
+            self._picam2 = Picamera2()
+        except Exception as exc:
+            raise RuntimeError(
+                f"Picamera2 failed to initialize CSI camera (detected {len(camera_info)} "
+                f"camera(s) in global_camera_info): {exc}"
+            ) from exc
         config = self._picam2.create_video_configuration(
             main={"format": format_name, "size": (width, height)}
         )

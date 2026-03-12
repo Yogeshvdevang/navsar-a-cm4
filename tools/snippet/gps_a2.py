@@ -8,7 +8,7 @@ from datetime import datetime
 # ================== CONFIG ==================
 SERIAL_PORT = "/dev/ttyAMA0"    #"COM30"   # change if needed
 BAUDRATE = 230400
-UPDATE_RATE_HZ = 5      # 5-10 Hz works well
+UPDATE_RATE_HZ = 10      # 5-10 Hz works well
 
 # Start location
 lat = 12.971600         # degrees

@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Optical Flow Big View</title>
+    <style>
+      :root {
+        --bg: #05070c;
+        --panel: #0d111b;
+        --panel-border: #1f2937;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #2563eb;
+      }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .page {
+        max-width: 1700px;
+        margin: 0 auto;
+        padding: 10px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0.04em;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      button {
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 999px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      button:hover { background: #334155; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 10px;
+      }
+      .tuning-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .item label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .item .val {
+        color: var(--text);
+        margin-left: 4px;
+      }
+      .item input[type="range"] { width: 100%; }
+      .plot-wrap {
+        background: #fff;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 0;
+        overflow: hidden;
+      }
+      #plot {
+        display: block;
+        width: 100%;
+        height: clamp(420px, 72vh, 960px);
+      }
+      .status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        min-height: 18px;
+      }
+      @media (max-width: 1200px) { .tuning-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 700px) {
+        .tuning-grid { grid-template-columns: 1fr; }
+        .top { flex-direction: column; align-items: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="top">
+        <h1>Optical Flow Global Path - Dedicated Big View</h1>
+        <div class="toolbar">
+          <button id="save-btn" type="button">Save Tuning</button>
+          <button id="default-btn" type="button">Default</button>
+          <button id="reset-btn" type="button">Reset Path</button>
+          <button id="back-btn" type="button">Back to Main</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="tuning-grid" style="margin-bottom:6px;">
+          <label class="toggle"><input id="swapxy" type="checkbox" /> Swap X/Y</label>
+          <label class="toggle"><input id="invertx" type="checkbox" /> Invert X</label>
+          <label class="toggle"><input id="inverty" type="checkbox" /> Invert Y</label>
+        </div>
+        <div class="tuning-grid">
+          <div class="item">
+            <label for="gain">Flow Gain <span class="val" id="gain-val">1.000</span></label>
+            <input id="gain" type="range" min="0.300" max="2.500" step="0.001" value="1.000" />
+          </div>
+          <div class="item">
+            <label for="flow-alpha">Flow EMA Alpha <span class="val" id="flow-alpha-val">0.200</span></label>
+            <input id="flow-alpha" type="range" min="0.010" max="1.000" step="0.001" value="0.200" />
+          </div>
+          <div class="item">
+            <label for="deadband">Deadband (m/s) <span class="val" id="deadband-val">0.000</span></label>
+            <input id="deadband" type="range" min="0.000" max="0.200" step="0.001" value="0.000" />
+          </div>
+          <div class="item">
+            <label for="heading-bias">Yaw Bias (deg) <span class="val" id="heading-bias-val">0.0</span></label>
+            <input id="heading-bias" type="range" min="-45.0" max="45.0" step="0.1" value="0.0" />
+          </div>
+          <div class="item">
+            <label for="heading-alpha">Heading Smooth Alpha <span class="val" id="heading-alpha-val">0.250</span></label>
+            <input id="heading-alpha" type="range" min="0.010" max="1.000" step="0.001" value="0.250" />
+          </div>
+          <div class="item">
+            <label for="dt-max">DT Max (ms) <span class="val" id="dt-max-val">300</span></label>
+            <input id="dt-max" type="range" min="50" max="500" step="1" value="300" />
+          </div>
+          <div class="item">
+            <label for="dt-fallback">DT Fallback (ms) <span class="val" id="dt-fallback-val">50</span></label>
+            <input id="dt-fallback" type="range" min="10" max="120" step="1" value="50" />
+          </div>
+          <div class="item">
+            <label for="poll-ms">Refresh (ms) <span class="val" id="poll-ms-val">100</span></label>
+            <input id="poll-ms" type="range" min="40" max="300" step="10" value="100" />
+          </div>
+        </div>
+      </div>
+      <div class="plot-wrap" style="margin-top:8px;">
+        <canvas id="plot"></canvas>
+      </div>
+      <div class="status" id="status">Waiting for /data...</div>
+    </div>
+
+    <script>
+      const STORAGE_KEY = "navisar_op_lat_tuning_v1";
+      const DEFAULTS = {
+        swapXY: false,
+        invertX: false,
+        invertY: false,
+        flowGain: 1.0,
+        flowEmaAlpha: 0.2,
+        deadband: 0.0,
+        headingBiasDeg: 0.0,
+        headingSmoothAlpha: 0.25,
+        dtMaxMs: 300,
+        dtFallbackMs: 50,
+        pollMs: 100,
+      };
+
+      const canvas = document.getElementById("plot");
+      const ctx = canvas.getContext("2d");
+      const statusEl = document.getElementById("status");
+      let resizeHandle = null;
+      let pollTimer = null;
+
+      const controls = {
+        swapXY: document.getElementById("swapxy"),
+        invertX: document.getElementById("invertx"),
+        invertY: document.getElementById("inverty"),
+        flowGain: document.getElementById("gain"),
+        flowEmaAlpha: document.getElementById("flow-alpha"),
+        deadband: document.getElementById("deadband"),
+        headingBiasDeg: document.getElementById("heading-bias"),
+        headingSmoothAlpha: document.getElementById("heading-alpha"),
+        dtMaxMs: document.getElementById("dt-max"),
+        dtFallbackMs: document.getElementById("dt-fallback"),
+        pollMs: document.getElementById("poll-ms"),
+      };
+      const vals = {
+        flowGain: document.getElementById("gain-val"),
+        flowEmaAlpha: document.getElementById("flow-alpha-val"),
+        deadband: document.getElementById("deadband-val"),
+        headingBiasDeg: document.getElementById("heading-bias-val"),
+        headingSmoothAlpha: document.getElementById("heading-alpha-val"),
+        dtMaxMs: document.getElementById("dt-max-val"),
+        dtFallbackMs: document.getElementById("dt-fallback-val"),
+        pollMs: document.getElementById("poll-ms-val"),
+      };
+
+      const state = {
+        tuning: { ...DEFAULTS },
+        points: [[0, 0]],
+        x: 0,
+        y: 0,
+        emaVx: 0,
+        emaVy: 0,
+        lastTimeMs: null,
+        headingSmoothedDeg: null,
+        headingDeg: null,
+        vxWorld: 0,
+        vyWorld: 0,
+        flowQ: null,
+        distM: null,
+      };
+
+      const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+      const asFinite = (...vals) => {
+        for (const v of vals) {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n;
+        }
+        return null;
+      };
+      const wrapHeading = (deg) => {
+        const n = Number(deg);
+        if (!Number.isFinite(n)) return null;
+        return ((n % 360) + 360) % 360;
+      };
+      const headingDelta = (target, base) => {
+        const t = wrapHeading(target);
+        const b = wrapHeading(base);
+        if (!Number.isFinite(t) || !Number.isFinite(b)) return 0;
+        return ((t - b + 540) % 360) - 180;
+      };
+      const headingFromMag = (xMg, yMg) => {
+        const x = Number(xMg);
+        const y = Number(yMg);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      };
+      const applyDeadband = (v, d) => (Math.abs(v) < d ? 0 : v);
+
+      const norm = (raw = {}) => ({
+        swapXY: !!raw.swapXY,
+        invertX: !!raw.invertX,
+        invertY: !!raw.invertY,
+        flowGain: clamp(Number(raw.flowGain), 0.3, 2.5) || DEFAULTS.flowGain,
+        flowEmaAlpha: clamp(Number(raw.flowEmaAlpha), 0.01, 1.0) || DEFAULTS.flowEmaAlpha,
+        deadband: clamp(Number(raw.deadband), 0.0, 0.2) || DEFAULTS.deadband,
+        headingBiasDeg: clamp(Number(raw.headingBiasDeg), -45.0, 45.0) || DEFAULTS.headingBiasDeg,
+        headingSmoothAlpha: clamp(Number(raw.headingSmoothAlpha), 0.01, 1.0) || DEFAULTS.headingSmoothAlpha,
+        dtMaxMs: clamp(Number(raw.dtMaxMs), 50, 500) || DEFAULTS.dtMaxMs,
+        dtFallbackMs: clamp(Number(raw.dtFallbackMs), 10, 120) || DEFAULTS.dtFallbackMs,
+        pollMs: clamp(Number(raw.pollMs), 40, 300) || DEFAULTS.pollMs,
+      });
+
+      const loadTuning = () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? norm(JSON.parse(raw)) : { ...DEFAULTS };
+        } catch (_) {
+          return { ...DEFAULTS };
+        }
+      };
+
+      function applyTuningToUi() {
+        const t = state.tuning;
+        controls.swapXY.checked = t.swapXY;
+        controls.invertX.checked = t.invertX;
+        controls.invertY.checked = t.invertY;
+        controls.flowGain.value = t.flowGain.toFixed(3);
+        controls.flowEmaAlpha.value = t.flowEmaAlpha.toFixed(3);
+        controls.deadband.value = t.deadband.toFixed(3);
+        controls.headingBiasDeg.value = t.headingBiasDeg.toFixed(1);
+        controls.headingSmoothAlpha.value = t.headingSmoothAlpha.toFixed(3);
+        controls.dtMaxMs.value = String(Math.round(t.dtMaxMs));
+        controls.dtFallbackMs.value = String(Math.round(t.dtFallbackMs));
+        controls.pollMs.value = String(Math.round(t.pollMs));
+
+        vals.flowGain.textContent = t.flowGain.toFixed(3);
+        vals.flowEmaAlpha.textContent = t.flowEmaAlpha.toFixed(3);
+        vals.deadband.textContent = t.deadband.toFixed(3);
+        vals.headingBiasDeg.textContent = t.headingBiasDeg.toFixed(1);
+        vals.headingSmoothAlpha.textContent = t.headingSmoothAlpha.toFixed(3);
+        vals.dtMaxMs.textContent = String(Math.round(t.dtMaxMs));
+        vals.dtFallbackMs.textContent = String(Math.round(t.dtFallbackMs));
+        vals.pollMs.textContent = String(Math.round(t.pollMs));
+      }
+
+      function readTuningFromUi() {
+        state.tuning = norm({
+          swapXY: controls.swapXY.checked,
+          invertX: controls.invertX.checked,
+          invertY: controls.invertY.checked,
+          flowGain: controls.flowGain.value,
+          flowEmaAlpha: controls.flowEmaAlpha.value,
+          deadband: controls.deadband.value,
+          headingBiasDeg: controls.headingBiasDeg.value,
+          headingSmoothAlpha: controls.headingSmoothAlpha.value,
+          dtMaxMs: controls.dtMaxMs.value,
+          dtFallbackMs: controls.dtFallbackMs.value,
+          pollMs: controls.pollMs.value,
+        });
+        applyTuningToUi();
+        restartPolling();
+      }
+
+      function resetPath() {
+        state.points = [[0, 0]];
+        state.x = 0;
+        state.y = 0;
+        state.emaVx = 0;
+        state.emaVy = 0;
+        state.lastTimeMs = null;
+        state.headingSmoothedDeg = null;
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const cssW = Math.max(320, Math.floor(rect.width || 1280));
+        const cssH = Math.max(320, Math.floor(rect.height || 720));
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const w = Math.floor(cssW * dpr);
+        const h = Math.floor(cssH * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+      }
+
+      function drawArrow(x, y, angleRad, len, tailBack, shaftLen, wing, shaftColor, headColor, lineWidth) {
+        const dx = Math.sin(angleRad);
+        const dy = -Math.cos(angleRad);
+        const tipX = x + dx * len;
+        const tipY = y + dy * len;
+        const tailX = x - dx * tailBack;
+        const tailY = y - dy * tailBack;
+        const headBaseX = tipX - dx * shaftLen;
+        const headBaseY = tipY - dy * shaftLen;
+        const nx = -dy;
+        const ny = dx;
+
+        ctx.strokeStyle = shaftColor;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headBaseX, headBaseY);
+        ctx.stroke();
+
+        ctx.fillStyle = headColor;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(headBaseX + nx * wing, headBaseY + ny * wing);
+        ctx.lineTo(headBaseX - nx * wing, headBaseY - ny * wing);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function safeRange(min, max, minSpan) {
+        if (!Number.isFinite(min) || !Number.isFinite(max)) return [-1, 1];
+        if (min === max) {
+          const pad = Math.max(minSpan, Math.abs(min) * 0.2, 1);
+          return [min - pad, max + pad];
+        }
+        const span = max - min;
+        const pad = Math.max(span * 0.15, minSpan);
+        return [min - pad, max + pad];
+      }
+
+      function drawPlot() {
+        resizeCanvas();
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(320, Math.floor(rect.width || 1280));
+        const h = Math.max(320, Math.floor(rect.height || 720));
+        const pad = 36;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, w, h);
+        const points = state.points;
+        if (!points.length) return;
+
+        let minX = points[0][0], maxX = points[0][0];
+        let minY = points[0][1], maxY = points[0][1];
+        for (const [x, y] of points) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+        if (0 < minX) minX = 0;
+        if (0 > maxX) maxX = 0;
+        if (0 < minY) minY = 0;
+        if (0 > maxY) maxY = 0;
+
+        const [x0, x1] = safeRange(minX, maxX, 1.0);
+        const [y0, y1] = safeRange(minY, maxY, 1.0);
+        const toPx = (x) => pad + ((x - x0) * (w - 2 * pad) / (x1 - x0 || 1));
+        const toPy = (y) => h - pad - ((y - y0) * (h - 2 * pad) / (y1 - y0 || 1));
+
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 8; i += 1) {
+          const gy = pad + ((h - 2 * pad) * i / 8);
+          const gx = pad + ((w - 2 * pad) * i / 8);
+          ctx.beginPath(); ctx.moveTo(pad, gy); ctx.lineTo(w - pad, gy); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gx, pad); ctx.lineTo(gx, h - pad); ctx.stroke();
+        }
+
+        const ox = toPx(0);
+        const oy = toPy(0);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(pad, oy); ctx.lineTo(w - pad, oy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox, pad); ctx.lineTo(ox, h - pad); ctx.stroke();
+
+        ctx.fillStyle = "#334155";
+        ctx.font = "12px sans-serif";
+        ctx.fillText("Longitude East (+X)", w - pad - 130, oy - 8);
+        ctx.fillText("Latitude North (+Y)", ox + 6, pad - 8);
+        ctx.fillText("Home (0,0)", ox + 8, oy - 8);
+
+        ctx.strokeStyle = "#16a34a";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        points.forEach(([x, y], i) => {
+          const px = toPx(x);
+          const py = toPy(y);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+
+        const [lx, ly] = points[points.length - 1];
+        const lpx = toPx(lx);
+        const lpy = toPy(ly);
+        const hasHeading = Number.isFinite(Number(state.headingDeg));
+        const vx = Number(state.vxWorld);
+        const vy = Number(state.vyWorld);
+        const hasVel = Number.isFinite(vx) && Number.isFinite(vy);
+
+        if (hasVel) {
+          const maxVelRef = 1.0;
+          const normX = clamp(vx / maxVelRef, -1, 1);
+          const normY = clamp(vy / maxVelRef, -1, 1);
+          const tipX = lpx + normX * (w - 2 * pad) * 0.12;
+          const tipY = lpy - normY * (h - 2 * pad) * 0.12;
+          const dirX = tipX - lpx;
+          const dirY = tipY - lpy;
+          const mag = Math.hypot(dirX, dirY);
+          if (mag > 1e-6) {
+            const ux = dirX / mag;
+            const uy = dirY / mag;
+            const nx = -uy;
+            const ny = ux;
+            const head = 11;
+            const wing = 6;
+            const baseX = tipX - ux * head;
+            const baseY = tipY - uy * head;
+
+            ctx.strokeStyle = "rgba(15,23,42,0.20)";
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(lpx + 2, lpy + 2);
+            ctx.lineTo(baseX + 2, baseY + 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = "#2563eb";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(lpx, lpy);
+            ctx.lineTo(baseX, baseY);
+            ctx.stroke();
+
+            ctx.fillStyle = "#1d4ed8";
+            ctx.beginPath();
+            ctx.moveTo(tipX, tipY);
+            ctx.lineTo(baseX + nx * wing, baseY + ny * wing);
+            ctx.lineTo(baseX - nx * wing, baseY - ny * wing);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+
+        if (hasHeading) {
+          const headingRad = Number(state.headingDeg) * Math.PI / 180.0;
+          drawArrow(lpx, lpy, headingRad, 26, 8, 10, 4, "#dc2626", "#ef4444", 2.5);
+        }
+        const markerHeadingDeg = hasHeading
+          ? Number(state.headingDeg)
+          : (hasVel ? ((Math.atan2(vx, vy) * 180.0 / Math.PI + 360.0) % 360.0) : null);
+        if (Number.isFinite(markerHeadingDeg)) {
+          drawArrow(lpx, lpy, Number(markerHeadingDeg) * Math.PI / 180.0, 16, 6, 7, 3, "#030712", "#111827", 2.2);
+        }
+
+        const hdgText = hasHeading ? Number(state.headingDeg).toFixed(1) : "--";
+        const vxText = hasVel ? vx.toFixed(3) : "--";
+        const vyText = hasVel ? vy.toFixed(3) : "--";
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px monospace";
+        ctx.fillText(`vx=${vxText} m/s vy=${vyText} m/s zrot=${hdgText} deg`, lpx + 10, lpy - 12);
+      }
+
+      async function refresh() {
+        try {
+          const r = await fetch("/data", { cache: "no-store" });
+          const data = await r.json();
+          const optRaw = data?.sensors?.optical_flow || {};
+          const optOut = data?.outputs?.optical_flow_mavlink || {};
+          const opt = (() => {
+            if (optRaw && (optRaw.dist_cm != null || optRaw.distance_mm != null || optRaw.dist_mm != null)) return optRaw;
+            if (optOut && optOut.distance_m != null) {
+              return {
+                distance_mm: Number(optOut.distance_m) * 1000,
+                flow_vx: optOut.flow_vx ?? optOut.integrated_x ?? 0,
+                flow_vy: optOut.flow_vy ?? optOut.integrated_y ?? 0,
+                flow_q: optOut.quality ?? 0,
+              };
+            }
+            return optRaw;
+          })();
+
+          let heading = wrapHeading(
+            headingFromMag(data?.compass?.incoming?.x_mg, data?.compass?.incoming?.y_mg)
+          );
+          if (Number.isFinite(heading)) {
+            heading = wrapHeading(heading + state.tuning.headingBiasDeg);
+            if (!Number.isFinite(state.headingSmoothedDeg)) {
+              state.headingSmoothedDeg = heading;
+            } else {
+              const d = headingDelta(heading, state.headingSmoothedDeg);
+              state.headingSmoothedDeg = wrapHeading(state.headingSmoothedDeg + d * state.tuning.headingSmoothAlpha);
+            }
+            heading = state.headingSmoothedDeg;
+          }
+          state.headingDeg = heading;
+
+          let vxBody = asFinite(opt?.speed_x, opt?.flow_vx, opt?.flow_vx_mps, 0) || 0;
+          let vyBody = asFinite(opt?.speed_y, opt?.flow_vy, opt?.flow_vy_mps, 0) || 0;
+          if (state.tuning.swapXY) {
+            const t = vxBody; vxBody = vyBody; vyBody = t;
+          }
+          if (state.tuning.invertX) vxBody = -vxBody;
+          if (state.tuning.invertY) vyBody = -vyBody;
+          vxBody = applyDeadband(vxBody, state.tuning.deadband);
+          vyBody = applyDeadband(vyBody, state.tuning.deadband);
+
+          let vxWorld = vxBody;
+          let vyWorld = vyBody;
+          if (Number.isFinite(heading)) {
+            const headingRad = Number(heading) * Math.PI / 180.0;
+            const psi = Math.PI / 2.0 - headingRad;
+            const c = Math.cos(psi);
+            const s = Math.sin(psi);
+            vxWorld = c * vxBody - s * vyBody;
+            vyWorld = s * vxBody + c * vyBody;
+          }
+
+          const nowMs = Date.now();
+          const dtFallback = state.tuning.dtFallbackMs / 1000.0;
+          let dt = dtFallback;
+          if (Number.isFinite(state.lastTimeMs)) {
+            dt = (nowMs - state.lastTimeMs) / 1000.0;
+            if (!(dt > 0 && dt <= state.tuning.dtMaxMs / 1000.0)) dt = dtFallback;
+          }
+          state.lastTimeMs = nowMs;
+
+          state.emaVx = state.tuning.flowEmaAlpha * vxWorld + (1.0 - state.tuning.flowEmaAlpha) * state.emaVx;
+          state.emaVy = state.tuning.flowEmaAlpha * vyWorld + (1.0 - state.tuning.flowEmaAlpha) * state.emaVy;
+          state.x += state.emaVx * dt * state.tuning.flowGain;
+          state.y += state.emaVy * dt * state.tuning.flowGain;
+          state.vxWorld = state.emaVx;
+          state.vyWorld = state.emaVy;
+          state.flowQ = opt?.flow_q;
+          state.distM = asFinite(opt?.height_m, opt?.distance_mm != null ? Number(opt.distance_mm) / 1000.0 : null);
+
+          state.points.push([state.x, state.y]);
+          if (state.points.length > 2500) state.points.shift();
+
+          drawPlot();
+
+          const hdgText = Number.isFinite(state.headingDeg) ? state.headingDeg.toFixed(1) : "--";
+          const qText = asFinite(state.flowQ);
+          const dText = asFinite(state.distM);
+          statusEl.textContent =
+            `x=${state.x.toFixed(3)}m y=${state.y.toFixed(3)}m | ` +
+            `vx=${state.vxWorld.toFixed(3)} vy=${state.vyWorld.toFixed(3)} m/s | ` +
+            `heading=${hdgText}deg | q=${qText ?? "--"} dist=${Number.isFinite(dText) ? dText.toFixed(3) : "--"}m`;
+        } catch (err) {
+          statusEl.textContent = `Failed to fetch /data: ${err?.message || "unknown error"}`;
+        }
+      }
+
+      function restartPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(refresh, Math.round(state.tuning.pollMs));
+      }
+
+      document.getElementById("save-btn").addEventListener("click", () => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(norm(state.tuning)));
+          statusEl.textContent = "Tuning saved.";
+        } catch (_) {
+          statusEl.textContent = "Save failed.";
+        }
+      });
+
+      document.getElementById("default-btn").addEventListener("click", () => {
+        state.tuning = { ...DEFAULTS };
+        applyTuningToUi();
+        resetPath();
+        restartPolling();
+        statusEl.textContent = "Defaults loaded (not saved).";
+      });
+
+      document.getElementById("reset-btn").addEventListener("click", () => {
+        resetPath();
+        drawPlot();
+        statusEl.textContent = "Path reset.";
+      });
+
+      document.getElementById("back-btn").addEventListener("click", () => {
+        window.location.href = "/gui.html";
+      });
+
+      Object.values(controls).forEach((el) => {
+        el.addEventListener("input", () => {
+          readTuningFromUi();
+          statusEl.textContent = "Live tuning active (not saved).";
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        if (resizeHandle) cancelAnimationFrame(resizeHandle);
+        resizeHandle = requestAnimationFrame(() => {
+          resizeHandle = null;
+          drawPlot();
+        });
+      });
+
+      state.tuning = loadTuning();
+      applyTuningToUi();
+      drawPlot();
+      refresh();
+      restartPolling();
+    </script>
+  </body>
+</html>

@@ -60,8 +60,8 @@ sudo nano /boot/firmware/config.txt
 ```
 
 ```bash
-dtoverlay=ov9281
-dtoverlay=ov9281,cam0
+dtoverlay=ov5647
+dtoverlay=ov5647,cam0
 
 dtparam=fan_temp0=60000
 dtparam=fan_temp1=70000
@@ -80,9 +80,9 @@ UART mapping used in this setup:
 - GPIO12/13 → `/dev/ttyAMA5` (GPS input to RPi)
 - GPIO4/5 → `/dev/ttyAMA3` (optical flow to RPi)
 - GPIO14/15 → `/dev/ttyAMA0` (GPS output to Pixhawk)
-## RPi Picamera2 (OV9281) setup
+## RPi Picamera2 (OV9281/OV5647) setup
 
-If you use the OV9281 camera driver (`model: ov9281` in `config/camera.yaml`), install
+If you use a Picamera2-backed CSI camera (`model: ov9281` or `model: ov5647` in `config/camera.yaml`), install
 Picamera2 and its system dependencies on the RPi:
 
 ```bash

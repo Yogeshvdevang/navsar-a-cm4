@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VO Big View</title>
+    <style>
+      :root {
+        --bg: #05070c;
+        --panel: #0d111b;
+        --panel-border: #1f2937;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+      }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .page { max-width: 1700px; margin: 0 auto; padding: 10px; }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      h1 { margin: 0; font-size: 16px; letter-spacing: 0.04em; }
+      .toolbar { display: flex; align-items: center; gap: 8px; }
+      button {
+        border: 1px solid #334155;
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 999px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      button:hover { background: #334155; }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 10px;
+      }
+      .section-title {
+        margin: 2px 0 6px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .note {
+        margin: 0 0 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .vo-scale-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 140px auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .item label { display: block; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+      .item .val { margin-left: 4px; color: var(--text); }
+      .item input[type="range"], .item select { width: 100%; }
+      .plot-wrap {
+        margin-top: 8px;
+        background: #fff;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      #plot { display: block; width: 100%; height: clamp(420px, 72vh, 960px); }
+      .status { margin-top: 8px; font-size: 12px; color: var(--muted); min-height: 18px; }
+      @media (max-width: 1200px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 700px) {
+        .grid { grid-template-columns: 1fr; }
+        .vo-scale-form { grid-template-columns: 1fr; }
+        .top { flex-direction: column; align-items: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="top">
+        <h1>Visual Odometry - Dedicated Big View</h1>
+        <div class="toolbar">
+          <button id="save-btn" type="button">Save Tuning</button>
+          <button id="default-btn" type="button">Default</button>
+          <button id="reset-btn" type="button">Reset Path</button>
+          <button id="back-btn" type="button">Back to Main</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="section-title">VO Scale Factor</div>
+        <div class="note" id="vo-scale-status">VO scale: idle</div>
+        <div class="vo-scale-form" style="margin-bottom:10px;">
+          <select id="vo-scale-env-select">
+            <option value="high">Environment: HIGH</option>
+            <option value="low">Environment: LOW</option>
+          </select>
+          <select id="vo-scale-light-select">
+            <option value="high">Lighting: HIGH</option>
+            <option value="med">Lighting: MED</option>
+            <option value="low">Lighting: LOW</option>
+          </select>
+          <select id="vo-scale-alt-select">
+            <option value="0-8">Altitude: 0-8 m</option>
+            <option value="8-50">Altitude: 8-50 m</option>
+            <option value="50-100">Altitude: 50-100 m</option>
+            <option value="100-150">Altitude: 100-150 m</option>
+            <option value="150-200">Altitude: 150-200 m</option>
+            <option value="200-250">Altitude: 200-250 m</option>
+            <option value="250-300">Altitude: 250-300 m</option>
+          </select>
+          <input id="vo-scale-input" type="number" step="0.001" min="0.1" max="5.0" value="1.000" />
+          <button id="vo-scale-write-btn" type="button">Write</button>
+        </div>
+
+        <div class="section-title">VO Auto Calibration</div>
+        <div class="toolbar" style="justify-content:flex-start; margin-bottom:6px;">
+          <button id="vo-auto-calib-btn" type="button">Start VO Auto Calib</button>
+        </div>
+        <div class="note" id="vo-auto-calib-status">VO auto calib: idle</div>
+
+        <div class="grid">
+          <div class="item">
+            <label for="heading-source">Heading Source <span class="val" id="heading-source-val">real</span></label>
+            <select id="heading-source">
+              <option value="real">Real Compass</option>
+              <option value="vo">VO Motion</option>
+            </select>
+          </div>
+          <div class="item">
+            <label for="scale-x">Scale X <span class="val" id="scale-x-val">1.000</span></label>
+            <input id="scale-x" type="range" min="0.200" max="3.000" step="0.001" value="1.000" />
+          </div>
+          <div class="item">
+            <label for="scale-y">Scale Y <span class="val" id="scale-y-val">1.000</span></label>
+            <input id="scale-y" type="range" min="0.200" max="3.000" step="0.001" value="1.000" />
+          </div>
+          <div class="item">
+            <label for="pos-alpha">Position EMA Alpha <span class="val" id="pos-alpha-val">0.200</span></label>
+            <input id="pos-alpha" type="range" min="0.010" max="1.000" step="0.001" value="0.200" />
+          </div>
+          <div class="item">
+            <label for="yaw-bias">Yaw Bias (deg) <span class="val" id="yaw-bias-val">0.0</span></label>
+            <input id="yaw-bias" type="range" min="-45.0" max="45.0" step="0.1" value="0.0" />
+          </div>
+          <div class="item">
+            <label for="heading-alpha">Heading Smooth Alpha <span class="val" id="heading-alpha-val">0.250</span></label>
+            <input id="heading-alpha" type="range" min="0.010" max="1.000" step="0.001" value="0.250" />
+          </div>
+          <div class="item">
+            <label for="min-speed">Min Speed for VO Heading <span class="val" id="min-speed-val">0.005</span></label>
+            <input id="min-speed" type="range" min="0.000" max="0.200" step="0.001" value="0.005" />
+          </div>
+          <div class="item">
+            <label for="trail">Trail Points <span class="val" id="trail-val">1200</span></label>
+            <input id="trail" type="range" min="200" max="4000" step="50" value="1200" />
+          </div>
+          <div class="item">
+            <label for="poll-ms">Refresh (ms) <span class="val" id="poll-ms-val">100</span></label>
+            <input id="poll-ms" type="range" min="40" max="300" step="10" value="100" />
+          </div>
+          <div class="item">
+            <label><input id="invert-x" type="checkbox" /> Invert X</label>
+          </div>
+          <div class="item">
+            <label><input id="invert-y" type="checkbox" /> Invert Y</label>
+          </div>
+        </div>
+      </div>
+      <div class="plot-wrap">
+        <canvas id="plot"></canvas>
+      </div>
+      <div class="status" id="status">Waiting for /data...</div>
+    </div>
+
+    <script>
+      const STORAGE_KEY = "navisar_vo_big_tuning_v1";
+      const VO_SCALE_STORAGE_KEY = "navisar_vo_scale_profiles_v1";
+      const VO_SCALE_ALT_BANDS = ["0-8", "8-50", "50-100", "100-150", "150-200", "200-250", "250-300"];
+      const DEFAULTS = {
+        headingSource: "real",
+        scaleX: 1.0,
+        scaleY: 1.0,
+        invertX: false,
+        invertY: false,
+        posAlpha: 0.2,
+        yawBiasDeg: 0.0,
+        headingAlpha: 0.25,
+        minSpeed: 0.005,
+        trail: 1200,
+        pollMs: 100,
+      };
+
+      const canvas = document.getElementById("plot");
+      const ctx = canvas.getContext("2d");
+      const statusEl = document.getElementById("status");
+      let pollTimer = null;
+      let resizeHandle = null;
+
+      const controls = {
+        headingSource: document.getElementById("heading-source"),
+        scaleX: document.getElementById("scale-x"),
+        scaleY: document.getElementById("scale-y"),
+        invertX: document.getElementById("invert-x"),
+        invertY: document.getElementById("invert-y"),
+        posAlpha: document.getElementById("pos-alpha"),
+        yawBiasDeg: document.getElementById("yaw-bias"),
+        headingAlpha: document.getElementById("heading-alpha"),
+        minSpeed: document.getElementById("min-speed"),
+        trail: document.getElementById("trail"),
+        pollMs: document.getElementById("poll-ms"),
+      };
+      const voScaleStatusEl = document.getElementById("vo-scale-status");
+      const voScaleEnvSelect = document.getElementById("vo-scale-env-select");
+      const voScaleLightSelect = document.getElementById("vo-scale-light-select");
+      const voScaleAltSelect = document.getElementById("vo-scale-alt-select");
+      const voScaleInput = document.getElementById("vo-scale-input");
+      const voScaleWriteBtn = document.getElementById("vo-scale-write-btn");
+      const voAutoCalibBtn = document.getElementById("vo-auto-calib-btn");
+      const voAutoCalibStatusEl = document.getElementById("vo-auto-calib-status");
+      const vals = {
+        headingSource: document.getElementById("heading-source-val"),
+        scaleX: document.getElementById("scale-x-val"),
+        scaleY: document.getElementById("scale-y-val"),
+        posAlpha: document.getElementById("pos-alpha-val"),
+        yawBiasDeg: document.getElementById("yaw-bias-val"),
+        headingAlpha: document.getElementById("heading-alpha-val"),
+        minSpeed: document.getElementById("min-speed-val"),
+        trail: document.getElementById("trail-val"),
+        pollMs: document.getElementById("poll-ms-val"),
+      };
+
+      const state = {
+        tuning: { ...DEFAULTS },
+        originX: null,
+        originY: null,
+        smX: 0,
+        smY: 0,
+        smHeading: null,
+        points: [[0, 0]],
+        heading: null,
+        vx: 0,
+        vy: 0,
+      };
+      const voScaleState = {
+        profiles: null,
+        active: { feature: "high", lighting: "high", altitude: "0-8" },
+        currentScale: 1.0,
+      };
+      const voAutoCalibState = {
+        running: false,
+        samples: [],
+      };
+
+      const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+      const asFinite = (...arr) => {
+        for (const v of arr) {
+          const n = Number(v);
+          if (Number.isFinite(n)) return n;
+        }
+        return null;
+      };
+      const wrap = (deg) => {
+        const n = Number(deg);
+        if (!Number.isFinite(n)) return null;
+        return ((n % 360) + 360) % 360;
+      };
+      const deltaHeading = (target, base) => {
+        const t = wrap(target);
+        const b = wrap(base);
+        if (!Number.isFinite(t) || !Number.isFinite(b)) return 0;
+        return ((t - b + 540) % 360) - 180;
+      };
+      const headingFromMag = (xMg, yMg) => {
+        const x = Number(xMg); const y = Number(yMg);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+      };
+      const headingFromVelocity = (vx, vy, minSpeed = 0.005) => {
+        const x = Number(vx); const y = Number(vy);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        if (Math.hypot(x, y) < minSpeed) return null;
+        return ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
+      };
+      const setVoScaleStatus = (text) => { if (voScaleStatusEl) voScaleStatusEl.textContent = text; };
+      const setVoAutoCalibStatus = (text) => { if (voAutoCalibStatusEl) voAutoCalibStatusEl.textContent = text; };
+
+      const createVoScaleProfiles = (baseScale = 1.0) => ({
+        high: {
+          high: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          med: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          low: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+        },
+        low: {
+          high: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          med: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+          low: Object.fromEntries(VO_SCALE_ALT_BANDS.map((band) => [band, baseScale])),
+        },
+      });
+      const loadVoScaleStateFromStorage = (baseScale = 1.0) => {
+        try {
+          const raw = localStorage.getItem(VO_SCALE_STORAGE_KEY);
+          if (!raw) return { profiles: createVoScaleProfiles(baseScale), active: { feature: "high", lighting: "high", altitude: "0-8" } };
+          const parsed = JSON.parse(raw) || {};
+          const profiles = createVoScaleProfiles(baseScale);
+          for (const feature of ["high", "low"]) {
+            for (const lighting of ["high", "med", "low"]) {
+              for (const alt of VO_SCALE_ALT_BANDS) {
+                const v = Number(parsed?.profiles?.[feature]?.[lighting]?.[alt]);
+                if (Number.isFinite(v)) profiles[feature][lighting][alt] = v;
+              }
+            }
+          }
+          const feature = ["high", "low"].includes(parsed?.active?.feature) ? parsed.active.feature : "high";
+          const lighting = ["high", "med", "low"].includes(parsed?.active?.lighting) ? parsed.active.lighting : "high";
+          const altitude = VO_SCALE_ALT_BANDS.includes(parsed?.active?.altitude) ? parsed.active.altitude : "0-8";
+          return { profiles, active: { feature, lighting, altitude } };
+        } catch (_) {
+          return { profiles: createVoScaleProfiles(baseScale), active: { feature: "high", lighting: "high", altitude: "0-8" } };
+        }
+      };
+      const saveVoScaleStateToStorage = (obj) => {
+        try { localStorage.setItem(VO_SCALE_STORAGE_KEY, JSON.stringify(obj)); } catch (_) {}
+      };
+      const getVoProfileScale = (feature, lighting, altitude) => {
+        const v = Number(voScaleState?.profiles?.[feature]?.[lighting]?.[altitude]);
+        return Number.isFinite(v) ? v : 1.0;
+      };
+      const renderVoScaleControls = () => {
+        if (!voScaleEnvSelect || !voScaleLightSelect || !voScaleAltSelect || !voScaleInput) return;
+        voScaleEnvSelect.value = voScaleState.active.feature;
+        voScaleLightSelect.value = voScaleState.active.lighting;
+        voScaleAltSelect.value = voScaleState.active.altitude;
+        const s = getVoProfileScale(voScaleEnvSelect.value, voScaleLightSelect.value, voScaleAltSelect.value);
+        voScaleState.currentScale = s;
+        voScaleInput.value = s.toFixed(3);
+      };
+
+      const isValidGpsCoord = (lat, lon) =>
+        Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(Math.abs(lat) < 1e-7 && Math.abs(lon) < 1e-7);
+      const toLocalEnMeters = (lat, lon, refLat, refLon) => ({
+        north: (lat - refLat) * 110540.0,
+        east: (lon - refLon) * 111320.0 * Math.cos((refLat * Math.PI) / 180.0),
+      });
+      const linearSlope = (xs, ys) => {
+        let num = 0, den = 0;
+        const n = Math.min(xs.length, ys.length);
+        for (let i = 0; i < n; i += 1) {
+          const x = Number(xs[i]); const y = Number(ys[i]);
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          num += x * y; den += x * x;
+        }
+        return Math.abs(den) < 1e-9 ? 1.0 : num / den;
+      };
+      const rmse = (vals) => {
+        const arr = vals.filter((v) => Number.isFinite(v));
+        if (!arr.length) return null;
+        return Math.sqrt(arr.reduce((a, v) => a + v * v, 0) / arr.length);
+      };
+      const getPixhawkGpsPortFix = (data) => {
+        const mode = String(data?.mode || "");
+        if (mode === "optical_flow_gps_port") return data?.outputs?.optical_flow_gps_port || null;
+        if (mode === "gps_port") return data?.outputs?.gps_port || null;
+        return data?.outputs?.gps_port || data?.outputs?.optical_flow_gps_port || null;
+      };
+      const captureVoAutoCalibSample = (sample) => {
+        if (!voAutoCalibState.running) return;
+        voAutoCalibState.samples.push(sample);
+        if (voAutoCalibState.samples.length > 3000) voAutoCalibState.samples.shift();
+      };
+      const computeVoAutoCalibResult = () => {
+        const valid = voAutoCalibState.samples.filter((s) => isValidGpsCoord(s.rawLat, s.rawLon) && isValidGpsCoord(s.sentLat, s.sentLon));
+        if (valid.length < 30) return { ok: false, error: "not enough points (need at least 30)" };
+        const totalVoMotion = valid.reduce((acc, s) => {
+          const dx = Number(s.voDx); const dy = Number(s.voDy);
+          if (!Number.isFinite(dx) || !Number.isFinite(dy)) return acc;
+          return acc + Math.hypot(dx, dy);
+        }, 0);
+        if (totalVoMotion < 1.0) return { ok: false, error: "VO drift motion too small; draw a clearer square path" };
+        const rawRef = valid[0], sentRef = valid[0];
+        const rawE = [], rawN = [], sentE = [], sentN = [], errBefore = [];
+        for (const s of valid) {
+          const r = toLocalEnMeters(s.rawLat, s.rawLon, rawRef.rawLat, rawRef.rawLon);
+          const p = toLocalEnMeters(s.sentLat, s.sentLon, sentRef.sentLat, sentRef.sentLon);
+          rawE.push(r.east); rawN.push(r.north); sentE.push(p.east); sentN.push(p.north);
+          errBefore.push(Math.hypot(r.east - p.east, r.north - p.north));
+        }
+        if (rawE.length < 20) return { ok: false, error: "trajectory conversion failed" };
+        const kLon = clamp(linearSlope(sentE, rawE), 0.2, 5.0);
+        const kLat = clamp(linearSlope(sentN, rawN), 0.2, 5.0);
+        const scaleFactor = (kLat + kLon) * 0.5;
+        const errAfter = [];
+        let span = 0;
+        for (let i = 0; i < rawE.length; i += 1) {
+          const re = rawE[i], rn = rawN[i], se = sentE[i] * kLon, sn = sentN[i] * kLat;
+          errAfter.push(Math.hypot(re - se, rn - sn));
+          span = Math.max(span, Math.hypot(re, rn));
+        }
+        const rmseBefore = rmse(errBefore);
+        const rmseAfter = rmse(errAfter);
+        const baseline = Math.max(1.0, span);
+        const accuracy = Number.isFinite(rmseAfter) ? clamp((1.0 - rmseAfter / baseline) * 100.0, 0, 100) : 0;
+        return { ok: true, count: valid.length, scaleFactor, rmseBefore, rmseAfter, accuracy };
+      };
+      const startVoAutoCalib = () => {
+        voAutoCalibState.running = true;
+        voAutoCalibState.samples = [];
+        if (voAutoCalibBtn) voAutoCalibBtn.textContent = "Finish VO Auto Calib";
+        setVoAutoCalibStatus("VO auto calib: started. Lift drone and draw a clear square, then click Finish.");
+      };
+      const finishVoAutoCalib = async () => {
+        voAutoCalibState.running = false;
+        if (voAutoCalibBtn) voAutoCalibBtn.textContent = "Start VO Auto Calib";
+        const result = computeVoAutoCalibResult();
+        if (!result.ok) {
+          setVoAutoCalibStatus(`VO auto calib: failed - ${result.error}`);
+          return;
+        }
+        const next = clamp(Number(voScaleState.currentScale) * result.scaleFactor, 0.1, 5.0);
+        if (voScaleInput) voScaleInput.value = next.toFixed(3);
+        state.tuning.scaleX = next;
+        state.tuning.scaleY = next;
+        const feature = voScaleEnvSelect?.value || "high";
+        const lighting = voScaleLightSelect?.value || "high";
+        const altitude = voScaleAltSelect?.value || "0-8";
+        voScaleState.profiles[feature][lighting][altitude] = next;
+        voScaleState.active = { feature, lighting, altitude };
+        voScaleState.currentScale = next;
+        saveVoScaleStateToStorage({ profiles: voScaleState.profiles, active: voScaleState.active });
+        applyTuningToUi();
+        try {
+          const res = await fetch("/vo-scale", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scale: next }) });
+          if (!res.ok) {
+            await fetch("/calibration-tuning", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ vo_scale: next, vo_lat_scale: next, vo_lon_scale: next }),
+            });
+          }
+        } catch (_) {}
+        setVoAutoCalibStatus(
+          `VO auto calib: done | pts=${result.count} | accuracy=${result.accuracy.toFixed(1)}% | rmse ${result.rmseBefore?.toFixed(2)}m->${result.rmseAfter?.toFixed(2)}m | scale_factor=${result.scaleFactor.toFixed(3)} applied_vo_scale=${next.toFixed(3)}`
+        );
+      };
+
+      const norm = (raw = {}) => ({
+        headingSource: ["real", "vo"].includes(raw.headingSource) ? raw.headingSource : DEFAULTS.headingSource,
+        scaleX: clamp(Number(raw.scaleX), 0.2, 3.0) || DEFAULTS.scaleX,
+        scaleY: clamp(Number(raw.scaleY), 0.2, 3.0) || DEFAULTS.scaleY,
+        invertX: !!raw.invertX,
+        invertY: !!raw.invertY,
+        posAlpha: clamp(Number(raw.posAlpha), 0.01, 1.0) || DEFAULTS.posAlpha,
+        yawBiasDeg: clamp(Number(raw.yawBiasDeg), -45.0, 45.0) || DEFAULTS.yawBiasDeg,
+        headingAlpha: clamp(Number(raw.headingAlpha), 0.01, 1.0) || DEFAULTS.headingAlpha,
+        minSpeed: clamp(Number(raw.minSpeed), 0.0, 0.2) || DEFAULTS.minSpeed,
+        trail: Math.round(clamp(Number(raw.trail), 200, 4000)) || DEFAULTS.trail,
+        pollMs: Math.round(clamp(Number(raw.pollMs), 40, 300)) || DEFAULTS.pollMs,
+      });
+
+      function loadTuning() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? norm(JSON.parse(raw)) : { ...DEFAULTS };
+        } catch (_) {
+          return { ...DEFAULTS };
+        }
+      }
+
+      function applyTuningToUi() {
+        const t = state.tuning;
+        controls.headingSource.value = t.headingSource;
+        controls.scaleX.value = t.scaleX.toFixed(3);
+        controls.scaleY.value = t.scaleY.toFixed(3);
+        controls.invertX.checked = t.invertX;
+        controls.invertY.checked = t.invertY;
+        controls.posAlpha.value = t.posAlpha.toFixed(3);
+        controls.yawBiasDeg.value = t.yawBiasDeg.toFixed(1);
+        controls.headingAlpha.value = t.headingAlpha.toFixed(3);
+        controls.minSpeed.value = t.minSpeed.toFixed(3);
+        controls.trail.value = String(t.trail);
+        controls.pollMs.value = String(t.pollMs);
+
+        vals.headingSource.textContent = t.headingSource;
+        vals.scaleX.textContent = t.scaleX.toFixed(3);
+        vals.scaleY.textContent = t.scaleY.toFixed(3);
+        vals.posAlpha.textContent = t.posAlpha.toFixed(3);
+        vals.yawBiasDeg.textContent = t.yawBiasDeg.toFixed(1);
+        vals.headingAlpha.textContent = t.headingAlpha.toFixed(3);
+        vals.minSpeed.textContent = t.minSpeed.toFixed(3);
+        vals.trail.textContent = String(t.trail);
+        vals.pollMs.textContent = String(t.pollMs);
+      }
+
+      function readTuningFromUi() {
+        state.tuning = norm({
+          headingSource: controls.headingSource.value,
+          scaleX: controls.scaleX.value,
+          scaleY: controls.scaleY.value,
+          invertX: controls.invertX.checked,
+          invertY: controls.invertY.checked,
+          posAlpha: controls.posAlpha.value,
+          yawBiasDeg: controls.yawBiasDeg.value,
+          headingAlpha: controls.headingAlpha.value,
+          minSpeed: controls.minSpeed.value,
+          trail: controls.trail.value,
+          pollMs: controls.pollMs.value,
+        });
+        applyTuningToUi();
+        restartPolling();
+      }
+
+      function resetPath() {
+        state.originX = null;
+        state.originY = null;
+        state.smX = 0;
+        state.smY = 0;
+        state.smHeading = null;
+        state.points = [[0, 0]];
+      }
+
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const cssW = Math.max(320, Math.floor(rect.width || 1280));
+        const cssH = Math.max(320, Math.floor(rect.height || 720));
+        const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        const w = Math.floor(cssW * dpr);
+        const h = Math.floor(cssH * dpr);
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+      }
+
+      function drawArrow(x, y, angleRad, len, tailBack, shaftLen, wing, shaftColor, headColor, lineWidth) {
+        const dx = Math.sin(angleRad);
+        const dy = -Math.cos(angleRad);
+        const tipX = x + dx * len;
+        const tipY = y + dy * len;
+        const tailX = x - dx * tailBack;
+        const tailY = y - dy * tailBack;
+        const headBaseX = tipX - dx * shaftLen;
+        const headBaseY = tipY - dy * shaftLen;
+        const nx = -dy;
+        const ny = dx;
+        ctx.strokeStyle = shaftColor;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(headBaseX, headBaseY); ctx.stroke();
+        ctx.fillStyle = headColor;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(headBaseX + nx * wing, headBaseY + ny * wing);
+        ctx.lineTo(headBaseX - nx * wing, headBaseY - ny * wing);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function safeRange(min, max, minSpan) {
+        if (!Number.isFinite(min) || !Number.isFinite(max)) return [-1, 1];
+        if (min === max) {
+          const pad = Math.max(minSpan, Math.abs(min) * 0.2, 1);
+          return [min - pad, max + pad];
+        }
+        const span = max - min;
+        const pad = Math.max(span * 0.15, minSpan);
+        return [min - pad, max + pad];
+      }
+
+      function drawPlot() {
+        resizeCanvas();
+        const rect = canvas.getBoundingClientRect();
+        const w = Math.max(320, Math.floor(rect.width || 1280));
+        const h = Math.max(320, Math.floor(rect.height || 720));
+        const pad = 36;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, w, h);
+
+        const pts = state.points;
+        if (!pts.length) return;
+
+        let minX = pts[0][0], maxX = pts[0][0], minY = pts[0][1], maxY = pts[0][1];
+        for (const [x, y] of pts) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+        if (0 < minX) minX = 0;
+        if (0 > maxX) maxX = 0;
+        if (0 < minY) minY = 0;
+        if (0 > maxY) maxY = 0;
+
+        const [x0, x1] = safeRange(minX, maxX, 1.0);
+        const [y0, y1] = safeRange(minY, maxY, 1.0);
+        const toPx = (x) => pad + ((x - x0) * (w - 2 * pad) / (x1 - x0 || 1));
+        const toPy = (y) => h - pad - ((y - y0) * (h - 2 * pad) / (y1 - y0 || 1));
+
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 8; i += 1) {
+          const gy = pad + ((h - 2 * pad) * i / 8);
+          const gx = pad + ((w - 2 * pad) * i / 8);
+          ctx.beginPath(); ctx.moveTo(pad, gy); ctx.lineTo(w - pad, gy); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gx, pad); ctx.lineTo(gx, h - pad); ctx.stroke();
+        }
+
+        const ox = toPx(0);
+        const oy = toPy(0);
+        ctx.strokeStyle = "#94a3b8";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(pad, oy); ctx.lineTo(w - pad, oy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(ox, pad); ctx.lineTo(ox, h - pad); ctx.stroke();
+
+        ctx.fillStyle = "#334155";
+        ctx.font = "12px sans-serif";
+        ctx.fillText("VO X", w - pad - 70, oy - 8);
+        ctx.fillText("VO Y", ox + 6, pad - 8);
+        ctx.fillText("Origin (0,0)", ox + 8, oy - 8);
+
+        ctx.strokeStyle = "#f97316";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        pts.forEach(([x, y], i) => {
+          const px = toPx(x);
+          const py = toPy(y);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        });
+        ctx.stroke();
+
+        const [lx, ly] = pts[pts.length - 1];
+        const lpx = toPx(lx);
+        const lpy = toPy(ly);
+        const hasHeading = Number.isFinite(Number(state.heading));
+        if (hasHeading) {
+          drawArrow(lpx, lpy, Number(state.heading) * Math.PI / 180.0, 24, 7, 9, 4, "#dc2626", "#ef4444", 2.4);
+        }
+
+        ctx.fillStyle = "#111827";
+        ctx.beginPath();
+        ctx.arc(lpx, lpy, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        const htxt = hasHeading ? Number(state.heading).toFixed(1) : "--";
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px monospace";
+        ctx.fillText(`vx=${state.vx.toFixed(3)} vy=${state.vy.toFixed(3)} m/s heading=${htxt}deg`, lpx + 10, lpy - 12);
+      }
+
+      async function refresh() {
+        try {
+          const r = await fetch("/data", { cache: "no-store" });
+          const data = await r.json();
+
+          const cxRaw = asFinite(data?.camera?.x, 0);
+          const cyRaw = asFinite(data?.camera?.y, 0);
+          const vx = asFinite(data?.camera?.vx, 0) || 0;
+          const vy = asFinite(data?.camera?.vy, 0) || 0;
+          const gpsInLat = asFinite(data?.sensors?.gps_input?.lat);
+          const gpsInLon = asFinite(data?.sensors?.gps_input?.lon);
+          const selectedGps = getPixhawkGpsPortFix(data) || {};
+          const gpsOutLat = asFinite(selectedGps?.lat);
+          const gpsOutLon = asFinite(selectedGps?.lon);
+          captureVoAutoCalibSample({
+            tMs: Date.now(),
+            rawLat: gpsInLat,
+            rawLon: gpsInLon,
+            sentLat: gpsOutLat,
+            sentLon: gpsOutLon,
+            voDx: asFinite(data?.camera?.dx),
+            voDy: asFinite(data?.camera?.dy),
+          });
+
+          const sx = state.tuning.invertX ? -1 : 1;
+          const sy = state.tuning.invertY ? -1 : 1;
+          const cx = (Number(cxRaw) || 0) * state.tuning.scaleX * sx;
+          const cy = (Number(cyRaw) || 0) * state.tuning.scaleY * sy;
+
+          if (!Number.isFinite(state.originX) || !Number.isFinite(state.originY)) {
+            state.originX = cx;
+            state.originY = cy;
+            state.smX = 0;
+            state.smY = 0;
+          }
+
+          const relX = cx - state.originX;
+          const relY = cy - state.originY;
+          state.smX = state.tuning.posAlpha * relX + (1 - state.tuning.posAlpha) * state.smX;
+          state.smY = state.tuning.posAlpha * relY + (1 - state.tuning.posAlpha) * state.smY;
+
+          state.points.push([state.smX, state.smY]);
+          while (state.points.length > state.tuning.trail) state.points.shift();
+
+          const realHeading = wrap(
+            headingFromMag(data?.compass?.incoming?.x_mg, data?.compass?.incoming?.y_mg)
+          );
+          const voHeading = wrap(headingFromVelocity(vx, vy, state.tuning.minSpeed));
+
+          let selected = state.tuning.headingSource === "vo" ? voHeading : realHeading;
+          selected = wrap(asFinite(selected, realHeading, voHeading));
+          if (Number.isFinite(selected)) {
+            selected = wrap(selected + state.tuning.yawBiasDeg);
+            if (!Number.isFinite(state.smHeading)) {
+              state.smHeading = selected;
+            } else {
+              const d = deltaHeading(selected, state.smHeading);
+              state.smHeading = wrap(state.smHeading + d * state.tuning.headingAlpha);
+            }
+            state.heading = state.smHeading;
+          }
+
+          state.vx = vx;
+          state.vy = vy;
+          drawPlot();
+
+          const htxt = Number.isFinite(state.heading) ? state.heading.toFixed(1) : "--";
+          statusEl.textContent =
+            `x=${state.smX.toFixed(3)}m y=${state.smY.toFixed(3)}m | ` +
+            `vx=${vx.toFixed(3)} vy=${vy.toFixed(3)} m/s | source=${state.tuning.headingSource} heading=${htxt}deg`;
+        } catch (err) {
+          statusEl.textContent = `Failed to fetch /data: ${err?.message || "unknown error"}`;
+        }
+      }
+
+      function restartPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(refresh, Math.round(state.tuning.pollMs));
+      }
+
+      document.getElementById("save-btn").addEventListener("click", () => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(norm(state.tuning)));
+          statusEl.textContent = "VO tuning saved.";
+        } catch (_) {
+          statusEl.textContent = "VO save failed.";
+        }
+      });
+
+      document.getElementById("default-btn").addEventListener("click", () => {
+        state.tuning = { ...DEFAULTS };
+        applyTuningToUi();
+        resetPath();
+        restartPolling();
+        statusEl.textContent = "VO defaults loaded (not saved).";
+      });
+
+      document.getElementById("reset-btn").addEventListener("click", () => {
+        resetPath();
+        drawPlot();
+        statusEl.textContent = "VO path reset.";
+      });
+
+      document.getElementById("back-btn").addEventListener("click", () => {
+        window.location.href = "/gui.html";
+      });
+      if (voScaleEnvSelect) voScaleEnvSelect.addEventListener("change", () => {
+        const s = getVoProfileScale(voScaleEnvSelect.value, voScaleLightSelect.value, voScaleAltSelect.value);
+        voScaleInput.value = s.toFixed(3);
+      });
+      if (voScaleLightSelect) voScaleLightSelect.addEventListener("change", () => {
+        const s = getVoProfileScale(voScaleEnvSelect.value, voScaleLightSelect.value, voScaleAltSelect.value);
+        voScaleInput.value = s.toFixed(3);
+      });
+      if (voScaleAltSelect) voScaleAltSelect.addEventListener("change", () => {
+        const s = getVoProfileScale(voScaleEnvSelect.value, voScaleLightSelect.value, voScaleAltSelect.value);
+        voScaleInput.value = s.toFixed(3);
+      });
+      if (voScaleWriteBtn) voScaleWriteBtn.addEventListener("click", async () => {
+        const n = clamp(Number(voScaleInput.value), 0.1, 5.0);
+        if (!Number.isFinite(n)) {
+          setVoScaleStatus("VO scale: invalid numeric value");
+          return;
+        }
+        const feature = voScaleEnvSelect.value;
+        const lighting = voScaleLightSelect.value;
+        const altitude = voScaleAltSelect.value;
+        voScaleState.profiles[feature][lighting][altitude] = n;
+        voScaleState.active = { feature, lighting, altitude };
+        voScaleState.currentScale = n;
+        saveVoScaleStateToStorage({ profiles: voScaleState.profiles, active: voScaleState.active });
+        state.tuning.scaleX = n;
+        state.tuning.scaleY = n;
+        applyTuningToUi();
+        try {
+          const res = await fetch("/vo-scale", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scale: n }) });
+          if (!res.ok) {
+            await fetch("/calibration-tuning", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ vo_scale: n, vo_lat_scale: n, vo_lon_scale: n }),
+            });
+          }
+        } catch (_) {}
+        setVoScaleStatus(`VO scale: active=${feature}/${lighting}/${altitude} current=${n.toFixed(3)}`);
+      });
+      if (voAutoCalibBtn) voAutoCalibBtn.addEventListener("click", async () => {
+        if (voAutoCalibState.running) await finishVoAutoCalib();
+        else startVoAutoCalib();
+      });
+
+      Object.values(controls).forEach((el) => {
+        el.addEventListener("input", () => {
+          readTuningFromUi();
+          statusEl.textContent = "VO live tuning active (not saved).";
+        });
+      });
+
+      window.addEventListener("resize", () => {
+        if (resizeHandle) cancelAnimationFrame(resizeHandle);
+        resizeHandle = requestAnimationFrame(() => {
+          resizeHandle = null;
+          drawPlot();
+        });
+      });
+
+      state.tuning = loadTuning();
+      const loadedVoScale = loadVoScaleStateFromStorage(state.tuning.scaleX || 1.0);
+      voScaleState.profiles = loadedVoScale.profiles;
+      voScaleState.active = loadedVoScale.active;
+      renderVoScaleControls();
+      setVoScaleStatus(
+        `VO scale: active=${voScaleState.active.feature}/${voScaleState.active.lighting}/${voScaleState.active.altitude} current=${voScaleState.currentScale.toFixed(3)}`
+      );
+      applyTuningToUi();
+      drawPlot();
+      refresh();
+      restartPolling();
+    </script>
+  </body>
+</html>

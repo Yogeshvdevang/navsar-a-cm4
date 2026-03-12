@@ -1,7 +1,10 @@
 # Camera and exposure profiles
-# model can be: opencv, ov9281
-model: ov9281 #opencv
-#index: 0
+# model can be: opencv, ov9281, ov5647
+model: ov5647 #opencv
+# For OpenCV/USB camera, set index (integer or "auto"), e.g. index: 0
+#index: auto
+# If model is ov9281/ov5647 and Picamera2 init fails, optionally fallback to OpenCV.
+fallback_to_opencv: false
 width: 640
 height: 400 # 16:10 downscale for lower compute
 format: YUV420

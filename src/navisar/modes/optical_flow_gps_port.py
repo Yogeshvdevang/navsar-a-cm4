@@ -38,6 +38,7 @@ class OpticalFlowGpsPortMode:
         lat_scale: float = 1.0,
         lon_scale: float = 1.0,
         alt_offset_m: float = 0.0,
+        unhealthy_pause_s: float = 0.7,
     ):
         self.gps_port_mode = gps_port_mode
         self.min_quality = int(min_quality)
@@ -59,6 +60,7 @@ class OpticalFlowGpsPortMode:
         self.lat_scale = float(lat_scale)
         self.lon_scale = float(lon_scale)
         self.alt_offset_m = float(alt_offset_m)
+        self.unhealthy_pause_s = float(unhealthy_pause_s)
         self._last_warn = 0.0
         self._last_time_s = None
         self._last_time_ms = None
@@ -70,6 +72,7 @@ class OpticalFlowGpsPortMode:
         self._stationary_count = 0
         self._origin = None
         self._alt_filtered_m = None
+        self._bad_since_s = None
         self.last_payload = None
 
     def set_gps_calibration(self, lat_scale=None, lon_scale=None, alt_offset_m=None):
@@ -122,7 +125,32 @@ class OpticalFlowGpsPortMode:
         self._vy_f = 0.0
         self._stationary_count = 0
         self._alt_filtered_m = None
+        self._bad_since_s = None
         self._origin = origin
+
+    def _gps_health_overrides(self, sample):
+        """Map optical-flow quality to synthetic GPS confidence."""
+        quality = int(sample.flow_quality)
+        healthy = bool(sample.flow_ok and sample.dist_ok and quality >= self.min_quality)
+        if healthy:
+            quality_span = max(1, 100 - self.min_quality)
+            quality_ratio = _clamp((quality - self.min_quality) / quality_span, 0.0, 1.0)
+            h_acc_mm = int(round(500 + (1.0 - quality_ratio) * 2500))
+            v_acc_mm = int(round(1000 + (1.0 - quality_ratio) * 3000))
+            p_dop_01 = int(round(70 + (1.0 - quality_ratio) * 180))
+            fix_type = 3
+        else:
+            h_acc_mm = 10000
+            v_acc_mm = 15000
+            p_dop_01 = 500
+            fix_type = 1
+        return {
+            "healthy": healthy,
+            "fix_type": fix_type,
+            "h_acc_mm": h_acc_mm,
+            "v_acc_mm": v_acc_mm,
+            "p_dop_01": p_dop_01,
+        }
 
     def handle(
         self,
@@ -217,12 +245,10 @@ class OpticalFlowGpsPortMode:
         self._last_time_ms = sample.time_ms
 
         raw_alt_m = None
-        raw_dist_mm = None
         if alt_override_m is not None and _finite(alt_override_m):
             raw_alt_m = float(alt_override_m)
         elif sample.dist_ok:
             raw_alt_m = float(sample.distance_mm) / 1000.0
-            raw_dist_mm = int(sample.distance_mm)
 
         if raw_alt_m is not None and _finite(raw_alt_m):
             if alt_override_m is not None and _finite(alt_override_m):
@@ -248,6 +274,19 @@ class OpticalFlowGpsPortMode:
                 self._z_m = self._alt_filtered_m
 
         alt_m = self._z_m if _finite(self._z_m) else None
+        health = self._gps_health_overrides(sample)
+        if health["healthy"]:
+            self._bad_since_s = None
+        elif self._bad_since_s is None:
+            self._bad_since_s = now
+
+        if (
+            self._bad_since_s is not None
+            and now - self._bad_since_s >= max(0.0, self.unhealthy_pause_s)
+        ):
+            self.last_payload = None
+            self._warn(now, "OFLOW->PORT: optical flow unhealthy; pausing GPS output.")
+            return
 
         # Calibrate optical ENU before converting to GPS.
         x_out_m = self._x_m * self.lon_scale
@@ -262,11 +301,15 @@ class OpticalFlowGpsPortMode:
             z_out_m,
             (origin[0], origin[1], None),
             alt_override_m=alt_out_m,
-            nav_pvt_alt_mm_override=raw_dist_mm,
             heading_deg=heading_deg,
             send_heading=send_heading,
             heading_only=heading_only,
             apply_final_altitude_offset=False,
+            ekf_ok=health["healthy"],
+            fix_type_override=health["fix_type"],
+            h_acc_mm_override=health["h_acc_mm"],
+            v_acc_mm_override=health["v_acc_mm"],
+            p_dop_01_override=health["p_dop_01"],
         )
         port_payload = self.gps_port_mode.last_payload
         if port_payload is None:

@@ -53,12 +53,16 @@ class GpsPortMode:
         z_m,
         origin,
         alt_override_m=None,
-        nav_pvt_alt_mm_override=None,
         heading_deg=None,
         send_heading=True,
         heading_only=False,
         apply_final_altitude_offset=True,
         use_origin_altitude=True,
+        ekf_ok=True,
+        fix_type_override=None,
+        h_acc_mm_override=None,
+        v_acc_mm_override=None,
+        p_dop_01_override=None,
     ):
         """Send GPS sentences over serial if ready."""
         if origin is None:
@@ -116,6 +120,7 @@ class GpsPortMode:
                 alt_m,
                 vx_enu,
                 vy_enu,
+                ekf_ok=ekf_ok,
                 course_deg_override=course_override,
                 force_heading=heading_only,
                 include_heading=send_heading,
@@ -128,10 +133,14 @@ class GpsPortMode:
                 alt_m,
                 vx_enu,
                 vy_enu,
-                nav_pvt_alt_mm_override=nav_pvt_alt_mm_override,
+                ekf_ok=ekf_ok,
                 course_deg_override=course_override,
                 force_heading=heading_only,
                 include_heading=send_heading,
+                fix_type_override=fix_type_override,
+                h_acc_mm_override=h_acc_mm_override,
+                v_acc_mm_override=v_acc_mm_override,
+                p_dop_01_override=p_dop_01_override,
             )
         if nmea_payload or ubx_payload:
             speed_mps, computed_heading_deg = speed_course_from_enu(vx_enu, vy_enu)

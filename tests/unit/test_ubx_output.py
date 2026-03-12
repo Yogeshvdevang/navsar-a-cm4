@@ -2,6 +2,7 @@ from datetime import datetime
 
 import navisar.pixhawk.gps_output as gps_output
 from navisar.pixhawk.gps_output import UbxSerialEmitter
+import struct
 
 
 class _FakeSerial:
@@ -21,6 +22,19 @@ class _FakeSerial:
     def write(self, payload):
         self.writes.append(bytes(payload))
         return len(payload)
+
+
+def _decode_nav_pvt(frame):
+    payload = frame[6:-2]
+    values = struct.unpack("<IHBBBBBBIiBBBBiiiiIIiiiiiIIHBBihH", payload)
+    names = [
+        "iTOW", "year", "month", "day", "hour", "minute", "second", "valid",
+        "tAcc", "nano", "fixType", "flags", "flags2", "numSV", "lon", "lat",
+        "height", "hMSL", "hAcc", "vAcc", "velN", "velE", "velD", "gSpeed",
+        "headMot", "sAcc", "headAcc", "pDOP", "flags3", "reserved1", "headVeh",
+        "magDec", "magAcc",
+    ]
+    return dict(zip(names, values))
 
 
 def test_ubx_cfg_messages_receive_ack(monkeypatch):
@@ -71,3 +85,46 @@ def test_duplicate_itow_is_not_emitted_twice(monkeypatch):
     assert first == second
     assert writes_after_first == 6
     assert len(fake_serial.writes) == 6
+
+
+def test_ubx_health_overrides_and_altitude_consistency(monkeypatch):
+    fake_serial = _FakeSerial()
+    monkeypatch.setattr(gps_output.serial, "Serial", lambda *args, **kwargs: fake_serial)
+
+    class _FixedDatetime(datetime):
+        @classmethod
+        def utcnow(cls):
+            return cls(2026, 3, 10, 12, 0, 0, 123000)
+
+    monkeypatch.setattr(gps_output._dt, "datetime", _FixedDatetime)
+
+    emitter = UbxSerialEmitter(
+        port="/dev/null",
+        baud=115200,
+        rate_hz=5,
+        fix_type=3,
+        min_sats=10,
+        max_sats=20,
+        update_s=5,
+    )
+
+    emitter.send(
+        12.0,
+        77.0,
+        972.123,
+        0.1,
+        0.0,
+        ekf_ok=False,
+        fix_type_override=1,
+        h_acc_mm_override=10000,
+        v_acc_mm_override=15000,
+        p_dop_01_override=500,
+    )
+
+    pvt = _decode_nav_pvt(fake_serial.writes[0])
+    assert pvt["fixType"] == 1
+    assert pvt["height"] == 972123
+    assert pvt["hMSL"] == 972123
+    assert pvt["hAcc"] == 10000
+    assert pvt["vAcc"] == 15000
+    assert pvt["pDOP"] == 500

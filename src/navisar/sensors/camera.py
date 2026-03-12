@@ -67,23 +67,38 @@ def create_camera_driver(camera_cfg):
     height = camera_cfg.get("height", 480)
     rate_hz = camera_cfg.get("rate_hz")
 
-    if model in {"opencv", "usb", "generic"}:
+    def _wrap_rate(driver):
+        return RateLimitedCamera(driver, rate_hz) if rate_hz else driver
+
+    def _create_opencv_driver():
         index = camera_cfg.get("index", 0)
         fourcc = camera_cfg.get("fourcc")
-        driver = OpenCVCamera(
+        return OpenCVCamera(
             index=index,
             width=width,
             height=height,
             fourcc=fourcc,
             fps=rate_hz,
         )
-        return RateLimitedCamera(driver, rate_hz) if rate_hz else driver
 
-    if model in {"ov9281", "ov9821"}:
+    if model in {"opencv", "usb", "generic"}:
+        return _wrap_rate(_create_opencv_driver())
+
+    if model in {"ov9281", "ov9821", "ov5647"}:
         from navisar.sensors.cameras.ov9281 import OV9281Camera
 
         format_name = camera_cfg.get("format", "YUV420")
-        driver = OV9281Camera(width=width, height=height, format_name=format_name)
-        return RateLimitedCamera(driver, rate_hz) if rate_hz else driver
+        fallback_to_opencv = bool(camera_cfg.get("fallback_to_opencv", False))
+        try:
+            driver = OV9281Camera(width=width, height=height, format_name=format_name)
+            return _wrap_rate(driver)
+        except Exception as exc:
+            if not fallback_to_opencv:
+                raise
+            print(
+                "Warning: OV9281 initialization failed; falling back to OpenCV camera. "
+                f"Cause: {exc}"
+            )
+            return _wrap_rate(_create_opencv_driver())
 
     raise ValueError(f"Unknown camera model '{model}'")

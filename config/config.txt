@@ -26,7 +26,7 @@ dtparam=audio=off
 
 # 6. General UART Enable (Required for serial console/primary UART)
 enable_uart=1
-dtoverlay=ov9281,cam0
+dtoverlay=ov5647,cam0
 dtparam=act_led_gpio=6
 dtparam=act_led_trigger=mmc0
 dtparam=act_led_activelow=on

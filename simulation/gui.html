@@ -336,7 +336,7 @@
 
       .compass-panel {
         display: grid;
-        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         justify-items: center;
         align-items: start;
         gap: 12px;
@@ -505,6 +505,23 @@
 
       .plot-wrap.baro-portrait canvas {
         height: 280px;
+      }
+      .card:fullscreen {
+        width: min(96vw, 1600px);
+        height: 96vh;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+      }
+      .card:fullscreen .plot-wrap {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .card:fullscreen .plot-wrap canvas {
+        flex: 1;
+        height: 100% !important;
+        min-height: 72vh;
       }
 
       .gps-calibration-plot {
@@ -826,30 +843,6 @@
           Optical GPS manual calib values: lat_scale=1.000 lon_scale=1.000 alt_offset_m=0.000
         </div>
       </div>
-      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">VO Scale Factor</div>
-      <div class="gps-origin-note" id="vo-scale-status">VO scale: idle</div>
-      <div class="of-scale-panel">
-        <div class="vo-scale-form">
-          <select id="vo-scale-env-select" class="of-scale-select"></select>
-          <select id="vo-scale-light-select" class="of-scale-select"></select>
-          <select id="vo-scale-alt-select" class="of-scale-select">
-            <option value="0-8">Altitude: 0-8 m</option>
-            <option value="8-50">Altitude: 8-50 m</option>
-            <option value="50-100">Altitude: 50-100 m</option>
-            <option value="100-150">Altitude: 100-150 m</option>
-            <option value="150-200">Altitude: 150-200 m</option>
-            <option value="200-250">Altitude: 200-250 m</option>
-            <option value="250-300">Altitude: 250-300 m</option>
-          </select>
-          <input id="vo-scale-input" class="of-scale-input" type="number" step="0.001" min="0.1" max="5.0" value="1.000" />
-          <button id="vo-scale-write-btn" class="of-scale-write-btn" type="button">Write</button>
-        </div>
-      </div>
-      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">VO Auto Calibration</div>
-      <div class="mode-buttons">
-        <button id="vo-auto-calib-btn">Start VO Auto Calib</button>
-      </div>
-      <div class="gps-origin-note" id="vo-auto-calib-status">VO auto calib: idle</div>
       <div style="font-size:12px; font-weight:700; color:var(--muted); margin-top:6px;">GPS Mode</div>
       <div class="gps-origin-controls">
         <div class="mode-buttons" id="gps-origin-buttons">
@@ -888,6 +881,21 @@
                 </div>
               </div>
               <div class="compass-unit">
+                <div class="name">Pixhawk Compass</div>
+                <div class="compass">
+                  <div class="rose" id="compass-pixhawk-rose">
+                    <div class="ring"></div>
+                    <div class="label n">N</div>
+                    <div class="label s">S</div>
+                    <div class="label e">E</div>
+                    <div class="label w">W</div>
+                  </div>
+                  <div class="deg" id="compass-pixhawk-deg">--.-°</div>
+                  <div class="title">HEADING</div>
+                  <div class="needle"></div>
+                </div>
+              </div>
+              <div class="compass-unit">
                 <div class="name">VO Compass</div>
                 <div class="compass">
                   <div class="rose" id="compass-vo-rose">
@@ -898,36 +906,6 @@
                     <div class="label w">W</div>
                   </div>
                   <div class="deg" id="compass-vo-deg">--.-°</div>
-                  <div class="title">HEADING</div>
-                  <div class="needle"></div>
-                </div>
-              </div>
-              <div class="compass-unit">
-                <div class="name">MAVLink Bridge</div>
-                <div class="compass">
-                  <div class="rose" id="compass-mav-rose">
-                    <div class="ring"></div>
-                    <div class="label n">N</div>
-                    <div class="label s">S</div>
-                    <div class="label e">E</div>
-                    <div class="label w">W</div>
-                  </div>
-                  <div class="deg" id="compass-mav-deg">--.-°</div>
-                  <div class="title">HEADING</div>
-                  <div class="needle"></div>
-                </div>
-              </div>
-              <div class="compass-unit">
-                <div class="name">Optical Flow</div>
-                <div class="compass">
-                  <div class="rose" id="compass-opt-rose">
-                    <div class="ring"></div>
-                    <div class="label n">N</div>
-                    <div class="label s">S</div>
-                    <div class="label e">E</div>
-                    <div class="label w">W</div>
-                  </div>
-                  <div class="deg" id="compass-opt-deg">--.-°</div>
                   <div class="title">HEADING</div>
                   <div class="needle"></div>
                 </div>
@@ -980,6 +958,14 @@
           </div>
           <div class="card">
             <h3>Integrated Position Optical Flow (m)</h3>
+            <div class="mode-buttons" id="of-heading-buttons" style="margin-bottom:8px;">
+              <button type="button" data-heading-source="vo">VO Compass</button>
+              <button type="button" data-heading-source="real">Real Compass</button>
+              <button type="button" data-heading-source="pixhawk">Pixhawk Compass</button>
+            </div>
+            <div class="mode-buttons" style="margin-bottom:8px;">
+              <button id="open-of-big-view-btn" type="button">Open Big View (op_lat)</button>
+            </div>
             <div class="plot-wrap">
               <canvas id="pos-plot"></canvas>
             </div>
@@ -989,6 +975,10 @@
             <div class="mode-buttons" id="vo-heading-buttons" style="margin-bottom:8px;">
               <button type="button" data-heading-source="vo">VO Compass</button>
               <button type="button" data-heading-source="real">Real Compass</button>
+              <button type="button" data-heading-source="pixhawk">Pixhawk Compass</button>
+            </div>
+            <div class="mode-buttons" style="margin-bottom:8px;">
+              <button id="open-vo-big-view-btn" type="button">Open Big View (VO)</button>
             </div>
             <div class="plot-wrap">
               <canvas id="vo-pos-plot"></canvas>
@@ -996,6 +986,11 @@
           </div>
           <div class="card span-2">
             <h3>GPS Sensor Lat/Lon Trajectory</h3>
+            <div class="mode-buttons" id="gps-traj-heading-buttons" style="margin-bottom:8px;">
+              <button type="button" data-heading-source="vo">VO Compass</button>
+              <button type="button" data-heading-source="real">Real Compass</button>
+              <button type="button" data-heading-source="pixhawk">Pixhawk Compass</button>
+            </div>
             <div class="gps-origin-note" id="gps-traj-live">
               GPS Sensor: lat=-- lon=-- alt=--m fix=-- hdg=--
             </div>
@@ -1168,11 +1163,28 @@
         el.setAttribute("href", url);
       };
 
+      const compassRenderState = {};
       const updateCompassWidget = (prefix, heading) => {
         const rose = document.getElementById(`compass-${prefix}-rose`);
         const deg = document.getElementById(`compass-${prefix}-deg`);
         if (rose && Number.isFinite(heading)) {
-          rose.style.transform = `rotate(${-heading}deg)`;
+          if (!compassRenderState[prefix]) {
+            compassRenderState[prefix] = {
+              shownHeading: wrapHeading(heading),
+              roseAngleDeg: -Number(heading),
+            };
+          } else {
+            const prevShown = compassRenderState[prefix].shownHeading;
+            const d = headingDelta(heading, prevShown);
+            if (Number.isFinite(d)) {
+              compassRenderState[prefix].shownHeading = wrapHeading(prevShown + d);
+              compassRenderState[prefix].roseAngleDeg -= d;
+            } else {
+              compassRenderState[prefix].shownHeading = wrapHeading(heading);
+              compassRenderState[prefix].roseAngleDeg = -Number(heading);
+            }
+          }
+          rose.style.transform = `rotate(${compassRenderState[prefix].roseAngleDeg}deg)`;
         }
         if (deg) {
           deg.textContent = Number.isFinite(heading) ? `${heading.toFixed(1)}°` : "--.-°";
@@ -1184,10 +1196,57 @@
         lastY: null,
         lastT: null,
       };
+      const compassNoiseFilterState = {
+        realSmoothed: null,
+        pixhawkSmoothed: null,
+      };
+      const COMPASS_DENOISE_ALPHA = 0.18;
+      const COMPASS_MAX_STEP_DEG = 10.0;
+      const denoiseCompassHeading = (rawHeading) => {
+        const raw = wrapHeading(rawHeading);
+        if (!Number.isFinite(raw)) {
+          return Number.isFinite(compassNoiseFilterState.realSmoothed)
+            ? compassNoiseFilterState.realSmoothed
+            : null;
+        }
+        if (!Number.isFinite(compassNoiseFilterState.realSmoothed)) {
+          compassNoiseFilterState.realSmoothed = raw;
+          return raw;
+        }
+        const d = headingDelta(raw, compassNoiseFilterState.realSmoothed);
+        if (!Number.isFinite(d)) {
+          return compassNoiseFilterState.realSmoothed;
+        }
+        const limited = clamp(d, -COMPASS_MAX_STEP_DEG, COMPASS_MAX_STEP_DEG);
+        compassNoiseFilterState.realSmoothed = wrapHeading(
+          compassNoiseFilterState.realSmoothed + limited * COMPASS_DENOISE_ALPHA
+        );
+        return compassNoiseFilterState.realSmoothed;
+      };
+      const denoisePixhawkHeading = (rawHeading) => {
+        const raw = wrapHeading(rawHeading);
+        if (!Number.isFinite(raw)) {
+          return Number.isFinite(compassNoiseFilterState.pixhawkSmoothed)
+            ? compassNoiseFilterState.pixhawkSmoothed
+            : null;
+        }
+        if (!Number.isFinite(compassNoiseFilterState.pixhawkSmoothed)) {
+          compassNoiseFilterState.pixhawkSmoothed = raw;
+          return raw;
+        }
+        const d = headingDelta(raw, compassNoiseFilterState.pixhawkSmoothed);
+        if (!Number.isFinite(d)) {
+          return compassNoiseFilterState.pixhawkSmoothed;
+        }
+        const limited = clamp(d, -COMPASS_MAX_STEP_DEG, COMPASS_MAX_STEP_DEG);
+        compassNoiseFilterState.pixhawkSmoothed = wrapHeading(
+          compassNoiseFilterState.pixhawkSmoothed + limited * COMPASS_DENOISE_ALPHA
+        );
+        return compassNoiseFilterState.pixhawkSmoothed;
+      };
       const compassFusionState = {
         realLast: null,
         vo: { originReal: null, originSrc: null, shown: null },
-        optical: { originReal: null, originSrc: null, shown: null },
       };
 
       const dataUrl = (() => {
@@ -1226,7 +1285,7 @@
       // Drone canvas removed in favor of live VO stream.
 
       const plotState = {
-        maxPoints: 1200,
+        maxPoints: 400,
         times: [],
         vx: [],
         vy: [],
@@ -1251,11 +1310,13 @@
         gpsPortHeadingDeg: null,
         opticalHeightTarget: null,
         currentHeadingDeg: null,
+        pixhawkHeadingDeg: null,
         voHeadingDeg: null,
-        mavHeadingDeg: null,
+        currentVxWorldMps: 0,
+        currentVyWorldMps: 0,
       };
       const calibrationGpsState = {
-        maxPoints: 1200,
+        maxPoints: 400,
         raw: {
           lats: [],
           lons: [],
@@ -1280,6 +1341,16 @@
         y: 0,
         ready: false,
       };
+      const opLatState = {
+        x: 0,
+        y: 0,
+        emaVx: 0,
+        emaVy: 0,
+        lastTimeMs: null,
+      };
+      const OP_LAT_GAIN = 1.0;
+      const OP_LAT_EMA_ALPHA = 0.2;
+      const OP_LAT_DEADBAND = 0.0;
 
       const filterSignal = (prev, raw, alpha = 0.2, deadband = 0.0, maxStep = 1e9) => {
         let value = Number.isFinite(raw) ? raw : prev;
@@ -1291,6 +1362,48 @@
           value = prev + Math.sign(delta) * maxStep;
         }
         return prev + alpha * (value - prev);
+      };
+      const applyDeadband = (v, threshold) => (Math.abs(v) < threshold ? 0 : v);
+
+      const integrateOpticalLikeOpLat = (vxBodyRaw, vyBodyRaw, headingDeg, nowMs) => {
+        let vxBody = Number(vxBodyRaw);
+        let vyBody = Number(vyBodyRaw);
+        if (!Number.isFinite(vxBody)) vxBody = 0;
+        if (!Number.isFinite(vyBody)) vyBody = 0;
+        vxBody = applyDeadband(vxBody, OP_LAT_DEADBAND);
+        vyBody = applyDeadband(vyBody, OP_LAT_DEADBAND);
+
+        // Match tools/snippet/op_lat.py:
+        // psi = pi/2 - heading, world = R(psi) * body
+        let vxWorld = vxBody;
+        let vyWorld = vyBody;
+        if (Number.isFinite(headingDeg)) {
+          const headingRad = (Number(headingDeg) * Math.PI) / 180.0;
+          const psi = Math.PI / 2.0 - headingRad;
+          const c = Math.cos(psi);
+          const s = Math.sin(psi);
+          vxWorld = c * vxBody - s * vyBody;
+          vyWorld = s * vxBody + c * vyBody;
+        }
+
+        let dt = 0.05; // op_lat.py default @ 20Hz
+        if (Number.isFinite(opLatState.lastTimeMs)) {
+          dt = (nowMs - opLatState.lastTimeMs) / 1000.0;
+          if (!(dt > 0 && dt <= 0.3)) dt = 0.05;
+        }
+        opLatState.lastTimeMs = nowMs;
+
+        opLatState.emaVx = OP_LAT_EMA_ALPHA * vxWorld + (1.0 - OP_LAT_EMA_ALPHA) * opLatState.emaVx;
+        opLatState.emaVy = OP_LAT_EMA_ALPHA * vyWorld + (1.0 - OP_LAT_EMA_ALPHA) * opLatState.emaVy;
+        opLatState.x += opLatState.emaVx * dt * OP_LAT_GAIN;
+        opLatState.y += opLatState.emaVy * dt * OP_LAT_GAIN;
+
+        return {
+          x: opLatState.x,
+          y: opLatState.y,
+          vxWorld: opLatState.emaVx,
+          vyWorld: opLatState.emaVy,
+        };
       };
 
       const smoothSeries = (values, windowSize = 11) => {
@@ -2476,6 +2589,34 @@
         ctx.stroke();
       };
 
+      const drawOpLatArrow = (ctx, x, y, angleRad, len, tailBack, shaftLen, wing, shaftColor, headColor, lineWidth) => {
+        const dx = Math.sin(angleRad);
+        const dy = -Math.cos(angleRad);
+        const tipX = x + dx * len;
+        const tipY = y + dy * len;
+        const tailX = x - dx * tailBack;
+        const tailY = y - dy * tailBack;
+        const headBaseX = tipX - dx * shaftLen;
+        const headBaseY = tipY - dy * shaftLen;
+        const nx = -dy;
+        const ny = dx;
+
+        ctx.strokeStyle = shaftColor;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        ctx.moveTo(tailX, tailY);
+        ctx.lineTo(headBaseX, headBaseY);
+        ctx.stroke();
+
+        ctx.fillStyle = headColor;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(headBaseX + nx * wing, headBaseY + ny * wing);
+        ctx.lineTo(headBaseX - nx * wing, headBaseY - ny * wing);
+        ctx.closePath();
+        ctx.fill();
+      };
+
       const drawVelPlot = () => {
         const rect = resizeCanvas(velPlot, velCtx);
         if (!rect) return;
@@ -2510,97 +2651,180 @@
         const rect = resizeCanvas(posPlot, posCtx);
         if (!rect) return;
         if (plotState.x.length < 2) return;
-        const pad = 32;
-        const topPad = 72;
-        const minX = Math.min(...plotState.x);
-        const maxX = Math.max(...plotState.x);
-        const minY = Math.min(...plotState.y);
-        const maxY = Math.max(...plotState.y);
-        const spanX = Math.max(Math.abs(minX), Math.abs(maxX));
-        const spanY = Math.max(Math.abs(minY), Math.abs(maxY));
-        const span = Math.max(spanX, spanY, 0.01) * 1.1;
-        posCtx.strokeStyle = "rgba(0,0,0,0.12)";
+        const pad = 36;
+        const safeRange = (minVal, maxVal, minSpan = 1.0) => {
+          if (!Number.isFinite(minVal) || !Number.isFinite(maxVal)) return [-1, 1];
+          if (minVal === maxVal) {
+            const p = Math.max(minSpan, Math.abs(minVal) * 0.2, 1);
+            return [minVal - p, maxVal + p];
+          }
+          const span = maxVal - minVal;
+          const p = Math.max(span * 0.15, minSpan);
+          return [minVal - p, maxVal + p];
+        };
+
+        let minX = plotState.x[0] ?? 0;
+        let maxX = plotState.x[0] ?? 0;
+        let minY = plotState.y[0] ?? 0;
+        let maxY = plotState.y[0] ?? 0;
+        for (let i = 0; i < plotState.x.length; i += 1) {
+          const x = plotState.x[i];
+          const y = plotState.y[i];
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+        if (0 < minX) minX = 0;
+        if (0 > maxX) maxX = 0;
+        if (0 < minY) minY = 0;
+        if (0 > maxY) maxY = 0;
+
+        const [x0, x1] = safeRange(minX, maxX, 1.0);
+        const [y0, y1] = safeRange(minY, maxY, 1.0);
+        const toPx = (x) => pad + ((x - x0) * (rect.width - 2 * pad) / (x1 - x0 || 1));
+        const toPy = (y) => rect.height - pad - ((y - y0) * (rect.height - 2 * pad) / (y1 - y0 || 1));
+
+        posCtx.strokeStyle = "#e2e8f0";
         posCtx.lineWidth = 1;
-        posCtx.strokeRect(pad, topPad, rect.width - pad * 2, rect.height - topPad - pad);
-        for (let i = 1; i <= 4; i += 1) {
-          const x = pad + ((rect.width - pad * 2) / 5) * i;
-          const y = topPad + ((rect.height - topPad - pad) / 5) * i;
+        for (let i = 0; i <= 8; i += 1) {
+          const gy = pad + ((rect.height - 2 * pad) * i / 8);
+          const gx = pad + ((rect.width - 2 * pad) * i / 8);
           posCtx.beginPath();
-          posCtx.moveTo(x, topPad);
-          posCtx.lineTo(x, rect.height - pad);
+          posCtx.moveTo(pad, gy);
+          posCtx.lineTo(rect.width - pad, gy);
           posCtx.stroke();
           posCtx.beginPath();
-          posCtx.moveTo(pad, y);
-          posCtx.lineTo(rect.width - pad, y);
+          posCtx.moveTo(gx, pad);
+          posCtx.lineTo(gx, rect.height - pad);
           posCtx.stroke();
         }
-        drawYScaleLabels(posCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
-        drawXScaleLabels(posCtx, rect, pad, topPad, pad, pad, -span, span, 3, " m");
-        const pts = plotState.x.map((xv, i) => {
-          const yv = plotState.y[i];
-          const x = clamp(pad + ((xv + span) / (2 * span)) * (rect.width - pad * 2), pad, rect.width - pad);
-          const y = clamp(rect.height - pad - ((yv + span) / (2 * span)) * (rect.height - topPad - pad), topPad, rect.height - pad);
-          return { x, y };
-        });
-        posCtx.strokeStyle = "rgba(147,51,234,0.6)";
-        posCtx.lineWidth = 2.4;
+
+        const ox = toPx(0);
+        const oy = toPy(0);
+        posCtx.strokeStyle = "#94a3b8";
+        posCtx.lineWidth = 1.6;
         posCtx.beginPath();
-        posCtx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < pts.length - 1; i += 1) {
-          const midX = (pts[i].x + pts[i + 1].x) / 2;
-          const midY = (pts[i].y + pts[i + 1].y) / 2;
-          posCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY);
-        }
+        posCtx.moveTo(pad, oy);
+        posCtx.lineTo(rect.width - pad, oy);
+        posCtx.stroke();
+        posCtx.beginPath();
+        posCtx.moveTo(ox, pad);
+        posCtx.lineTo(ox, rect.height - pad);
         posCtx.stroke();
 
-        const last = pts[pts.length - 1];
-        // origin marker
-        const originX = pad + (0.5 * (rect.width - pad * 2));
-        const originY = rect.height - pad - (0.5 * (rect.height - topPad - pad));
-        posCtx.fillStyle = "#facc15";
-        posCtx.beginPath();
-        posCtx.arc(originX, originY, 5, 0, Math.PI * 2);
-        posCtx.fill();
+        posCtx.fillStyle = "#334155";
+        posCtx.font = "12px sans-serif";
+        posCtx.fillText("Longitude East (+X)", rect.width - pad - 130, oy - 8);
+        posCtx.fillText("Latitude North (+Y)", ox + 6, pad - 8);
+        posCtx.fillText("Home Lat/Lon (0,0)", ox + 8, oy - 8);
 
-        drawHeadingArrow(
-          posCtx,
-          last.x,
-          last.y,
-          plotState.currentHeadingDeg,
-          12,
-          "#dc2626"
-        );
-
-        posCtx.fillStyle = "#111";
-        posCtx.font = "11px sans-serif";
-        posCtx.fillText("Trajectory", rect.width - 128, 16);
-        posCtx.fillStyle = "#9333ea";
-        posCtx.fillRect(rect.width - 148, 8, 14, 4);
-        posCtx.fillStyle = "#111";
-        posCtx.fillText("Current", rect.width - 128, 30);
-        posCtx.fillStyle = "#dc2626";
+        posCtx.strokeStyle = "#16a34a";
+        posCtx.lineWidth = 2.2;
         posCtx.beginPath();
-        posCtx.moveTo(rect.width - 142, 24);
-        posCtx.lineTo(rect.width - 148, 34);
-        posCtx.lineTo(rect.width - 136, 34);
-        posCtx.closePath();
-        posCtx.fill();
-        posCtx.fillStyle = "#111";
-        posCtx.fillText("Home Origin", rect.width - 128, 44);
-        posCtx.fillStyle = "#facc15";
-        posCtx.fillRect(rect.width - 148, 38, 10, 10);
-        const currX = plotState.x[plotState.x.length - 1] ?? 0;
-        const currY = plotState.y[plotState.y.length - 1] ?? 0;
-        drawStatLabel(posCtx, 8, 10, `x ${currX.toFixed(3)} m y ${currY.toFixed(3)} m`, "#333");
-        if (Number.isFinite(plotState.currentHeadingDeg)) {
-          drawStatLabel(
-            posCtx,
-            8,
-            48,
-            `compass hdg ${plotState.currentHeadingDeg.toFixed(1)}°`,
-            "#dc2626"
-          );
+        let moved = false;
+        for (let i = 0; i < plotState.x.length; i += 1) {
+          const x = plotState.x[i];
+          const y = plotState.y[i];
+          if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+          const px = toPx(x);
+          const py = toPy(y);
+          if (!moved) {
+            posCtx.moveTo(px, py);
+            moved = true;
+          } else {
+            posCtx.lineTo(px, py);
+          }
         }
+        if (!moved) return;
+        posCtx.stroke();
+
+        const lx = plotState.x[plotState.x.length - 1] ?? 0;
+        const ly = plotState.y[plotState.y.length - 1] ?? 0;
+        const lpx = toPx(lx);
+        const lpy = toPy(ly);
+        const selectedHeadingDeg =
+          ofHeadingSourceState.value === "vo"
+            ? plotState.voHeadingDeg
+            : (ofHeadingSourceState.value === "pixhawk"
+              ? plotState.pixhawkHeadingDeg
+              : plotState.currentHeadingDeg);
+        const hasHeading = Number.isFinite(Number(selectedHeadingDeg));
+        const vx = Number(plotState.currentVxWorldMps);
+        const vy = Number(plotState.currentVyWorldMps);
+        const hasVel = Number.isFinite(vx) && Number.isFinite(vy);
+
+        if (hasVel) {
+          const maxVelRef = 1.0;
+          const normX = Math.max(-1, Math.min(1, vx / maxVelRef));
+          const normY = Math.max(-1, Math.min(1, vy / maxVelRef));
+          const tipX = lpx + normX * (rect.width - 2 * pad) * 0.12;
+          const tipY = lpy - normY * (rect.height - 2 * pad) * 0.12;
+          const dirX = tipX - lpx;
+          const dirY = tipY - lpy;
+          const mag = Math.hypot(dirX, dirY);
+          if (mag > 1e-6) {
+            const ux = dirX / mag;
+            const uy = dirY / mag;
+            const nx = -uy;
+            const ny = ux;
+            const head = 11;
+            const wing = 6;
+            const baseX = tipX - ux * head;
+            const baseY = tipY - uy * head;
+
+            posCtx.strokeStyle = "rgba(15,23,42,0.20)";
+            posCtx.lineWidth = 8;
+            posCtx.beginPath();
+            posCtx.moveTo(lpx + 2, lpy + 2);
+            posCtx.lineTo(baseX + 2, baseY + 2);
+            posCtx.stroke();
+
+            posCtx.strokeStyle = "#2563eb";
+            posCtx.lineWidth = 5;
+            posCtx.beginPath();
+            posCtx.moveTo(lpx, lpy);
+            posCtx.lineTo(baseX, baseY);
+            posCtx.stroke();
+
+            posCtx.fillStyle = "#1d4ed8";
+            posCtx.beginPath();
+            posCtx.moveTo(tipX, tipY);
+            posCtx.lineTo(baseX + nx * wing, baseY + ny * wing);
+            posCtx.lineTo(baseX - nx * wing, baseY - ny * wing);
+            posCtx.closePath();
+            posCtx.fill();
+          }
+        }
+
+        if (hasHeading) {
+          const headingRad = Number(selectedHeadingDeg) * Math.PI / 180.0;
+          drawOpLatArrow(posCtx, lpx, lpy, headingRad, 26, 8, 10, 4, "#dc2626", "#ef4444", 2.5);
+        }
+
+        const markerHeadingDeg = hasHeading
+          ? Number(selectedHeadingDeg)
+          : (hasVel ? ((Math.atan2(vx, vy) * 180.0 / Math.PI + 360.0) % 360.0) : null);
+        if (Number.isFinite(markerHeadingDeg)) {
+          const a = Number(markerHeadingDeg) * Math.PI / 180.0;
+          drawOpLatArrow(posCtx, lpx, lpy, a, 16, 6, 7, 3, "#030712", "#111827", 2.2);
+        } else {
+          posCtx.fillStyle = "#111827";
+          posCtx.beginPath();
+          posCtx.arc(lpx, lpy, 3, 0, Math.PI * 2);
+          posCtx.fill();
+        }
+
+        const hdgText = hasHeading ? Number(selectedHeadingDeg).toFixed(1) : "--";
+        const vxText = hasVel ? vx.toFixed(3) : "--";
+        const vyText = hasVel ? vy.toFixed(3) : "--";
+        const headingLabel = ofHeadingSourceState.value === "real"
+          ? "real"
+          : (ofHeadingSourceState.value === "pixhawk" ? "pixhawk" : "vo");
+        posCtx.fillStyle = "#0f172a";
+        posCtx.font = "12px monospace";
+        posCtx.fillText(`vx=${vxText} m/s  vy=${vyText} m/s  ${headingLabel} zrot=${hdgText} deg`, lpx + 10, lpy - 12);
       };
 
       const drawVoPosPlot = () => {
@@ -2664,7 +2888,9 @@
         voPosCtx.fill();
 
         const selectedHeading =
-          voHeadingSourceState.value === "real" ? plotState.currentHeadingDeg : plotState.voHeadingDeg;
+          voHeadingSourceState.value === "real"
+            ? plotState.currentHeadingDeg
+            : (voHeadingSourceState.value === "pixhawk" ? plotState.pixhawkHeadingDeg : plotState.voHeadingDeg);
         drawHeadingArrow(voPosCtx, last.x, last.y, selectedHeading, 12, "#dc2626");
 
         voPosCtx.fillStyle = "#111";
@@ -2687,7 +2913,9 @@
         voPosCtx.fillRect(rect.width - 160, 38, 10, 10);
         const curr = finitePoints[finitePoints.length - 1];
         drawStatLabel(voPosCtx, 8, 10, `vo x ${curr.xv.toFixed(3)} m y ${curr.yv.toFixed(3)} m`, "#333");
-        const headingLabel = voHeadingSourceState.value === "real" ? "real" : "vo";
+        const headingLabel = voHeadingSourceState.value === "real"
+          ? "real"
+          : (voHeadingSourceState.value === "pixhawk" ? "pixhawk" : "vo");
         if (Number.isFinite(selectedHeading)) {
           drawStatLabel(voPosCtx, 8, 28, `${headingLabel} hdg ${selectedHeading.toFixed(1)}°`, "#dc2626");
         }
@@ -3288,15 +3516,19 @@
           setText("of-vy", opt?.flow_vy, 0);
           setText("of-q", opt?.flow_q, 0);
 
-          const realCompassHeading = wrapHeading(
-            asFiniteNumber(
-              headingFromMag(
-                data.compass?.incoming?.x_mg,
-                data.compass?.incoming?.y_mg
-              ),
-              data.compass?.incoming?.heading_deg
+          const realCompassHeadingRaw = wrapHeading(
+            headingFromMag(
+              data.compass?.incoming?.x_mg,
+              data.compass?.incoming?.y_mg
             )
           );
+          const realCompassHeading = denoiseCompassHeading(realCompassHeadingRaw);
+          const pixhawkCompassHeadingRaw = wrapHeading(
+            asFiniteNumber(data.sensors?.attitude?.yaw) != null
+              ? (Number(data.sensors.attitude.yaw) * 180.0) / Math.PI
+              : null
+          );
+          const pixhawkCompassHeading = denoisePixhawkHeading(pixhawkCompassHeadingRaw);
 
           const isOptical = data?.source === "optical_flow" || String(data?.mode || "").startsWith("optical_flow");
           let rawVx = isOptical
@@ -3305,8 +3537,16 @@
           let rawVy = isOptical
             ? asFiniteNumber(opt?.speed_y, opt?.flow_vy, 0) || 0
             : asFiniteNumber(data.camera?.vy, 0) || 0;
-          if (isOptical && Number.isFinite(realCompassHeading)) {
-            const rotated = rotateOpticalVelocityByHeading(rawVx, rawVy, realCompassHeading);
+          const opticalHeadingForFrame = asFiniteNumber(
+            ofHeadingSourceState.value === "vo"
+              ? plotState.voHeadingDeg
+              : (ofHeadingSourceState.value === "pixhawk" ? pixhawkCompassHeading : realCompassHeading),
+            realCompassHeading,
+            pixhawkCompassHeading,
+            plotState.voHeadingDeg
+          );
+          if (isOptical && Number.isFinite(opticalHeadingForFrame)) {
+            const rotated = rotateOpticalVelocityByHeading(rawVx, rawVy, opticalHeadingForFrame);
             rawVx = Number.isFinite(rotated.vx) ? rotated.vx : rawVx;
             rawVy = Number.isFinite(rotated.vy) ? rotated.vy : rawVy;
           }
@@ -3361,10 +3601,21 @@
             const sAltTxt = Number.isFinite(gpsSensorAltitudeM)
               ? gpsSensorAltitudeM.toFixed(2)
               : "--";
-            const sHdgNum = asFiniteNumber(realCompassHeading, plotState.currentHeadingDeg);
+            const sHdgNum = asFiniteNumber(
+              gpsTrajHeadingSourceState.value === "vo"
+                ? plotState.voHeadingDeg
+                : (gpsTrajHeadingSourceState.value === "pixhawk"
+                  ? pixhawkCompassHeading
+                  : realCompassHeading),
+              realCompassHeading,
+              pixhawkCompassHeading,
+              plotState.voHeadingDeg,
+              plotState.currentHeadingDeg
+            );
             const sHdg = Number.isFinite(sHdgNum) ? sHdgNum.toFixed(1) : "--";
+            const sHdgSrc = gpsTrajHeadingSourceState.value;
             gpsTrajLiveEl.textContent =
-              `GPS Sensor: lat=${sLatTxt} lon=${sLonTxt} alt=${sAltTxt}m fix=${sFixTxt} hdg=${sHdg}°`;
+              `GPS Sensor: lat=${sLatTxt} lon=${sLonTxt} alt=${sAltTxt}m fix=${sFixTxt} hdg(${sHdgSrc})=${sHdg}°`;
           }
           plotState.gpsPortHeadingDeg = asFiniteNumber(
             selectedGpsOutput?.heading_deg,
@@ -3481,9 +3732,7 @@
           setText("nav-alt", alt, 5);
           setText("nav-spd", speed, 2);
           const heading = asFiniteNumber(
-            data.heading?.deg,
-            data.outputs?.gps_port?.heading_deg,
-            data.compass?.incoming?.heading_deg,
+            realCompassHeading,
             data.sensors?.attitude?.yaw ? data.sensors.attitude.yaw * 57.3 : null
           );
           if (Number.isFinite(realCompassHeading)) {
@@ -3491,11 +3740,13 @@
           }
           // Use the same heading source as the "real" compass widget.
           const compassHeadingForArrow = wrapHeading(asFiniteNumber(
-            realCompassHeading,
-            data.compass?.incoming?.heading_deg
+            realCompassHeading
           ));
           if (Number.isFinite(compassHeadingForArrow)) {
             plotState.currentHeadingDeg = compassHeadingForArrow;
+          }
+          if (Number.isFinite(pixhawkCompassHeading)) {
+            plotState.pixhawkHeadingDeg = pixhawkCompassHeading;
           }
           const nowMs = Date.now();
           const camXNow = asFiniteNumber(data.camera?.x, null);
@@ -3522,11 +3773,6 @@
             headingFromVelocity(data.camera?.vx, data.camera?.vy, 0.005),
             voHeadingFromDelta
           ));
-          const opticalMotionHeading = wrapHeading(asFiniteNumber(
-            headingFromVelocity(rawVx, rawVy, 0.02),
-            headingFromVelocity(opt?.speed_x, opt?.speed_y, 0.02),
-            headingFromVelocity(opt?.flow_vx, opt?.flow_vy, 0.02)
-          ));
 
           // VO compass: lock origin from real compass, then move only with VO heading.
           if (
@@ -3549,37 +3795,7 @@
             }
           }
 
-          // Optical compass: lock origin from real compass, then move only with optical heading.
-          if (
-            compassFusionState.optical.originReal === null
-            && Number.isFinite(compassFusionState.realLast)
-            && Number.isFinite(opticalMotionHeading)
-          ) {
-            compassFusionState.optical.originReal = compassFusionState.realLast;
-            compassFusionState.optical.originSrc = opticalMotionHeading;
-            compassFusionState.optical.shown = compassFusionState.realLast;
-          }
-          if (
-            Number.isFinite(opticalMotionHeading)
-            && Number.isFinite(compassFusionState.optical.originReal)
-            && Number.isFinite(compassFusionState.optical.originSrc)
-          ) {
-            const d = headingDelta(
-              opticalMotionHeading,
-              compassFusionState.optical.originSrc
-            );
-            if (Number.isFinite(d)) {
-              compassFusionState.optical.shown = wrapHeading(
-                compassFusionState.optical.originReal + d
-              );
-            }
-          }
-
           const voCompassHeading = compassFusionState.vo.shown;
-          const opticalCompassHeading = compassFusionState.optical.shown;
-          const mavlinkBridgeHeading = wrapHeading(asFiniteNumber(
-            data.compass?.bridge?.heading_deg
-          ));
           plotState.voHeadingDeg = asFiniteNumber(voCompassHeading, voMotionHeading, plotState.voHeadingDeg);
           setText("nav-hdg", heading, 1);
 
@@ -3588,19 +3804,36 @@
           setText("baro-alt-m", barometerAltM, 3);
           setText("rt-vx", vx, 3);
           setText("rt-vy", vy, 3);
-          let posX = 0;
-          let posY = 0;
-          if (isOptical) {
-            const lastX = plotState.x.slice(-1)[0] ?? filterState.x;
-            const lastY = plotState.y.slice(-1)[0] ?? filterState.y;
-            posX = lastX + vx * 0.05;
-            posY = lastY + vy * 0.05;
-          } else {
-            const camX = asFiniteNumber(data.camera?.x, filterState.x) || 0;
-            const camY = asFiniteNumber(data.camera?.y, filterState.y) || 0;
-            posX = filterSignal(filterState.x, camX, 0.2, 0.0, 0.15);
-            posY = filterSignal(filterState.y, camY, 0.2, 0.0, 0.15);
-          }
+          const opticalBodyVx = asFiniteNumber(
+            opt?.speed_x,
+            opt?.flow_vx,
+            opt?.flow_vx_mps,
+            0
+          ) || 0;
+          const opticalBodyVy = asFiniteNumber(
+            opt?.speed_y,
+            opt?.flow_vy,
+            opt?.flow_vy_mps,
+            0
+          ) || 0;
+          const flowHeadingDeg = asFiniteNumber(
+            ofHeadingSourceState.value === "vo"
+              ? plotState.voHeadingDeg
+              : (ofHeadingSourceState.value === "pixhawk" ? plotState.pixhawkHeadingDeg : realCompassHeading),
+            realCompassHeading,
+            plotState.pixhawkHeadingDeg,
+            plotState.voHeadingDeg
+          );
+          const opLatIntegrated = integrateOpticalLikeOpLat(
+            opticalBodyVx,
+            opticalBodyVy,
+            flowHeadingDeg,
+            nowMs
+          );
+          let posX = opLatIntegrated.x;
+          let posY = opLatIntegrated.y;
+          plotState.currentVxWorldMps = opLatIntegrated.vxWorld;
+          plotState.currentVyWorldMps = opLatIntegrated.vyWorld;
           filterState.x = posX;
           filterState.y = posY;
           setText("rt-x", posX, 3);
@@ -3666,9 +3899,8 @@
           drawOpticalHeightPlot();
           drawBarometerHeightBar();
           updateCompassWidget("real", realCompassHeading);
+          updateCompassWidget("pixhawk", pixhawkCompassHeading);
           updateCompassWidget("vo", voCompassHeading);
-          updateCompassWidget("mav", mavlinkBridgeHeading);
-          updateCompassWidget("opt", opticalCompassHeading);
 
           // plots handled below
         } catch (err) {
@@ -3711,7 +3943,11 @@
       const voAutoCalibStatusEl = document.getElementById("vo-auto-calib-status");
       const autoCalibBtn = document.getElementById("auto-calib-btn");
       const autoCalibStatusEl = document.getElementById("auto-calib-status");
+      const openOfBigViewBtn = document.getElementById("open-of-big-view-btn");
+      const openVoBigViewBtn = document.getElementById("open-vo-big-view-btn");
+      const ofHeadingButtons = Array.from(document.querySelectorAll("#of-heading-buttons button"));
       const voHeadingButtons = Array.from(document.querySelectorAll("#vo-heading-buttons button"));
+      const gpsTrajHeadingButtons = Array.from(document.querySelectorAll("#gps-traj-heading-buttons button"));
       const gpsAutoBtn = document.getElementById("gps-auto-btn");
       const gpsVariableBtn = document.getElementById("gps-variable-btn");
       const gpsOriginFields = document.getElementById("gps-origin-fields");
@@ -3721,15 +3957,28 @@
       const gpsLonInput = document.getElementById("gps-lon-input");
       const gpsAltInput = document.getElementById("gps-alt-input");
       const gpsOriginMode = { value: "auto" };
+      const ofHeadingSourceState = { value: "real" };
       const voHeadingSourceState = { value: "vo" };
+      const gpsTrajHeadingSourceState = { value: "real" };
 
       const setGpsModeStatus = (text) => {
         if (gpsModeStatus) gpsModeStatus.textContent = `Mode status: ${text}`;
       };
 
+      const updateOfHeadingButtons = () => {
+        ofHeadingButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.headingSource === ofHeadingSourceState.value);
+        });
+      };
+
       const updateVoHeadingButtons = () => {
         voHeadingButtons.forEach((btn) => {
           btn.classList.toggle("active", btn.dataset.headingSource === voHeadingSourceState.value);
+        });
+      };
+      const updateGpsTrajHeadingButtons = () => {
+        gpsTrajHeadingButtons.forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.headingSource === gpsTrajHeadingSourceState.value);
         });
       };
 
@@ -3742,6 +3991,21 @@
           logState.lines.splice(0, logState.lines.length - logState.max);
         }
         logEl.textContent = logState.lines.join("\n");
+      };
+
+      const openOpticalBigView = () => {
+        const url = "/oplat_big_view.html";
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (!w) {
+          window.location.href = url;
+        }
+      };
+      const openVoBigView = () => {
+        const url = "/vo_big_view.html";
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (!w) {
+          window.location.href = url;
+        }
       };
 
       const setBlackboxStatus = (text) => {
@@ -3926,17 +4190,17 @@
       const captureAutoCalibSample = (sample) => {
         if (!autoCalibState.running) return;
         autoCalibState.samples.push(sample);
-        if (autoCalibState.samples.length > 12000) autoCalibState.samples.shift();
+        if (autoCalibState.samples.length > 3000) autoCalibState.samples.shift();
       };
       const captureOpticalAutoCalibSample = (sample) => {
         if (!opticalAutoCalibState.running) return;
         opticalAutoCalibState.samples.push(sample);
-        if (opticalAutoCalibState.samples.length > 12000) opticalAutoCalibState.samples.shift();
+        if (opticalAutoCalibState.samples.length > 3000) opticalAutoCalibState.samples.shift();
       };
       const captureVoAutoCalibSample = (sample) => {
         if (!voAutoCalibState.running) return;
         voAutoCalibState.samples.push(sample);
-        if (voAutoCalibState.samples.length > 12000) voAutoCalibState.samples.shift();
+        if (voAutoCalibState.samples.length > 3000) voAutoCalibState.samples.shift();
       };
       const computeTrajectoryAutoCalibResult = (samples) => {
         const valid = samples.filter((s) =>
@@ -4795,6 +5059,12 @@
       if (sensorCsvDownloadBtn) {
         sensorCsvDownloadBtn.addEventListener("click", downloadSensorCsv);
       }
+      if (openOfBigViewBtn) {
+        openOfBigViewBtn.addEventListener("click", openOpticalBigView);
+      }
+      if (openVoBigViewBtn) {
+        openVoBigViewBtn.addEventListener("click", openVoBigView);
+      }
       if (ofEnvSelect) ofEnvSelect.addEventListener("change", updateOpticalScaleInputFromSelection);
       if (ofLightSelect) ofLightSelect.addEventListener("change", updateOpticalScaleInputFromSelection);
       if (ofScaleWriteBtn) ofScaleWriteBtn.addEventListener("click", writeOpticalScaleSelection);
@@ -5196,17 +5466,38 @@
           }
         });
       });
+      ofHeadingButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const src = btn.dataset.headingSource;
+          if (src === "vo" || src === "real" || src === "pixhawk") {
+            ofHeadingSourceState.value = src;
+            updateOfHeadingButtons();
+            drawPosPlot();
+          }
+        });
+      });
       voHeadingButtons.forEach((btn) => {
         btn.addEventListener("click", () => {
           const src = btn.dataset.headingSource;
-          if (src === "vo" || src === "real") {
+          if (src === "vo" || src === "real" || src === "pixhawk") {
             voHeadingSourceState.value = src;
             updateVoHeadingButtons();
             drawVoPosPlot();
           }
         });
       });
+      gpsTrajHeadingButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const src = btn.dataset.headingSource;
+          if (src === "vo" || src === "real" || src === "pixhawk") {
+            gpsTrajHeadingSourceState.value = src;
+            updateGpsTrajHeadingButtons();
+          }
+        });
+      });
+      updateOfHeadingButtons();
       updateVoHeadingButtons();
+      updateGpsTrajHeadingButtons();
       if (gpsAutoBtn) {
         gpsAutoBtn.addEventListener("click", () => {
           handleSelectAuto();

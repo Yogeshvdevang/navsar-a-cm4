@@ -49,7 +49,7 @@ $CFG_START
 # --- VO Drone CM4 UART Config ---
 
 # Camera
-dtoverlay=ov9281,cam0
+dtoverlay=ov5647,cam0
 
 # 1. Enable UART for Primary GPS (GPIO 14/15)
 # Disables Bluetooth to free up the high-quality PL011 UART for GPS
