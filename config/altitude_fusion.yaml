@@ -1,0 +1,55 @@
+fusion:
+  loop_hz: 30.0
+  lidar_min_m: 0.08
+  lidar_max_m: 8.0
+  max_tilt_deg: 20.0
+  lidar_timeout_s: 0.2
+  max_agl_rate_mps: 6.0
+  baro_lpf_alpha: 0.15
+  lidar_lpf_alpha: 0.35
+  gps_alt_lpf_alpha: 0.20
+  ground_update_gamma_strong: 0.05
+  ground_update_gamma_weak: 0.01
+  correction_gain_strong: 0.15
+  correction_gain_weak: 0.03
+  innovation_max_m: 0.75
+  ground_jump_strong_m: 0.8
+  ground_jump_reject_m: 2.0
+  lidar_mount_roll_rad: 0.0
+  lidar_mount_pitch_rad: 0.0
+  lidar_quality_min: 20.0
+  innovation_reject_m: 3.0
+
+mavlink_input:
+  device: /dev/ttyACM0
+  baud: 115200
+  source_system: 200
+  source_component: 193
+  reconnect_delay_s: 1.0
+  heartbeat_timeout_s: 5.0
+  attitude_rate_hz: 30.0
+  global_position_rate_hz: 20.0
+
+lidar_input:
+  port: /dev/ttyUSB0
+  baud: 115200
+  timeout_s: 0.1
+  reconnect_delay_s: 1.0
+  min_quality: 0.0
+
+gps_output:
+  mode: nmea_serial
+  rate_hz: 10.0
+  nmea_port: /dev/ttyAMA0
+  nmea_baud: 230400
+  nmea_fix_quality: 1
+  nmea_min_sats: 10
+  nmea_max_sats: 18
+  nmea_update_s: 7.0
+  mav_device: /dev/ttyACM0
+  mav_baud: 115200
+  gps_id: 0
+
+logging:
+  path: data/altitude_fusion.log
+  print_interval_s: 0.5

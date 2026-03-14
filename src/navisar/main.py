@@ -3659,13 +3659,7 @@ def main():
         print(f"SENSORS: {' '.join(baro_parts)} | {' '.join(opt_parts)}")
 
     def select_runtime_heading(active_mode, vx_enu=None, vy_enu=None):
-        """Select heading source, preferring Pixhawk attitude yaw for GPS outputs."""
-        pixhawk_heading = None
-        att = last_attitude.get("value")
-        if isinstance(att, dict):
-            yaw_rad = _safe_float(att.get("yaw"))
-            if yaw_rad is not None:
-                pixhawk_heading = (math.degrees(yaw_rad) + 360.0) % 360.0
+        """Select heading source: optical flow > VO > compass."""
         compass_heading = _safe_float(last_compass_in.get("heading_deg"))
         vo_heading = _heading_from_velocity(
             vx_enu,
@@ -3687,10 +3681,7 @@ def main():
 
         selected = None
         source = "none"
-        if pixhawk_heading is not None:
-            selected = pixhawk_heading
-            source = "pixhawk"
-        elif active_mode in optical_modes and optical_heading is not None:
+        if active_mode in optical_modes and optical_heading is not None:
             selected = optical_heading
             source = "optical_flow"
         elif vo_heading is not None:
@@ -4133,11 +4124,6 @@ def main():
             vx_enu=vx_cam,
             vy_enu=vy_cam,
         )
-        pixhawk_heading_deg = (
-            _safe_float(runtime_heading_deg)
-            if runtime_heading_source == "pixhawk"
-            else None
-        )
         if (
             current_mode != last_runtime_mode["requested"]
             or active_output_mode != last_runtime_mode["active"]
@@ -4154,23 +4140,11 @@ def main():
         # Compass yaw used by VPS->GPS MAVLink path (config-gated behavior).
         compass_heading_deg = None
         if vps_gps_use_compass_yaw:
-            compass_heading_deg = (
-                pixhawk_heading_deg
-                if pixhawk_heading_deg is not None
-                else _safe_float(last_compass_in.get("heading_deg"))
-            )
-        # GPS heading should use Pixhawk yaw whenever it is available.
-        vo_compass_heading_for_port = (
-            pixhawk_heading_deg
-            if pixhawk_heading_deg is not None
-            else _safe_float(last_compass_in.get("heading_deg"))
-        )
-        # Optical-flow GPS integration should use Pixhawk yaw whenever it is available.
-        optical_compass_heading_deg = (
-            pixhawk_heading_deg
-            if pixhawk_heading_deg is not None
-            else _safe_float(last_compass_in.get("heading_deg"))
-        )
+            compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
+        # VO GPS port path should use compass heading when available.
+        vo_compass_heading_for_port = _safe_float(last_compass_in.get("heading_deg"))
+        # Optical-flow GPS integration should always use compass heading when available.
+        optical_compass_heading_deg = _safe_float(last_compass_in.get("heading_deg"))
         vo_scale_value = max(0.1, min(5.0, float(vo_scale_state.get())))
         vo_height_factor = 1.0
         if vo_height_scaling_enabled:

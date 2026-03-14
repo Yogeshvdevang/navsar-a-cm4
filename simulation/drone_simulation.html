@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Drone Mission Simulator</title>
+    
+    <style>
+        :root { 
+            --bg: #0f172a; 
+            --panel: #1e293b; 
+            --accent: #38bdf8; 
+            --success: #4ade80;
+            --warning: #facc15;
+            --text: #f1f5f9; 
+            --input: #334155;
+            --border: #475569;
+        }
+        body { margin: 0; font-family: 'Segoe UI', monospace; background: var(--bg); color: var(--text); overflow: hidden; display: flex; height: 100vh; }
+        body.embed #sidebar { display: none; }
+        body.embed #viewport { width: 100vw; }
+        body.embed .btn-back { display: none; }
+        
+        /* SIDEBAR */
+        #sidebar { 
+            width: 400px; 
+            background: var(--panel); 
+            padding: 20px; 
+            overflow-y: auto; 
+            border-right: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.5); 
+            z-index: 20; 
+        }
+
+        /* HEADER */
+        .header { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 10px; }
+        h1 { margin: 0; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+        .subtitle { font-size: 11px; color: #94a3b8; }
+
+        /* SECTIONS */
+        .section { background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .sec-title { font-size: 11px; font-weight: bold; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center;}
+
+        /* INPUTS */
+        .input-group { margin-bottom: 8px; }
+        .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+        label { display: block; font-size: 10px; color: #cbd5e1; margin-bottom: 2px; }
+        input, select { 
+            width: 100%; 
+            background: var(--input); 
+            border: 1px solid var(--border); 
+            color: white; 
+            padding: 6px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            font-size: 11px; 
+            box-sizing: border-box;
+        }
+        input:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+
+        /* BUTTONS */
+        .btn-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        button { 
+            padding: 10px; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            transition: all 0.2s;
+        }
+        .btn-auto { background: #6366f1; color: white; grid-column: span 2; }
+        .btn-auto:hover { background: #4f46e5; }
+        .btn-launch { background: var(--success); color: #022c22; }
+        .btn-launch:hover { background: #22c55e; }
+        .btn-pause { background: var(--warning); color: #422006; }
+        .btn-pause:hover { background: #eab308; }
+        .btn-reset { background: #ef4444; color: white; }
+        .btn-reset:hover { background: #dc2626; }
+        .btn-follow { background: #334155; color: #94a3b8; border: 1px solid #475569; }
+        .btn-follow.active { background: var(--accent); color: #0f172a; border-color: var(--accent); box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+        .btn-home { background: #0ea5e9; color: white; }
+        .btn-home:hover { background: #0284c7; }
+        .btn-back {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 60;
+            padding: 8px 12px;
+            background: rgba(15, 23, 42, 0.9);
+            color: #f1f5f9;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+        }
+        .btn-back:hover {
+            background: #0ea5e9;
+            border-color: #0ea5e9;
+            color: #ffffff;
+        }
+
+        /* DATA MONITOR */
+        #data-stream { 
+            background: #000; 
+            color: #22c55e; 
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 10px; 
+            padding: 10px; 
+            border-radius: 6px; 
+            border: 1px solid #14532d;
+            height: 150px; 
+            overflow-y: auto; 
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        #attitude-input-stream {
+            width: 100%;
+            min-height: 70px;
+            resize: vertical;
+            background: #000;
+            color: #93c5fd;
+            border: 1px solid #1e3a8a;
+            border-radius: 6px;
+            padding: 8px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 10px;
+            line-height: 1.35;
+        }
+        .attitude-input-status {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        .output-sim-panel {
+            margin-top: 10px;
+            background: #0b1220;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 8px;
+            display: grid;
+            gap: 8px;
+        }
+        .output-sim-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto auto;
+            gap: 6px;
+            align-items: end;
+        }
+        #output-sim-canvas {
+            width: 100%;
+            height: 180px;
+            display: block;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background: #0f172a;
+        }
+        #manual-sim-canvas {
+            width: 100%;
+            height: 180px;
+            display: block;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background: #0f172a;
+        }
+        #of-yaw-sim-canvas {
+            width: 100%;
+            height: 180px;
+            display: block;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background: #0f172a;
+        }
+        .output-sim-note {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        .manual-sim-grid {
+            display: grid;
+            grid-template-columns: auto auto auto 1fr;
+            gap: 6px;
+            align-items: center;
+        }
+        .manual-sim-controls {
+            font-size: 10px;
+            color: #cbd5e1;
+            line-height: 1.35;
+            text-align: right;
+        }
+        .trail-legend {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px 10px;
+            padding: 6px 2px 2px 2px;
+            font-size: 10px;
+            color: #cbd5e1;
+        }
+        .trail-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .trail-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            flex: 0 0 10px;
+        }
+        .output-ekf-panel {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 6px;
+            padding: 6px;
+        }
+        #output-ekf-compute {
+            margin: 0;
+            min-height: 110px;
+            max-height: 180px;
+            overflow-y: auto;
+            background: #000;
+            border: 1px solid #1f2937;
+            border-radius: 6px;
+            padding: 8px;
+            color: #c7d2fe;
+            font-size: 10px;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        .manual-of-panel {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 6px;
+            padding: 6px;
+            display: grid;
+            gap: 6px;
+        }
+        .manual-of-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .manual-of-box {
+            background: #000;
+            border: 1px solid #1f2937;
+            border-radius: 6px;
+            padding: 8px;
+            color: #c7d2fe;
+            font-size: 10px;
+            line-height: 1.35;
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre-wrap;
+            min-height: 70px;
+        }
+
+        /* VIEWPORT CONTAINER */
+        #viewport { 
+            flex-grow: 1; 
+            position: relative; 
+            overflow: hidden; 
+            background: #000;
+        }
+
+        /* OVERLAY INFO */
+        #overlay { position: absolute; top: 10px; right: 10px; color: white; font-size: 12px; text-align: right; pointer-events: none; z-index: 50; text-shadow: 0 0 5px black;}
+        
+        /* 3D LABELS */
+        .label-marker {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--accent);
+            color: var(--text);
+            padding: 5px 8px;
+            font-size: 10px;
+            border-radius: 4px;
+            pointer-events: none; /* Let clicks pass through */
+            transform: translate(-50%, -100%); /* Center above point */
+            white-space: nowrap;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 40;
+        }
+        .label-title { color: var(--accent); font-weight: bold; margin-bottom: 2px; border-bottom: 1px solid #334155; padding-bottom: 2px; }
+        .label-coord { color: #94a3b8; font-family: monospace; }
+    </style>
+    
+    <!-- THREE.JS IMPORT MAP -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- CONTROL PANEL -->
+    <div id="sidebar">
+        <div class="header">
+            <h1>PROTOCOL SIMULATOR</h1>
+            <div class="subtitle">Bridge / Telemetry / Visual SLAM</div>
+        </div>
+
+        <!-- MODE SELECTION -->
+        <div class="section">
+            <div class="sec-title">1. Configuration</div>
+            <label>Communication Protocol</label>
+            <select id="mode-select" onchange="updateModeInfo()">
+                <option value="GPS_INPUT">MAVLink: GPS_INPUT (Software Bridge, ENU)</option>
+                <option value="ODOM">ROS: ODOMETRY (Visual SLAM, NED)</option>
+                <option value="UBX">u-blox: NAV-PVT (Hardware Serial, ENU local)</option>
+            </select>
+            
+            <div id="mode-desc" style="font-size:10px; color:#64748b; margin-top:5px; font-style:italic;">
+                Format: Float Lat/Lon + Meters.
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="sec-title">2. Data Stream Input <span style="font-size:9px;">(Attitude R/P/Y)</span></div>
+            <div class="input-group">
+                <label>Roll / Pitch / Yaw (deg)</label>
+                <div class="input-row">
+                    <input type="number" id="att-roll" value="0" step="0.1" placeholder="Roll">
+                    <input type="number" id="att-pitch" value="0" step="0.1" placeholder="Pitch">
+                    <input type="number" id="att-yaw" value="0" step="0.1" placeholder="Yaw">
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Pixhawk MAVLink attitude stream (auto)</label>
+                <textarea id="attitude-input-stream" placeholder='{"source":"pixhawk_mavlink","roll_deg":0.0,"pitch_deg":0.0,"yaw_deg":0.0}'></textarea>
+            </div>
+            <div class="btn-container">
+                <button class="btn-home" onclick="applyAttitudeInput()">Apply Input</button>
+                <button class="btn-follow active" id="btn-attitude-mode" onclick="toggleAttitudeControl()">Attitude Mode: ON</button>
+            </div>
+            <div class="attitude-input-status" id="attitude-input-status">Attitude mode ON. Waiting for Pixhawk stream.</div>
+        </div>
+
+        <!-- LIVE DATA -->
+        <div style="flex-grow:1; display:flex; flex-direction:column;">
+            <div class="sec-title">3. Data Stream Output <span style="font-size:9px;">(Live Packet)</span></div>
+            <div id="data-stream">Waiting for Pixhawk MAVLink stream...</div>
+            <div class="output-sim-panel">
+                <div class="sec-title" style="margin-bottom:0;">4. Output 3D Simulation</div>
+                <div class="output-sim-grid">
+                    <div>
+                        <label>Altitude Source</label>
+                        <select id="output-sim-alt-source">
+                            <option value="asml_relative">ASML (Calculated)</option>
+                            <option value="lidar_agl">LiDAR AGL</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Movement Source</label>
+                        <select id="output-sim-move-source">
+                            <option value="optical_vxy">Optical Flow vx/vy (ENU local)</option>
+                            <option value="hold">Hold Position (Frame N/A)</option>
+                        </select>
+                    </div>
+                    <button class="btn-home" type="button" id="output-sim-reset-btn">Reset</button>
+                    <button class="btn-follow" type="button" id="output-sim-track-btn">Track: OFF</button>
+                </div>
+                <canvas id="output-sim-canvas"></canvas>
+                <div class="output-sim-note" id="output-sim-note">Waiting for optical flow + altitude stream...</div>
+                <div class="trail-legend" aria-label="Trail color legend">
+                    <span class="trail-item"><span class="trail-swatch" style="background:#ffffff;"></span> +x direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#22c55e;"></span> -x direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#3b82f6;"></span> +y direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#facc15;"></span> -y direction</span>
+                </div>
+                <div class="output-ekf-panel">
+                    <div class="sec-title" style="margin-bottom:6px;">5. EKF Computation (Disabled)</div>
+                    <pre id="output-ekf-compute">EKF OF+IMU mode removed.</pre>
+                </div>
+            </div>
+            <div class="output-sim-panel">
+                <div class="sec-title" style="margin-bottom:0;">6. Manual Flight Simulator</div>
+                <div class="manual-sim-grid">
+                    <button class="btn-follow" type="button" id="manual-sim-fly-btn">Fly: OFF</button>
+                    <button class="btn-home" type="button" id="manual-sim-reset-btn">Reset</button>
+                    <button class="btn-follow" type="button" id="manual-sim-track-btn">Track: OFF</button>
+                    <div class="manual-sim-controls">
+                        Controls: 7 yaw left, 9 yaw right, 8 front, 4 left, 6 right, 2 back, 5 throttle up, 0 throttle down
+                    </div>
+                </div>
+                <canvas id="manual-sim-canvas"></canvas>
+                <div class="output-sim-note" id="manual-sim-note">Click Fly to enable number-key flight controls.</div>
+                <div class="trail-legend" aria-label="Manual trail color legend">
+                    <span class="trail-item"><span class="trail-swatch" style="background:#ffffff;"></span> +x direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#22c55e;"></span> -x direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#3b82f6;"></span> +y direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#facc15;"></span> -y direction</span>
+                </div>
+                <div class="output-sim-note">Manual simulator frame: ENU local (x east, y up, z north in sim mapping).</div>
+                <div class="manual-of-panel">
+                    <div class="sec-title" style="margin-bottom:0;">7. Manual Optical Flow Display</div>
+                    <div class="manual-of-grid">
+                        <div class="manual-of-box" id="manual-of-global">Global (from OF+yaw)
+x=0.000
+y=0.000</div>
+                        <div class="manual-of-box" id="manual-of-relative">Relative delta
+dx=0.000
+dy=0.000</div>
+                    </div>
+                    <div class="manual-of-box" id="manual-of-detail">Body frame (sensor)
+fwd=0.000 right=0.000
+yaw=0.0 deg</div>
+                </div>
+            </div>
+            <div class="output-sim-panel">
+                <div class="sec-title" style="margin-bottom:0;">8. OF Sensor + Pixhawk Yaw Global Simulator</div>
+                <div class="manual-sim-grid">
+                    <button class="btn-home" type="button" id="of-yaw-sim-reset-btn">Reset</button>
+                    <button class="btn-follow" type="button" id="of-yaw-sim-track-btn">Track: OFF</button>
+                    <div class="manual-sim-controls" style="grid-column: span 2;">
+                        Source: optical flow vx/vy + Pixhawk yaw. Display: global motion in ENU local frame.
+                    </div>
+                </div>
+                <canvas id="of-yaw-sim-canvas"></canvas>
+                <div class="output-sim-note" id="of-yaw-sim-note">Waiting for optical flow + yaw stream...</div>
+                <div class="trail-legend" aria-label="OF yaw trail color legend">
+                    <span class="trail-item"><span class="trail-swatch" style="background:#ffffff;"></span> +x direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#22c55e;"></span> -x direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#3b82f6;"></span> +y direction</span>
+                    <span class="trail-item"><span class="trail-swatch" style="background:#facc15;"></span> -y direction</span>
+                </div>
+                <div class="manual-of-panel">
+                    <div class="manual-of-grid">
+                        <div class="manual-of-box" id="of-yaw-global">Global frame (ENU)
+x=0.000
+y=0.000</div>
+                        <div class="manual-of-box" id="of-yaw-relative">Relative change
+dx=0.000
+dy=0.000</div>
+                    </div>
+                    <div class="manual-of-box" id="of-yaw-detail">Inputs
+vx_body=0.000 vy_body=0.000
+yaw=0.0 deg dt=0.000</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VIEWPORT -->
+    <div id="viewport">
+        <button class="btn-back" type="button" onclick="goBackToMain()">Back to Main GUI</button>
+        <div id="overlay">
+            <div><span style="color:#00ff00">■</span> Velocity Vector</div>
+            <div><span style="color:#ff0000">■</span> Acceleration Vector</div>
+            <div><span style="color:#ffff00">■</span> Flight Trail</div>
+            <div style="margin-top:5px; color:#aaa; font-size:10px;">(Left Click: Rotate | Right Click: Pan | Scroll: Zoom)</div>
+            <div id="frame-readout">Frame: ENU/NED pending...</div>
+            <div id="distance-readout">Dist: 0m</div>
+        </div>
+        
+        <!-- 3D Labels -->
+        <div id="label-start" class="label-marker">
+            <div class="label-title">START POINT</div>
+            <div class="label-coord" id="lbl-start-coord"></div>
+        </div>
+        <div id="label-end" class="label-marker">
+            <div class="label-title">TARGET POINT</div>
+            <div class="label-coord" id="lbl-end-coord"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        const urlParams = new URLSearchParams(window.location.search);
+        const isEmbed = urlParams.get("embed") === "1";
+        if (isEmbed) {
+            document.body.classList.add("embed");
+        }
+        const getSidebarWidth = () => {
+            if (isEmbed) return 0;
+            const sidebarEl = document.getElementById("sidebar");
+            return sidebarEl ? sidebarEl.getBoundingClientRect().width : 400;
+        };
+        const getViewportWidth = () => Math.max(1, window.innerWidth - getSidebarWidth());
+        const createDroneModel = () => {
+            const group = new THREE.Group();
+            const bodyGeo = new THREE.BoxGeometry(1.2, 0.4, 0.8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            group.add(body);
+
+            const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+            const arm1 = new THREE.Mesh(armGeo, armMat);
+            arm1.rotation.z = Math.PI / 2;
+            arm1.rotation.y = Math.PI / 4;
+            group.add(arm1);
+            const arm2 = new THREE.Mesh(armGeo, armMat);
+            arm2.rotation.z = Math.PI / 2;
+            arm2.rotation.y = -Math.PI / 4;
+            group.add(arm2);
+
+            const motorGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.3);
+            const motorMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
+            const propGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.02, 32);
+            const propMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, transparent: true, opacity: 0.4 });
+            const positions = [
+                { x: 1.2, z: 1.2 }, { x: -1.2, z: -1.2 },
+                { x: 1.2, z: -1.2 }, { x: -1.2, z: 1.2 },
+            ];
+            positions.forEach((pos) => {
+                const motor = new THREE.Mesh(motorGeo, motorMat);
+                motor.position.set(pos.x, 0.1, pos.z);
+                group.add(motor);
+                const prop = new THREE.Mesh(propGeo, propMat);
+                prop.position.set(pos.x, 0.25, pos.z);
+                group.add(prop);
+            });
+
+            const arrowGeo = new THREE.ConeGeometry(0.15, 0.5, 32);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+            arrowMesh.rotation.x = Math.PI / 2;
+            arrowMesh.position.z = 0.65;
+            group.add(arrowMesh);
+            return group;
+        };
+
+        // --- GLOBAL STATE ---
+        const state = {
+            bootTime: performance.now(),
+            
+            // 3D Objects
+            droneGroup: null,
+            useAttitudeInput: true,
+            attitudeInput: { rollDeg: 0, pitchDeg: 0, yawDeg: 0 },
+            mavlinkAttitude: { rollDeg: 0, pitchDeg: 0, yawDeg: 0, altAsmlM: null, fresh: false },
+            positionRaw: { x: 0, y: 0, z: 0, fresh: false, source: "none" },
+            positionOrigin: null,
+            flowRaw: {
+                vx: 0,
+                vy: 0,
+                rateX: null,
+                rateY: null,
+                quality: null,
+                flowOk: null,
+                fresh: false
+            },
+            imuRaw: { ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0, fresh: false },
+            lidarAglM: null,
+            telemetryTsMs: null,
+            outputSim: {
+                scene: null,
+                camera: null,
+                renderer: null,
+                droneGroup: null,
+                pos: null,
+                lastTsMs: null,
+                altOrigin: null,
+                trackEnabled: false,
+                cameraOffset: null,
+                ekf: null,
+                trail: null,
+                ready: false,
+            },
+            manualSim: {
+                scene: null,
+                camera: null,
+                renderer: null,
+                droneGroup: null,
+                pos: null,
+                yawDeg: 0,
+                trackEnabled: false,
+                cameraOffset: null,
+                trail: null,
+                ready: false,
+                flyEnabled: false,
+                lastFrameTsMs: null,
+                keyState: {
+                    front: false,
+                    back: false,
+                    left: false,
+                    right: false,
+                    yawLeft: false,
+                    yawRight: false,
+                    throttleUp: false,
+                    throttleDown: false,
+                },
+            },
+            manualOf: {
+                lastX: null,
+                lastZ: null,
+                globalX: 0,
+                globalY: 0,
+                deltaX: 0,
+                deltaY: 0,
+                bodyFwd: 0,
+                bodyRight: 0,
+            },
+            ofYawSim: {
+                scene: null,
+                camera: null,
+                renderer: null,
+                droneGroup: null,
+                pos: null,
+                trackEnabled: false,
+                cameraOffset: null,
+                trail: null,
+                ready: false,
+                lastTsMs: null,
+                globalX: 0,
+                globalY: 0,
+                deltaX: 0,
+                deltaY: 0,
+                bodyVx: 0,
+                bodyVy: 0,
+                yawDeg: 0,
+                lastDt: 0,
+            },
+            mavlinkPollTimer: null
+        };
+
+        const ui = {
+            mode: document.getElementById('mode-select'),
+            desc: document.getElementById('mode-desc'),
+            stream: document.getElementById('data-stream'),
+            viewport: document.getElementById('viewport'),
+            attRoll: document.getElementById('att-roll'),
+            attPitch: document.getElementById('att-pitch'),
+            attYaw: document.getElementById('att-yaw'),
+            attStream: document.getElementById('attitude-input-stream'),
+            attStatus: document.getElementById('attitude-input-status'),
+            btnAttMode: document.getElementById('btn-attitude-mode'),
+            outputSimCanvas: document.getElementById('output-sim-canvas'),
+            outputSimAltSource: document.getElementById('output-sim-alt-source'),
+            outputSimMoveSource: document.getElementById('output-sim-move-source'),
+            outputSimResetBtn: document.getElementById('output-sim-reset-btn'),
+            outputSimTrackBtn: document.getElementById('output-sim-track-btn'),
+            outputSimNote: document.getElementById('output-sim-note'),
+            outputEkfCompute: document.getElementById('output-ekf-compute'),
+            manualSimCanvas: document.getElementById('manual-sim-canvas'),
+            manualSimFlyBtn: document.getElementById('manual-sim-fly-btn'),
+            manualSimResetBtn: document.getElementById('manual-sim-reset-btn'),
+            manualSimTrackBtn: document.getElementById('manual-sim-track-btn'),
+            manualSimNote: document.getElementById('manual-sim-note'),
+            manualOfGlobal: document.getElementById('manual-of-global'),
+            manualOfRelative: document.getElementById('manual-of-relative'),
+            manualOfDetail: document.getElementById('manual-of-detail'),
+            ofYawSimCanvas: document.getElementById('of-yaw-sim-canvas'),
+            ofYawSimResetBtn: document.getElementById('of-yaw-sim-reset-btn'),
+            ofYawSimTrackBtn: document.getElementById('of-yaw-sim-track-btn'),
+            ofYawSimNote: document.getElementById('of-yaw-sim-note'),
+            ofYawGlobal: document.getElementById('of-yaw-global'),
+            ofYawRelative: document.getElementById('of-yaw-relative'),
+            ofYawDetail: document.getElementById('of-yaw-detail'),
+            frameReadout: document.getElementById('frame-readout'),
+        };
+        const dataUrl = (window.location.protocol === "file:")
+            ? "http://127.0.0.1:8765/data"
+            : "/data";
+
+        // --- 1. THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a); 
+        scene.fog = new THREE.Fog(0x0f172a, 2000, 10000); // Increased fog distance for better zoom
+
+        const camera = new THREE.PerspectiveCamera(isEmbed ? 38 : 45, getViewportWidth() / window.innerHeight, 0.1, 20000); // Extended render distance
+        camera.position.set(isEmbed ? 12 : -50, isEmbed ? 12 : 50, isEmbed ? 12 : 50);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(getViewportWidth(), window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        ui.viewport.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.enableZoom = true;
+        controls.zoomToCursor = true;
+        controls.target.set(0, 0, 0);
+        controls.maxDistance = 8000;  // Keep zoom range usable for the scene scale
+        controls.minDistance = 15;    // Prevent extreme close-up clipping
+        controls.zoomSpeed = 0.25;    // Gentle zoom for better control
+        if (isEmbed) {
+            // Keep preview angle consistent with big model style.
+            controls.enableRotate = false;
+            controls.enablePan = false;
+            controls.enableZoom = false;
+            controls.enableDamping = false;
+            controls.target.set(0, 0, 0);
+            camera.position.set(12, 12, 12);
+            camera.lookAt(0, 0, 0);
+        }
+
+        // --- LIGHTS ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // --- ENVIRONMENT ---
+        // Enhanced Grid visibility
+        const gridHelper = new THREE.GridHelper(1000, 100, 0x64748b, 0x334155); 
+        scene.add(gridHelper);
+
+        // Ground Plane (Invisible mostly, catches shadows)
+        const planeGeo = new THREE.PlaneGeometry(2000, 2000);
+        const planeMat = new THREE.MeshPhongMaterial({ color: 0x0f172a, depthWrite: false });
+        const plane = new THREE.Mesh(planeGeo, planeMat);
+        plane.rotation.x = -Math.PI / 2;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // --- DRONE OBJECT ---
+        state.droneGroup = createDroneModel();
+
+        scene.add(state.droneGroup);
+
+        // --- 4. UI HANDLERS ---
+
+        window.updateModeInfo = function() {
+            const m = ui.mode.value;
+            let txt = "";
+            if (m === "GPS_INPUT") txt = "MAVLink Software Bridge (Frame: ENU local). Expects Float Lat/Lon, Float Alt, Float Velocity.";
+            if (m === "ODOM") txt = "ROS / Visual SLAM (Frame: NED). Expects Local Position (Meters) & Quaternions.";
+            if (m === "UBX") txt = "Hardware Serial Protocol (Frame: ENU local). Expects Integers (Deg*1e7) and Millimeters.";
+            ui.desc.innerText = txt;
+        }
+        window.goBackToMain = function() {
+            if (window.history.length > 1) {
+                window.history.back();
+                return;
+            }
+            window.location.href = "/gui.html";
+        }
+        const normalizeDeg = (deg) => ((deg % 360) + 360) % 360;
+        const applyDroneAttitude = (rollDeg, pitchDeg, yawDeg, targetGroup = state.droneGroup) => {
+            if (!targetGroup) return;
+            const rollRad = THREE.MathUtils.degToRad(Number(rollDeg) || 0);
+            const pitchRad = THREE.MathUtils.degToRad(-(Number(pitchDeg) || 0));
+            const yawRad = THREE.MathUtils.degToRad(normalizeDeg(Number(yawDeg) || 0));
+            targetGroup.rotation.order = "YXZ";
+            targetGroup.rotation.set(pitchRad, yawRad, rollRad);
+        };
+        const setAttitudeStatus = (text, color = "#94a3b8") => {
+            if (!ui.attStatus) return;
+            ui.attStatus.innerText = text;
+            ui.attStatus.style.color = color;
+        };
+        const setOutputSimNote = (text) => {
+            if (ui.outputSimNote) ui.outputSimNote.innerText = text;
+        };
+        const setManualSimNote = (text) => {
+            if (ui.manualSimNote) ui.manualSimNote.innerText = text;
+        };
+        const setOfYawSimNote = (text) => {
+            if (ui.ofYawSimNote) ui.ofYawSimNote.innerText = text;
+        };
+        const setFrameReadout = (text) => {
+            if (ui.frameReadout) ui.frameReadout.innerText = text;
+        };
+        const setManualOfDisplay = () => {
+            if (ui.manualOfGlobal) {
+                ui.manualOfGlobal.innerText =
+                    `Global (from OF+yaw)\n`
+                    + `x=${state.manualOf.globalX.toFixed(3)}\n`
+                    + `y=${state.manualOf.globalY.toFixed(3)}`;
+            }
+            if (ui.manualOfRelative) {
+                ui.manualOfRelative.innerText =
+                    `Relative delta\n`
+                    + `dx=${state.manualOf.deltaX.toFixed(3)}\n`
+                    + `dy=${state.manualOf.deltaY.toFixed(3)}`;
+            }
+            if (ui.manualOfDetail) {
+                ui.manualOfDetail.innerText =
+                    `Body frame (sensor)\n`
+                    + `fwd=${state.manualOf.bodyFwd.toFixed(3)} right=${state.manualOf.bodyRight.toFixed(3)}\n`
+                    + `yaw=${state.manualSim.yawDeg.toFixed(1)} deg`;
+            }
+        };
+        const setOfYawDisplay = () => {
+            if (ui.ofYawGlobal) {
+                ui.ofYawGlobal.innerText =
+                    `Global frame (ENU)\n`
+                    + `x=${state.ofYawSim.globalX.toFixed(3)}\n`
+                    + `y=${state.ofYawSim.globalY.toFixed(3)}`;
+            }
+            if (ui.ofYawRelative) {
+                ui.ofYawRelative.innerText =
+                    `Relative change\n`
+                    + `dx=${state.ofYawSim.deltaX.toFixed(3)}\n`
+                    + `dy=${state.ofYawSim.deltaY.toFixed(3)}`;
+            }
+            if (ui.ofYawDetail) {
+                ui.ofYawDetail.innerText =
+                    `Inputs\n`
+                    + `vx_body=${state.ofYawSim.bodyVx.toFixed(3)} vy_body=${state.ofYawSim.bodyVy.toFixed(3)}\n`
+                    + `yaw=${state.ofYawSim.yawDeg.toFixed(1)} deg dt=${state.ofYawSim.lastDt.toFixed(3)}`;
+            }
+        };
+        const createDirectionalTrailState = (sceneRef) => {
+            const colors = {
+                posX: 0xffffff, // +x
+                negX: 0x22c55e, // -x
+                posY: 0x3b82f6, // +y (mapped on sim z-axis)
+                negY: 0xfacc15, // -y (mapped on sim z-axis)
+            };
+            const maxSegments = 450;
+            const stateTrail = {
+                maxSegments,
+                lastPos: null,
+                posX: { data: [], geom: new THREE.BufferGeometry(), line: null },
+                negX: { data: [], geom: new THREE.BufferGeometry(), line: null },
+                posY: { data: [], geom: new THREE.BufferGeometry(), line: null },
+                negY: { data: [], geom: new THREE.BufferGeometry(), line: null },
+            };
+            Object.keys(colors).forEach((key) => {
+                const mat = new THREE.LineBasicMaterial({
+                    color: colors[key],
+                    transparent: true,
+                    opacity: 0.95,
+                });
+                const line = new THREE.LineSegments(stateTrail[key].geom, mat);
+                stateTrail[key].line = line;
+                sceneRef.add(line);
+            });
+            return stateTrail;
+        };
+        const clearDirectionalTrail = (trailState) => {
+            if (!trailState) return;
+            ["posX", "negX", "posY", "negY"].forEach((k) => {
+                trailState[k].data.length = 0;
+                trailState[k].geom.setAttribute(
+                    "position",
+                    new THREE.Float32BufferAttribute([], 3)
+                );
+                trailState[k].geom.computeBoundingSphere();
+            });
+            trailState.lastPos = null;
+        };
+        const pushTrailSegment = (trailState, fromV, toV) => {
+            if (!trailState || !fromV || !toV) return;
+            const dx = toV.x - fromV.x;
+            const dz = toV.z - fromV.z;
+            const planar = Math.hypot(dx, dz);
+            if (!Number.isFinite(planar) || planar < 0.01) return;
+            let key = "posX";
+            if (Math.abs(dx) >= Math.abs(dz)) {
+                key = dx >= 0 ? "posX" : "negX";
+            } else {
+                key = dz >= 0 ? "posY" : "negY";
+            }
+            const bucket = trailState[key];
+            bucket.data.push(fromV.x, fromV.y, fromV.z, toV.x, toV.y, toV.z);
+            const maxLen = trailState.maxSegments * 6;
+            if (bucket.data.length > maxLen) {
+                bucket.data.splice(0, bucket.data.length - maxLen);
+            }
+            bucket.geom.setAttribute(
+                "position",
+                new THREE.Float32BufferAttribute(bucket.data, 3)
+            );
+            bucket.geom.computeBoundingSphere();
+        };
+        const setEkfComputeText = (text) => {
+            if (ui.outputEkfCompute) ui.outputEkfCompute.innerText = text;
+        };
+        const computeFlowVelocityPx4Style = ({
+            flowRateX,
+            flowRateY,
+            gyroX,
+            gyroY,
+            rangeM,
+            yawDeg,
+        }) => {
+            if (
+                !Number.isFinite(flowRateX)
+                || !Number.isFinite(flowRateY)
+                || !Number.isFinite(rangeM)
+                || !Number.isFinite(yawDeg)
+            ) {
+                return null;
+            }
+            const gx = Number.isFinite(gyroX) ? gyroX : 0;
+            const gy = Number.isFinite(gyroY) ? gyroY : 0;
+            // PX4-style concept: compensate body angular rate from optical-flow rate first.
+            const flowRateCompX = flowRateX - gy;
+            const flowRateCompY = flowRateY + gx;
+            // Convert LOS rates to body-frame linear velocity using range.
+            const vFwd = flowRateCompX * rangeM;
+            const vRight = flowRateCompY * rangeM;
+            // Body (forward/right) -> world (east/north), then map north to sim-z(-north).
+            const yawRad = (yawDeg * Math.PI) / 180.0;
+            const sinY = Math.sin(yawRad);
+            const cosY = Math.cos(yawRad);
+            const vEast = vFwd * sinY + vRight * cosY;
+            const vNorth = vFwd * cosY - vRight * sinY;
+            return {
+                vWorldX: vEast,
+                vWorldZ: -vNorth,
+                flowRateCompX,
+                flowRateCompY,
+            };
+        };
+        const createOutputEkfState = () => ({
+            // state vector: [x, z, vx, vz, y, vy]
+            x: [0, 0, 0, 0, 0, 0],
+            // covariance matrix (6x6)
+            p: [
+                [4.0, 0, 0, 0, 0, 0],
+                [0, 4.0, 0, 0, 0, 0],
+                [0, 0, 1.0, 0, 0, 0],
+                [0, 0, 0, 1.0, 0, 0],
+                [0, 0, 0, 0, 2.0, 0],
+                [0, 0, 0, 0, 0, 1.0],
+            ],
+            init: false,
+            lastOfVx: null,
+            lastOfVz: null,
+            lastHeight: null,
+            lastResidualMps: 0,
+            lastHeightResidualM: 0,
+            lastKVx: 0,
+            lastKVz: 0,
+            lastKHeight: 0,
+            lastAxWorld: 0,
+            lastAzWorld: 0,
+            lastAxCorr: 0,
+            lastAzCorr: 0,
+            lastDt: 0,
+            ofRejectCount: 0,
+            lastAglGate: false,
+            lastTiltGate: false,
+            lastQualityGate: false,
+            lastInnovGate: false,
+            lastFlowRateCompX: 0,
+            lastFlowRateCompY: 0,
+            biasAx: 0,
+            biasAz: 0,
+            stationaryCount: 0,
+        });
+        const EKF_OF_AGL_MIN_M = 1.0;
+        const EKF_OF_AGL_MAX_M = 8.0;
+        const EKF_OF_MIN_QUALITY = 40;
+        const EKF_OF_MAX_TILT_DEG = 35.0;
+        const ekfPredictOutput = (ekf, dt, ax, az, ay) => {
+            const x = ekf.x;
+            const posNoise = 0.02;
+            const sigmaA = 1.8;
+            const dt2 = dt * dt;
+            const halfDt2 = 0.5 * dt2;
+            // x <- f(x, a)
+            x[0] += x[2] * dt + halfDt2 * ax;
+            x[1] += x[3] * dt + halfDt2 * az;
+            x[2] += ax * dt;
+            x[3] += az * dt;
+            x[4] += x[5] * dt + halfDt2 * ay;
+            x[5] += ay * dt;
+
+            // Linearized covariance update for CV model with accel input.
+            const A = [
+                [1, 0, dt, 0, 0, 0],
+                [0, 1, 0, dt, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 1, dt],
+                [0, 0, 0, 0, 0, 1],
+            ];
+            const q = sigmaA * sigmaA;
+            const Q = [
+                [q * 0.25 * dt2 * dt2 + posNoise, 0, q * 0.5 * dt2 * dt, 0, 0, 0],
+                [0, q * 0.25 * dt2 * dt2 + posNoise, 0, q * 0.5 * dt2 * dt, 0, 0],
+                [q * 0.5 * dt2 * dt, 0, q * dt2 + 0.03, 0, 0, 0],
+                [0, q * 0.5 * dt2 * dt, 0, q * dt2 + 0.03, 0, 0],
+                [0, 0, 0, 0, q * 0.25 * dt2 * dt2 + 0.01, q * 0.5 * dt2 * dt],
+                [0, 0, 0, 0, q * 0.5 * dt2 * dt, q * dt2 + 0.02],
+            ];
+            const p = ekf.p;
+            const n = 6;
+            const ap = Array.from({ length: n }, () => Array.from({ length: n }, () => 0));
+            for (let i = 0; i < n; i += 1) {
+                for (let j = 0; j < n; j += 1) {
+                    let sum = 0;
+                    for (let k = 0; k < n; k += 1) sum += A[i][k] * p[k][j];
+                    ap[i][j] = sum;
+                }
+            }
+            const apaT = Array.from({ length: n }, () => Array.from({ length: n }, () => 0));
+            for (let i = 0; i < n; i += 1) {
+                for (let j = 0; j < n; j += 1) {
+                    let sum = 0;
+                    for (let k = 0; k < n; k += 1) sum += ap[i][k] * A[j][k];
+                    apaT[i][j] = sum + Q[i][j];
+                }
+            }
+            ekf.p = apaT;
+        };
+        const ekfUpdateScalar = (
+            ekf,
+            idx,
+            meas,
+            rStd,
+            maxCorrection = Infinity,
+            rejectThreshold = Infinity,
+        ) => {
+            const innovRaw = meas - ekf.x[idx];
+            if (Math.abs(innovRaw) > rejectThreshold) {
+                return { applied: false, innovation: innovRaw, k: 0 };
+            }
+            const innovation = THREE.MathUtils.clamp(innovRaw, -maxCorrection, maxCorrection);
+            const p = ekf.p;
+            const s = p[idx][idx] + rStd * rStd;
+            if (!Number.isFinite(s) || s < 1e-9) {
+                return { applied: false, innovation, k: 0 };
+            }
+            const n = ekf.x.length;
+            const k = Array.from({ length: n }, (_, i) => p[i][idx] / s);
+            for (let i = 0; i < n; i += 1) {
+                ekf.x[i] += k[i] * innovation;
+            }
+            const oldP = p.map((row) => row.slice());
+            for (let i = 0; i < n; i += 1) {
+                for (let j = 0; j < n; j += 1) {
+                    p[i][j] = oldP[i][j] - k[i] * oldP[idx][j];
+                }
+            }
+            return { applied: true, innovation, k: k[idx] };
+        };
+        const ekfUpdateOutputVelocity = (ekf, vxMeas, vzMeas, dt) => {
+            // Innovation y = z - Hx where H maps velocity states vx,vz.
+            const y0Raw = vxMeas - ekf.x[2];
+            const y1Raw = vzMeas - ekf.x[3];
+            let y0 = y0Raw;
+            let y1 = y1Raw;
+            const residual = Math.hypot(y0, y1);
+            ekf.lastResidualMps = residual;
+
+            // IMU is the truth source here; reject large optical-flow innovations.
+            const rejectResidualMps = 0.9;
+            if (residual > rejectResidualMps) {
+                ekf.ofRejectCount += 1;
+                return;
+            }
+
+            // Cap per-frame OF correction so instantaneous spikes cannot move the drone.
+            const maxCorrPerStepMps = 0.20;
+            y0 = THREE.MathUtils.clamp(y0, -maxCorrPerStepMps, maxCorrPerStepMps);
+            y1 = THREE.MathUtils.clamp(y1, -maxCorrPerStepMps, maxCorrPerStepMps);
+
+            let rVel = 1.5;
+            if (ekf.lastOfVx != null && ekf.lastOfVz != null) {
+                const jerk = Math.hypot(vxMeas - ekf.lastOfVx, vzMeas - ekf.lastOfVz) / Math.max(0.02, dt);
+                // Noise bursts in optical flow are handled by inflating measurement noise.
+                if (jerk > 6.0) rVel = 4.0;
+                else if (jerk > 3.0) rVel = 2.5;
+            }
+            ekf.lastOfVx = vxMeas;
+            ekf.lastOfVz = vzMeas;
+            const upX = ekfUpdateScalar(ekf, 2, ekf.x[2] + y0, rVel, maxCorrPerStepMps, 2.0);
+            const upZ = ekfUpdateScalar(ekf, 3, ekf.x[3] + y1, rVel, maxCorrPerStepMps, 2.0);
+            ekf.lastKVx = upX.k;
+            ekf.lastKVz = upZ.k;
+        };
+        const resetOutputSimulation = () => {
+            if (!state.outputSim.ready) return;
+            state.outputSim.pos.set(0, 0, 0);
+            state.outputSim.lastTsMs = null;
+            state.outputSim.altOrigin = null;
+            state.outputSim.ekf = createOutputEkfState();
+            state.outputSim.droneGroup.position.set(0, 0, 0);
+            clearDirectionalTrail(state.outputSim.trail);
+            setEkfComputeText("EKF OF+IMU mode removed.");
+            if (state.outputSim.trackEnabled && state.outputSim.camera && state.outputSim.cameraOffset) {
+                state.outputSim.camera.position.copy(state.outputSim.droneGroup.position).add(state.outputSim.cameraOffset);
+                state.outputSim.camera.lookAt(state.outputSim.droneGroup.position);
+            }
+        };
+        const resetManualSimulation = () => {
+            if (!state.manualSim.ready) return;
+            state.manualSim.pos.set(0, 0, 0);
+            state.manualSim.yawDeg = 0;
+            state.manualSim.lastFrameTsMs = null;
+            state.manualSim.droneGroup.position.set(0, 0, 0);
+            clearDirectionalTrail(state.manualSim.trail);
+            state.manualOf.lastX = 0;
+            state.manualOf.lastZ = 0;
+            state.manualOf.globalX = 0;
+            state.manualOf.globalY = 0;
+            state.manualOf.deltaX = 0;
+            state.manualOf.deltaY = 0;
+            state.manualOf.bodyFwd = 0;
+            state.manualOf.bodyRight = 0;
+            setManualOfDisplay();
+            applyDroneAttitude(0, 0, state.manualSim.yawDeg, state.manualSim.droneGroup);
+            if (state.manualSim.trackEnabled && state.manualSim.camera && state.manualSim.cameraOffset) {
+                state.manualSim.camera.position.copy(state.manualSim.droneGroup.position).add(state.manualSim.cameraOffset);
+                state.manualSim.camera.lookAt(state.manualSim.droneGroup.position);
+            }
+            setManualSimNote("Manual sim reset. Click Fly to enable number-key flight controls.");
+        };
+        const resetOfYawSimulation = () => {
+            if (!state.ofYawSim.ready) return;
+            state.ofYawSim.pos.set(0, 0, 0);
+            state.ofYawSim.globalX = 0;
+            state.ofYawSim.globalY = 0;
+            state.ofYawSim.deltaX = 0;
+            state.ofYawSim.deltaY = 0;
+            state.ofYawSim.bodyVx = 0;
+            state.ofYawSim.bodyVy = 0;
+            state.ofYawSim.yawDeg = 0;
+            state.ofYawSim.lastDt = 0;
+            state.ofYawSim.lastTsMs = null;
+            state.ofYawSim.droneGroup.position.set(0, 0, 0);
+            clearDirectionalTrail(state.ofYawSim.trail);
+            applyDroneAttitude(0, 0, 0, state.ofYawSim.droneGroup);
+            if (state.ofYawSim.trackEnabled && state.ofYawSim.camera && state.ofYawSim.cameraOffset) {
+                state.ofYawSim.camera.position.copy(state.ofYawSim.droneGroup.position).add(state.ofYawSim.cameraOffset);
+                state.ofYawSim.camera.lookAt(state.ofYawSim.droneGroup.position);
+            }
+            setOfYawDisplay();
+            setOfYawSimNote("OF+yaw simulator reset.");
+        };
+        const updateManualSimFlyButton = () => {
+            if (!ui.manualSimFlyBtn) return;
+            ui.manualSimFlyBtn.innerText = state.manualSim.flyEnabled ? "Fly: ON" : "Fly: OFF";
+            ui.manualSimFlyBtn.className = state.manualSim.flyEnabled ? "btn-follow active" : "btn-follow";
+        };
+        const setManualControlState = (code, isDown) => {
+            const keyMap = {
+                Numpad7: "yawLeft",
+                Numpad9: "yawRight",
+                Numpad8: "front",
+                Numpad4: "left",
+                Numpad6: "right",
+                Numpad2: "back",
+                Numpad5: "throttleUp",
+                Numpad0: "throttleDown",
+                Digit7: "yawLeft",
+                Digit9: "yawRight",
+                Digit8: "front",
+                Digit4: "left",
+                Digit6: "right",
+                Digit2: "back",
+                Digit5: "throttleUp",
+                Digit0: "throttleDown",
+            };
+            const mapped = keyMap[code];
+            if (!mapped) return false;
+            state.manualSim.keyState[mapped] = isDown;
+            return true;
+        };
+        const initManualInputHandlers = () => {
+            window.addEventListener("keydown", (ev) => {
+                const tag = document.activeElement?.tagName;
+                if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+                if (!state.manualSim.flyEnabled) return;
+                const handled = setManualControlState(ev.code, true);
+                if (handled) ev.preventDefault();
+            });
+            window.addEventListener("keyup", (ev) => {
+                const handled = setManualControlState(ev.code, false);
+                if (handled) ev.preventDefault();
+            });
+            window.addEventListener("blur", () => {
+                const k = state.manualSim.keyState;
+                Object.keys(k).forEach((key) => {
+                    k[key] = false;
+                });
+            });
+        };
+        const updateManualSimulation = () => {
+            if (!state.manualSim.ready || !state.manualSim.pos) return;
+            const nowMs = performance.now();
+            if (!Number.isFinite(state.manualSim.lastFrameTsMs)) {
+                state.manualSim.lastFrameTsMs = nowMs;
+            }
+            const dt = Math.max(0.001, Math.min(0.05, (nowMs - state.manualSim.lastFrameTsMs) / 1000.0));
+            state.manualSim.lastFrameTsMs = nowMs;
+            if (state.manualSim.flyEnabled) {
+                const k = state.manualSim.keyState;
+                const yawInput = (k.yawRight ? 1 : 0) - (k.yawLeft ? 1 : 0);
+                const forwardInput = (k.front ? 1 : 0) - (k.back ? 1 : 0);
+                const strafeInput = (k.right ? 1 : 0) - (k.left ? 1 : 0);
+                const throttleInput = (k.throttleUp ? 1 : 0) - (k.throttleDown ? 1 : 0);
+                const yawRateDegS = 90.0;
+                const moveSpeedMps = 2.8;
+                const verticalSpeedMps = 1.8;
+                state.manualSim.yawDeg = normalizeDeg(state.manualSim.yawDeg + yawInput * yawRateDegS * dt);
+                const yawRad = THREE.MathUtils.degToRad(state.manualSim.yawDeg);
+                const fwdX = Math.sin(yawRad);
+                const fwdZ = Math.cos(yawRad);
+                const rightX = Math.cos(yawRad);
+                const rightZ = -Math.sin(yawRad);
+                let planarFwd = forwardInput;
+                let planarStrafe = strafeInput;
+                const planarNorm = Math.hypot(planarFwd, planarStrafe);
+                if (planarNorm > 1) {
+                    planarFwd /= planarNorm;
+                    planarStrafe /= planarNorm;
+                }
+                state.manualSim.pos.x += (planarFwd * fwdX + planarStrafe * rightX) * moveSpeedMps * dt;
+                state.manualSim.pos.z += (planarFwd * fwdZ + planarStrafe * rightZ) * moveSpeedMps * dt;
+                state.manualSim.pos.y += throttleInput * verticalSpeedMps * dt;
+                if (state.manualSim.pos.y < 0) state.manualSim.pos.y = 0;
+            }
+            state.manualSim.droneGroup.position.lerp(state.manualSim.pos, 0.45);
+            applyDroneAttitude(0, 0, state.manualSim.yawDeg, state.manualSim.droneGroup);
+
+            const currX = state.manualSim.pos.x;
+            const currZ = state.manualSim.pos.z;
+            if (!Number.isFinite(state.manualOf.lastX) || !Number.isFinite(state.manualOf.lastZ)) {
+                state.manualOf.lastX = currX;
+                state.manualOf.lastZ = currZ;
+            }
+            const dX = currX - state.manualOf.lastX;
+            const dZ = currZ - state.manualOf.lastZ;
+            state.manualOf.lastX = currX;
+            state.manualOf.lastZ = currZ;
+            const yawRad = THREE.MathUtils.degToRad(state.manualSim.yawDeg);
+            const sinY = Math.sin(yawRad);
+            const cosY = Math.cos(yawRad);
+            // Simulated OF sensor body-frame delta (depends on current yaw).
+            const bodyFwd = dX * sinY + dZ * cosY;
+            const bodyRight = dX * cosY - dZ * sinY;
+            state.manualOf.bodyFwd = bodyFwd;
+            state.manualOf.bodyRight = bodyRight;
+            // Reconstruct global delta from body-frame OF + yaw.
+            const globalDx = bodyFwd * sinY + bodyRight * cosY;
+            const globalDy = bodyFwd * cosY - bodyRight * sinY;
+            state.manualOf.deltaX = globalDx;
+            state.manualOf.deltaY = globalDy;
+            state.manualOf.globalX += globalDx;
+            state.manualOf.globalY += globalDy;
+            setManualOfDisplay();
+            if (state.manualSim.trail) {
+                const curr = state.manualSim.droneGroup.position.clone();
+                if (!state.manualSim.trail.lastPos) {
+                    state.manualSim.trail.lastPos = curr.clone();
+                } else {
+                    pushTrailSegment(state.manualSim.trail, state.manualSim.trail.lastPos, curr);
+                    state.manualSim.trail.lastPos.copy(curr);
+                }
+            }
+            if (state.manualSim.trackEnabled && state.manualSim.camera && state.manualSim.cameraOffset) {
+                state.manualSim.camera.position.copy(state.manualSim.droneGroup.position).add(state.manualSim.cameraOffset);
+                state.manualSim.camera.lookAt(state.manualSim.droneGroup.position);
+            }
+            const activeKeys = [];
+            if (state.manualSim.keyState.front) activeKeys.push("8");
+            if (state.manualSim.keyState.back) activeKeys.push("2");
+            if (state.manualSim.keyState.left) activeKeys.push("4");
+            if (state.manualSim.keyState.right) activeKeys.push("6");
+            if (state.manualSim.keyState.yawLeft) activeKeys.push("7");
+            if (state.manualSim.keyState.yawRight) activeKeys.push("9");
+            if (state.manualSim.keyState.throttleUp) activeKeys.push("5");
+            if (state.manualSim.keyState.throttleDown) activeKeys.push("0");
+            setManualSimNote(
+                `fly=${state.manualSim.flyEnabled ? "on" : "off"} | x=${state.manualSim.pos.x.toFixed(2)} y=${state.manualSim.pos.y.toFixed(2)} z=${state.manualSim.pos.z.toFixed(2)} yaw=${state.manualSim.yawDeg.toFixed(1)} | keys=${activeKeys.length ? activeKeys.join(",") : "none"}`
+            );
+        };
+        const updateOfYawSimulationFromTelemetry = () => {
+            if (!state.ofYawSim.ready || !state.ofYawSim.pos) return;
+            const ts = Number(state.telemetryTsMs);
+            if (!Number.isFinite(ts)) return;
+            if (!Number.isFinite(state.ofYawSim.lastTsMs)) {
+                state.ofYawSim.lastTsMs = ts;
+                return;
+            }
+            const dt = Math.max(0.001, Math.min(0.2, (ts - state.ofYawSim.lastTsMs) / 1000.0));
+            state.ofYawSim.lastTsMs = ts;
+            const vxBody = Number(state.flowRaw.vx);
+            const vyBody = Number(state.flowRaw.vy);
+            const yawDeg = Number(state.mavlinkAttitude.yawDeg) || 0;
+            const yawRad = THREE.MathUtils.degToRad(yawDeg);
+            const sinY = Math.sin(yawRad);
+            const cosY = Math.cos(yawRad);
+            // Body OF velocity (forward/right) -> ENU global velocity (east/north).
+            const vEast = (Number.isFinite(vxBody) ? vxBody : 0) * sinY + (Number.isFinite(vyBody) ? vyBody : 0) * cosY;
+            const vNorth = (Number.isFinite(vxBody) ? vxBody : 0) * cosY - (Number.isFinite(vyBody) ? vyBody : 0) * sinY;
+            const dx = vEast * dt;
+            const dy = vNorth * dt;
+            state.ofYawSim.deltaX = dx;
+            state.ofYawSim.deltaY = dy;
+            state.ofYawSim.globalX += dx;
+            state.ofYawSim.globalY += dy;
+            state.ofYawSim.bodyVx = Number.isFinite(vxBody) ? vxBody : 0;
+            state.ofYawSim.bodyVy = Number.isFinite(vyBody) ? vyBody : 0;
+            state.ofYawSim.yawDeg = yawDeg;
+            state.ofYawSim.lastDt = dt;
+            state.ofYawSim.pos.x = state.ofYawSim.globalX;
+            state.ofYawSim.pos.z = state.ofYawSim.globalY;
+            state.ofYawSim.droneGroup.position.lerp(state.ofYawSim.pos, 0.35);
+            applyDroneAttitude(0, 0, yawDeg, state.ofYawSim.droneGroup);
+            if (state.ofYawSim.trail) {
+                const curr = state.ofYawSim.droneGroup.position.clone();
+                if (!state.ofYawSim.trail.lastPos) {
+                    state.ofYawSim.trail.lastPos = curr.clone();
+                } else {
+                    pushTrailSegment(state.ofYawSim.trail, state.ofYawSim.trail.lastPos, curr);
+                    state.ofYawSim.trail.lastPos.copy(curr);
+                }
+            }
+            if (state.ofYawSim.trackEnabled && state.ofYawSim.camera && state.ofYawSim.cameraOffset) {
+                state.ofYawSim.camera.position.copy(state.ofYawSim.droneGroup.position).add(state.ofYawSim.cameraOffset);
+                state.ofYawSim.camera.lookAt(state.ofYawSim.droneGroup.position);
+            }
+            setOfYawDisplay();
+            setOfYawSimNote(
+                `frame=ENU | x=${state.ofYawSim.globalX.toFixed(2)} y=${state.ofYawSim.globalY.toFixed(2)} | dx=${dx.toFixed(3)} dy=${dy.toFixed(3)} | yaw=${yawDeg.toFixed(1)}`
+            );
+        };
+        const initOutputSimulation = () => {
+            if (isEmbed || !ui.outputSimCanvas) return;
+            const scene2 = new THREE.Scene();
+            scene2.background = new THREE.Color(0x0f172a);
+            scene2.fog = new THREE.Fog(0x0f172a, 80, 240);
+            const camera2 = new THREE.PerspectiveCamera(38, 1, 0.1, 2000);
+            camera2.position.set(12, 12, 12);
+            camera2.lookAt(0, 0, 0);
+            const renderer2 = new THREE.WebGLRenderer({
+                canvas: ui.outputSimCanvas,
+                antialias: true,
+            });
+            renderer2.setPixelRatio(window.devicePixelRatio || 1);
+            const ambient2 = new THREE.AmbientLight(0xffffff, 0.7);
+            scene2.add(ambient2);
+            const dir2 = new THREE.DirectionalLight(0xffffff, 0.9);
+            dir2.position.set(20, 40, 20);
+            scene2.add(dir2);
+            const grid2 = new THREE.GridHelper(120, 24, 0x64748b, 0x334155);
+            scene2.add(grid2);
+            const drone2 = createDroneModel();
+            scene2.add(drone2);
+            state.outputSim.scene = scene2;
+            state.outputSim.camera = camera2;
+            state.outputSim.renderer = renderer2;
+            state.outputSim.droneGroup = drone2;
+            state.outputSim.pos = new THREE.Vector3(0, 0, 0);
+            state.outputSim.lastTsMs = null;
+            state.outputSim.altOrigin = null;
+            state.outputSim.trackEnabled = false;
+            state.outputSim.cameraOffset = new THREE.Vector3(12, 12, 12);
+            state.outputSim.ekf = createOutputEkfState();
+            state.outputSim.trail = createDirectionalTrailState(scene2);
+            state.outputSim.ready = true;
+            const resize = () => {
+                const rect = ui.outputSimCanvas.getBoundingClientRect();
+                const w = Math.max(1, Math.floor(rect.width * (window.devicePixelRatio || 1)));
+                const h = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio || 1)));
+                if (ui.outputSimCanvas.width !== w || ui.outputSimCanvas.height !== h) {
+                    ui.outputSimCanvas.width = w;
+                    ui.outputSimCanvas.height = h;
+                }
+                renderer2.setSize(rect.width, rect.height, false);
+                camera2.aspect = rect.width / Math.max(1, rect.height);
+                camera2.updateProjectionMatrix();
+            };
+            resize();
+            if (ui.outputSimResetBtn) ui.outputSimResetBtn.addEventListener("click", resetOutputSimulation);
+            if (ui.outputSimTrackBtn) {
+                ui.outputSimTrackBtn.addEventListener("click", () => {
+                    state.outputSim.trackEnabled = !state.outputSim.trackEnabled;
+                    ui.outputSimTrackBtn.innerText = state.outputSim.trackEnabled ? "Track: ON" : "Track: OFF";
+                    ui.outputSimTrackBtn.className = state.outputSim.trackEnabled ? "btn-follow active" : "btn-follow";
+                    if (state.outputSim.trackEnabled && state.outputSim.camera && state.outputSim.cameraOffset) {
+                        state.outputSim.camera.position.copy(state.outputSim.droneGroup.position).add(state.outputSim.cameraOffset);
+                        state.outputSim.camera.lookAt(state.outputSim.droneGroup.position);
+                    }
+                });
+            }
+            if (ui.outputSimAltSource) {
+                ui.outputSimAltSource.addEventListener("change", () => {
+                    state.outputSim.altOrigin = null;
+                });
+            }
+            if (ui.outputSimMoveSource) {
+                ui.outputSimMoveSource.addEventListener("change", () => {
+                    state.outputSim.lastTsMs = null;
+                    state.outputSim.ekf = createOutputEkfState();
+                    const mode = ui.outputSimMoveSource.value;
+                    if (mode === "optical_vxy") {
+                        setOutputSimNote("Optical flow direct mode active (raw vx/vy integration, frame: ENU local).");
+                    } else {
+                        setOutputSimNote("Hold position mode active (frame: N/A).");
+                    }
+                    setEkfComputeText("EKF OF+IMU mode removed.");
+                });
+            }
+            window.addEventListener("resize", resize);
+            setOutputSimNote("Optical flow direct mode active (raw vx/vy integration, frame: ENU local).");
+            setEkfComputeText("EKF OF+IMU mode removed.");
+        };
+        const initManualSimulation = () => {
+            if (isEmbed || !ui.manualSimCanvas) return;
+            const scene3 = new THREE.Scene();
+            scene3.background = new THREE.Color(0x0f172a);
+            scene3.fog = new THREE.Fog(0x0f172a, 80, 240);
+            const camera3 = new THREE.PerspectiveCamera(38, 1, 0.1, 2000);
+            camera3.position.set(12, 12, 12);
+            camera3.lookAt(0, 0, 0);
+            const renderer3 = new THREE.WebGLRenderer({
+                canvas: ui.manualSimCanvas,
+                antialias: true,
+            });
+            renderer3.setPixelRatio(window.devicePixelRatio || 1);
+            const ambient3 = new THREE.AmbientLight(0xffffff, 0.7);
+            scene3.add(ambient3);
+            const dir3 = new THREE.DirectionalLight(0xffffff, 0.9);
+            dir3.position.set(20, 40, 20);
+            scene3.add(dir3);
+            const grid3 = new THREE.GridHelper(120, 24, 0x64748b, 0x334155);
+            scene3.add(grid3);
+            const drone3 = createDroneModel();
+            scene3.add(drone3);
+            state.manualSim.scene = scene3;
+            state.manualSim.camera = camera3;
+            state.manualSim.renderer = renderer3;
+            state.manualSim.droneGroup = drone3;
+            state.manualSim.pos = new THREE.Vector3(0, 0, 0);
+            state.manualSim.yawDeg = 0;
+            state.manualSim.trackEnabled = false;
+            state.manualSim.cameraOffset = new THREE.Vector3(12, 12, 12);
+            state.manualSim.trail = createDirectionalTrailState(scene3);
+            state.manualSim.ready = true;
+            state.manualSim.lastFrameTsMs = null;
+            state.manualOf.lastX = 0;
+            state.manualOf.lastZ = 0;
+            state.manualOf.globalX = 0;
+            state.manualOf.globalY = 0;
+            state.manualOf.deltaX = 0;
+            state.manualOf.deltaY = 0;
+            state.manualOf.bodyFwd = 0;
+            state.manualOf.bodyRight = 0;
+            const resize = () => {
+                const rect = ui.manualSimCanvas.getBoundingClientRect();
+                const w = Math.max(1, Math.floor(rect.width * (window.devicePixelRatio || 1)));
+                const h = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio || 1)));
+                if (ui.manualSimCanvas.width !== w || ui.manualSimCanvas.height !== h) {
+                    ui.manualSimCanvas.width = w;
+                    ui.manualSimCanvas.height = h;
+                }
+                renderer3.setSize(rect.width, rect.height, false);
+                camera3.aspect = rect.width / Math.max(1, rect.height);
+                camera3.updateProjectionMatrix();
+            };
+            resize();
+            if (ui.manualSimFlyBtn) {
+                ui.manualSimFlyBtn.addEventListener("click", () => {
+                    state.manualSim.flyEnabled = !state.manualSim.flyEnabled;
+                    updateManualSimFlyButton();
+                    setManualSimNote(state.manualSim.flyEnabled
+                        ? "Fly mode enabled. Use number keys: 7/9 yaw, 8 front, 4 left, 6 right, 2 back, 5 up, 0 down."
+                        : "Fly mode disabled.");
+                });
+            }
+            if (ui.manualSimResetBtn) {
+                ui.manualSimResetBtn.addEventListener("click", resetManualSimulation);
+            }
+            if (ui.manualSimTrackBtn) {
+                ui.manualSimTrackBtn.addEventListener("click", () => {
+                    state.manualSim.trackEnabled = !state.manualSim.trackEnabled;
+                    ui.manualSimTrackBtn.innerText = state.manualSim.trackEnabled ? "Track: ON" : "Track: OFF";
+                    ui.manualSimTrackBtn.className = state.manualSim.trackEnabled ? "btn-follow active" : "btn-follow";
+                    if (state.manualSim.trackEnabled && state.manualSim.camera && state.manualSim.cameraOffset) {
+                        state.manualSim.camera.position.copy(state.manualSim.droneGroup.position).add(state.manualSim.cameraOffset);
+                        state.manualSim.camera.lookAt(state.manualSim.droneGroup.position);
+                    }
+                });
+            }
+            window.addEventListener("resize", resize);
+            updateManualSimFlyButton();
+            setManualSimNote("Click Fly to enable number-key flight controls.");
+            setManualOfDisplay();
+        };
+        const initOfYawSimulation = () => {
+            if (isEmbed || !ui.ofYawSimCanvas) return;
+            const scene4 = new THREE.Scene();
+            scene4.background = new THREE.Color(0x0f172a);
+            scene4.fog = new THREE.Fog(0x0f172a, 80, 240);
+            const camera4 = new THREE.PerspectiveCamera(38, 1, 0.1, 2000);
+            camera4.position.set(12, 12, 12);
+            camera4.lookAt(0, 0, 0);
+            const renderer4 = new THREE.WebGLRenderer({
+                canvas: ui.ofYawSimCanvas,
+                antialias: true,
+            });
+            renderer4.setPixelRatio(window.devicePixelRatio || 1);
+            const ambient4 = new THREE.AmbientLight(0xffffff, 0.7);
+            scene4.add(ambient4);
+            const dir4 = new THREE.DirectionalLight(0xffffff, 0.9);
+            dir4.position.set(20, 40, 20);
+            scene4.add(dir4);
+            const grid4 = new THREE.GridHelper(120, 24, 0x64748b, 0x334155);
+            scene4.add(grid4);
+            const drone4 = createDroneModel();
+            scene4.add(drone4);
+            state.ofYawSim.scene = scene4;
+            state.ofYawSim.camera = camera4;
+            state.ofYawSim.renderer = renderer4;
+            state.ofYawSim.droneGroup = drone4;
+            state.ofYawSim.pos = new THREE.Vector3(0, 0, 0);
+            state.ofYawSim.trackEnabled = false;
+            state.ofYawSim.cameraOffset = new THREE.Vector3(12, 12, 12);
+            state.ofYawSim.trail = createDirectionalTrailState(scene4);
+            state.ofYawSim.ready = true;
+            state.ofYawSim.lastTsMs = null;
+            state.ofYawSim.globalX = 0;
+            state.ofYawSim.globalY = 0;
+            state.ofYawSim.deltaX = 0;
+            state.ofYawSim.deltaY = 0;
+            state.ofYawSim.bodyVx = 0;
+            state.ofYawSim.bodyVy = 0;
+            state.ofYawSim.yawDeg = 0;
+            state.ofYawSim.lastDt = 0;
+            const resize = () => {
+                const rect = ui.ofYawSimCanvas.getBoundingClientRect();
+                const w = Math.max(1, Math.floor(rect.width * (window.devicePixelRatio || 1)));
+                const h = Math.max(1, Math.floor(rect.height * (window.devicePixelRatio || 1)));
+                if (ui.ofYawSimCanvas.width !== w || ui.ofYawSimCanvas.height !== h) {
+                    ui.ofYawSimCanvas.width = w;
+                    ui.ofYawSimCanvas.height = h;
+                }
+                renderer4.setSize(rect.width, rect.height, false);
+                camera4.aspect = rect.width / Math.max(1, rect.height);
+                camera4.updateProjectionMatrix();
+            };
+            resize();
+            if (ui.ofYawSimResetBtn) {
+                ui.ofYawSimResetBtn.addEventListener("click", resetOfYawSimulation);
+            }
+            if (ui.ofYawSimTrackBtn) {
+                ui.ofYawSimTrackBtn.addEventListener("click", () => {
+                    state.ofYawSim.trackEnabled = !state.ofYawSim.trackEnabled;
+                    ui.ofYawSimTrackBtn.innerText = state.ofYawSim.trackEnabled ? "Track: ON" : "Track: OFF";
+                    ui.ofYawSimTrackBtn.className = state.ofYawSim.trackEnabled ? "btn-follow active" : "btn-follow";
+                    if (state.ofYawSim.trackEnabled && state.ofYawSim.camera && state.ofYawSim.cameraOffset) {
+                        state.ofYawSim.camera.position.copy(state.ofYawSim.droneGroup.position).add(state.ofYawSim.cameraOffset);
+                        state.ofYawSim.camera.lookAt(state.ofYawSim.droneGroup.position);
+                    }
+                });
+            }
+            window.addEventListener("resize", resize);
+            setOfYawDisplay();
+            setOfYawSimNote("Waiting for optical flow + yaw stream...");
+        };
+        const updateOutputSimulationFromTelemetry = () => {
+            if (!state.outputSim.ready || !state.outputSim.pos) return;
+            const ts = Number(state.telemetryTsMs);
+            if (!Number.isFinite(ts)) return;
+            if (!Number.isFinite(state.outputSim.lastTsMs)) {
+                state.outputSim.lastTsMs = ts;
+            }
+            const dt = Math.max(0.001, Math.min(0.2, (ts - state.outputSim.lastTsMs) / 1000.0));
+            state.outputSim.lastTsMs = ts;
+
+            const moveSource = ui.outputSimMoveSource ? ui.outputSimMoveSource.value : "optical_vxy";
+            const altSource = ui.outputSimAltSource ? ui.outputSimAltSource.value : "asml_relative";
+            if (moveSource === "optical_vxy") {
+                const vx = Number(state.flowRaw.vx);
+                const vy = Number(state.flowRaw.vy);
+                if (Number.isFinite(vx) && Number.isFinite(vy)) {
+                    state.outputSim.pos.x += vx * dt;
+                    state.outputSim.pos.z += -vy * dt;
+                }
+            }
+            if (altSource === "asml_relative") {
+                const altAsml = Number(state.mavlinkAttitude.altAsmlM);
+                if (Number.isFinite(altAsml)) {
+                    if (!Number.isFinite(state.outputSim.altOrigin)) {
+                        state.outputSim.altOrigin = altAsml;
+                    }
+                    state.outputSim.pos.y = altAsml - state.outputSim.altOrigin;
+                }
+            } else if (altSource === "lidar_agl") {
+                const agl = Number(state.lidarAglM);
+                if (Number.isFinite(agl)) {
+                    state.outputSim.pos.y = agl;
+                }
+            }
+            state.outputSim.droneGroup.position.lerp(state.outputSim.pos, 0.35);
+            if (state.outputSim.trail) {
+                const curr = state.outputSim.droneGroup.position.clone();
+                if (!state.outputSim.trail.lastPos) {
+                    state.outputSim.trail.lastPos = curr.clone();
+                } else {
+                    pushTrailSegment(state.outputSim.trail, state.outputSim.trail.lastPos, curr);
+                    state.outputSim.trail.lastPos.copy(curr);
+                }
+            }
+            applyDroneAttitude(
+                state.mavlinkAttitude.rollDeg,
+                state.mavlinkAttitude.pitchDeg,
+                state.mavlinkAttitude.yawDeg,
+                state.outputSim.droneGroup
+            );
+            if (state.outputSim.trackEnabled && state.outputSim.camera && state.outputSim.cameraOffset) {
+                state.outputSim.camera.position.copy(state.outputSim.droneGroup.position).add(state.outputSim.cameraOffset);
+                state.outputSim.camera.lookAt(state.outputSim.droneGroup.position);
+            }
+            const moveFrame = moveSource === "optical_vxy" ? "ENU" : "N/A";
+            setOutputSimNote(`alt=${altSource} | move=${moveSource} | frame=${moveFrame} | vx=${Number(state.flowRaw.vx).toFixed(3)} vy=${Number(state.flowRaw.vy).toFixed(3)}`);
+            setEkfComputeText("EKF OF+IMU mode removed.");
+        };
+        const toDeg = (rad) => (Number(rad) * 180) / Math.PI;
+        const toFinite = (...vals) => {
+            for (const v of vals) {
+                const n = Number(v);
+                if (Number.isFinite(n)) return n;
+            }
+            return null;
+        };
+        const extractPositionFromData = (data) => {
+            const fusedX = toFinite(data?.fused?.x);
+            const fusedY = toFinite(data?.fused?.y);
+            const fusedZ = toFinite(data?.fused?.z);
+            if (fusedX != null && fusedY != null && fusedZ != null) {
+                // fused: assume ENU-ish (x=east, y=north, z=up)
+                return { x: fusedX, y: fusedZ, z: -fusedY, source: "fused" };
+            }
+            const camX = toFinite(data?.camera?.x);
+            const camY = toFinite(data?.camera?.y);
+            const camZ = toFinite(data?.camera?.z);
+            if (camX != null && camY != null && camZ != null) {
+                // camera: same mapping as fused for visualization
+                return { x: camX, y: camZ, z: -camY, source: "camera" };
+            }
+            const nedX = toFinite(data?.odom_ned?.x);
+            const nedY = toFinite(data?.odom_ned?.y);
+            const nedZ = toFinite(data?.odom_ned?.z);
+            if (nedX != null && nedY != null && nedZ != null) {
+                // NED: x=north, y=east, z=down -> threejs x=east, y=up, z=-north
+                return { x: nedY, y: -nedZ, z: -nedX, source: "odom_ned" };
+            }
+            const gpsX = toFinite(data?.gps?.local?.x);
+            const gpsY = toFinite(data?.gps?.local?.y);
+            const gpsZ = toFinite(data?.gps?.local?.z);
+            if (gpsX != null && gpsY != null && gpsZ != null) {
+                // gps local: assume north/east/up
+                return { x: gpsY, y: gpsZ, z: -gpsX, source: "gps_local" };
+            }
+            return null;
+        };
+        const updateFromPixhawkMavlink = (data) => {
+            const att = data?.sensors?.attitude || {};
+            const rollRad = Number(att.roll);
+            const pitchRad = Number(att.pitch);
+            const yawRad = Number(att.yaw);
+            if (!Number.isFinite(rollRad) || !Number.isFinite(pitchRad) || !Number.isFinite(yawRad)) {
+                return false;
+            }
+            const rollDeg = toDeg(rollRad);
+            const pitchDeg = toDeg(pitchRad);
+            const yawDeg = normalizeDeg(toDeg(yawRad));
+            const altAsmlM = Number(data?.sensors?.barometer?.raw_alt_m);
+            state.mavlinkAttitude.rollDeg = rollDeg;
+            state.mavlinkAttitude.pitchDeg = pitchDeg;
+            state.mavlinkAttitude.yawDeg = yawDeg;
+            state.mavlinkAttitude.altAsmlM = Number.isFinite(altAsmlM) ? altAsmlM : null;
+            state.mavlinkAttitude.fresh = true;
+            const opt = data?.sensors?.optical_flow || {};
+            const optOut = data?.outputs?.optical_flow_gps_port?.optical_flow || {};
+            const flowVx = toFinite(optOut?.speed_x_mps_raw, opt?.speed_x, opt?.flow_vx, optOut?.speed_x_mps_used, 0);
+            const flowVy = toFinite(optOut?.speed_y_mps_raw, opt?.speed_y, opt?.flow_vy, optOut?.speed_y_mps_used, 0);
+            const flowRateX = toFinite(opt?.flow_vx, optOut?.flow_vx);
+            const flowRateY = toFinite(opt?.flow_vy, optOut?.flow_vy);
+            const flowQuality = toFinite(opt?.flow_q, opt?.flow_quality, optOut?.flow_quality);
+            const flowOk = toFinite(opt?.flow_ok, opt?.flow_status, optOut?.flow_ok);
+            state.flowRaw.vx = Number.isFinite(flowVx) ? flowVx : 0;
+            state.flowRaw.vy = Number.isFinite(flowVy) ? flowVy : 0;
+            state.flowRaw.rateX = Number.isFinite(flowRateX) ? flowRateX : state.flowRaw.rateX;
+            state.flowRaw.rateY = Number.isFinite(flowRateY) ? flowRateY : state.flowRaw.rateY;
+            state.flowRaw.quality = Number.isFinite(flowQuality) ? flowQuality : state.flowRaw.quality;
+            state.flowRaw.flowOk = Number.isFinite(flowOk) ? flowOk : state.flowRaw.flowOk;
+            state.flowRaw.fresh = true;
+            const imu = data?.sensors?.imu || {};
+            const imuAx = toFinite(imu?.ax);
+            const imuAy = toFinite(imu?.ay);
+            const imuAz = toFinite(imu?.az);
+            const imuGx = toFinite(imu?.gx);
+            const imuGy = toFinite(imu?.gy);
+            const imuGz = toFinite(imu?.gz);
+            state.imuRaw.ax = Number.isFinite(imuAx) ? imuAx : state.imuRaw.ax;
+            state.imuRaw.ay = Number.isFinite(imuAy) ? imuAy : state.imuRaw.ay;
+            state.imuRaw.az = Number.isFinite(imuAz) ? imuAz : state.imuRaw.az;
+            state.imuRaw.gx = Number.isFinite(imuGx) ? imuGx : state.imuRaw.gx;
+            state.imuRaw.gy = Number.isFinite(imuGy) ? imuGy : state.imuRaw.gy;
+            state.imuRaw.gz = Number.isFinite(imuGz) ? imuGz : state.imuRaw.gz;
+            state.imuRaw.fresh = Number.isFinite(imuAx) && Number.isFinite(imuAy) && Number.isFinite(imuAz);
+            const lidarAgl = toFinite(
+                opt?.height_m,
+                opt?.dist_mm != null ? Number(opt.dist_mm) / 1000 : null,
+                opt?.distance_mm != null ? Number(opt.distance_mm) / 1000 : null,
+                opt?.dist_cm != null ? Number(opt.dist_cm) / 100 : null
+            );
+            state.lidarAglM = Number.isFinite(lidarAgl) ? lidarAgl : state.lidarAglM;
+            const payloadTs = Number(data?.timestamp);
+            state.telemetryTsMs = Number.isFinite(payloadTs) ? payloadTs * 1000 : Date.now();
+            const pos = extractPositionFromData(data);
+            if (pos) {
+                state.positionRaw.x = pos.x;
+                state.positionRaw.y = pos.y;
+                state.positionRaw.z = pos.z;
+                state.positionRaw.source = pos.source;
+                state.positionRaw.fresh = true;
+                if (!state.positionOrigin) {
+                    state.positionOrigin = { x: pos.x, y: pos.y, z: pos.z };
+                }
+                let frameText = "Frame: ENU local";
+                if (pos.source === "odom_ned") frameText = "Frame: NED (mapped to view)";
+                if (pos.source === "fused" || pos.source === "camera" || pos.source === "gps_local") {
+                    frameText = "Frame: ENU local (mapped to view)";
+                }
+                setFrameReadout(frameText);
+            } else if (Number.isFinite(state.mavlinkAttitude.altAsmlM)) {
+                // Fallback: at least show vertical movement from baro altitude.
+                state.positionRaw.y = state.mavlinkAttitude.altAsmlM;
+                state.positionRaw.fresh = true;
+                state.positionRaw.source = "baro_alt";
+                if (!state.positionOrigin) {
+                    state.positionOrigin = { x: 0, y: state.positionRaw.y, z: 0 };
+                }
+                setFrameReadout("Frame: altitude-only (N/A)");
+            }
+
+            state.attitudeInput.rollDeg = rollDeg;
+            state.attitudeInput.pitchDeg = pitchDeg;
+            state.attitudeInput.yawDeg = yawDeg;
+            if (ui.attRoll) ui.attRoll.value = rollDeg.toFixed(2);
+            if (ui.attPitch) ui.attPitch.value = pitchDeg.toFixed(2);
+            if (ui.attYaw) ui.attYaw.value = yawDeg.toFixed(2);
+            if (ui.attStream) {
+                ui.attStream.value = JSON.stringify({
+                    source: "pixhawk_mavlink",
+                    roll_deg: Number(rollDeg.toFixed(3)),
+                    pitch_deg: Number(pitchDeg.toFixed(3)),
+                    yaw_deg: Number(yawDeg.toFixed(3)),
+                    position_source: state.positionRaw.source,
+                    x_m: Number.isFinite(state.positionRaw.x) ? Number(state.positionRaw.x.toFixed(3)) : null,
+                    y_m: Number.isFinite(state.positionRaw.y) ? Number(state.positionRaw.y.toFixed(3)) : null,
+                    z_m: Number.isFinite(state.positionRaw.z) ? Number(state.positionRaw.z.toFixed(3)) : null,
+                    alt_asml_m: Number.isFinite(state.mavlinkAttitude.altAsmlM)
+                        ? Number(state.mavlinkAttitude.altAsmlM.toFixed(3))
+                        : null,
+                    timestamp: data?.timestamp ?? null,
+                });
+            }
+            if (state.useAttitudeInput) {
+                applyDroneAttitude(rollDeg, pitchDeg, yawDeg);
+            }
+            return true;
+        };
+        const pollPixhawkAttitude = async () => {
+            try {
+                const res = await fetch(dataUrl, { cache: "no-store" });
+                const data = await res.json();
+                const ok = updateFromPixhawkMavlink(data);
+                if (ok) {
+                    updateOutputSimulationFromTelemetry();
+                    updateOfYawSimulationFromTelemetry();
+                    if (ui.stream) {
+                        const altTxt = Number.isFinite(state.mavlinkAttitude.altAsmlM)
+                            ? state.mavlinkAttitude.altAsmlM.toFixed(3)
+                            : "--";
+                        const px = Number.isFinite(state.positionRaw.x) ? state.positionRaw.x.toFixed(3) : "--";
+                        const py = Number.isFinite(state.positionRaw.y) ? state.positionRaw.y.toFixed(3) : "--";
+                        const pz = Number.isFinite(state.positionRaw.z) ? state.positionRaw.z.toFixed(3) : "--";
+                        ui.stream.innerText =
+                            `[MAVLINK MSG: ATTITUDE + BARO]\n------------------------------\n`
+                            + `time: ${data?.timestamp ?? "--"}\n`
+                            + `roll_deg: ${state.mavlinkAttitude.rollDeg.toFixed(3)}\n`
+                            + `pitch_deg: ${state.mavlinkAttitude.pitchDeg.toFixed(3)}\n`
+                            + `yaw_deg: ${state.mavlinkAttitude.yawDeg.toFixed(3)}\n`
+                            + `alt_asml_m: ${altTxt}\n`
+                            + `pos_src: ${state.positionRaw.source}\n`
+                            + `pos_xyz_m: (${px}, ${py}, ${pz})\n`;
+                    }
+                    setAttitudeStatus("Live input from Pixhawk MAVLink attitude stream.", "#86efac");
+                } else {
+                    setAttitudeStatus("Waiting for Pixhawk MAVLink attitude stream...", "#facc15");
+                }
+            } catch (_) {
+                setAttitudeStatus("Pixhawk MAVLink stream unavailable.", "#fca5a5");
+            }
+        };
+        window.applyAttitudeInput = function() {
+            let roll = Number(ui.attRoll?.value);
+            let pitch = Number(ui.attPitch?.value);
+            let yaw = Number(ui.attYaw?.value);
+            if (!Number.isFinite(roll) || !Number.isFinite(pitch) || !Number.isFinite(yaw)) {
+                setAttitudeStatus("Roll/Pitch/Yaw must be valid numbers.", "#fca5a5");
+                return;
+            }
+            state.attitudeInput.rollDeg = roll;
+            state.attitudeInput.pitchDeg = pitch;
+            state.attitudeInput.yawDeg = normalizeDeg(yaw);
+            if (ui.attRoll) ui.attRoll.value = state.attitudeInput.rollDeg.toFixed(2);
+            if (ui.attPitch) ui.attPitch.value = state.attitudeInput.pitchDeg.toFixed(2);
+            if (ui.attYaw) ui.attYaw.value = state.attitudeInput.yawDeg.toFixed(2);
+            if (state.useAttitudeInput) {
+                applyDroneAttitude(state.attitudeInput.rollDeg, state.attitudeInput.pitchDeg, state.attitudeInput.yawDeg);
+            }
+            setAttitudeStatus(
+                `Applied attitude input: roll=${state.attitudeInput.rollDeg.toFixed(2)} pitch=${state.attitudeInput.pitchDeg.toFixed(2)} yaw=${state.attitudeInput.yawDeg.toFixed(2)} deg`,
+                "#86efac"
+            );
+        };
+        window.toggleAttitudeControl = function() {
+            state.useAttitudeInput = !state.useAttitudeInput;
+            if (ui.btnAttMode) {
+                ui.btnAttMode.innerText = state.useAttitudeInput ? "Attitude Mode: ON" : "Attitude Mode: OFF";
+                ui.btnAttMode.className = state.useAttitudeInput ? "btn-follow active" : "btn-follow";
+            }
+            if (state.useAttitudeInput) {
+                if (state.mavlinkAttitude.fresh) {
+                    applyDroneAttitude(
+                        state.mavlinkAttitude.rollDeg,
+                        state.mavlinkAttitude.pitchDeg,
+                        state.mavlinkAttitude.yawDeg
+                    );
+                } else {
+                    window.applyAttitudeInput();
+                }
+                setAttitudeStatus("Attitude mode ON. Drone orientation follows Pixhawk MAVLink R/P/Y.", "#93c5fd");
+            } else {
+                setAttitudeStatus("Attitude mode OFF. Drone keeps last attitude.", "#94a3b8");
+            }
+        };
+
+        function updateLoop() {
+            controls.update();
+            if (state.positionRaw.fresh && state.droneGroup && state.positionOrigin) {
+                const tx = state.positionRaw.x - state.positionOrigin.x;
+                const ty = state.positionRaw.y - state.positionOrigin.y;
+                const tz = state.positionRaw.z - state.positionOrigin.z;
+                // Smooth to avoid jitter from noisy telemetry.
+                state.droneGroup.position.x += (tx - state.droneGroup.position.x) * 0.35;
+                state.droneGroup.position.y += (ty - state.droneGroup.position.y) * 0.35;
+                state.droneGroup.position.z += (tz - state.droneGroup.position.z) * 0.35;
+            }
+            if (state.useAttitudeInput) {
+                applyDroneAttitude(
+                    state.attitudeInput.rollDeg,
+                    state.attitudeInput.pitchDeg,
+                    state.attitudeInput.yawDeg
+                );
+            }
+            updateManualSimulation();
+        }
+
+        // Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateLoop();
+            renderer.render(scene, camera);
+            if (state.outputSim.ready && state.outputSim.renderer && state.outputSim.scene && state.outputSim.camera) {
+                state.outputSim.renderer.render(state.outputSim.scene, state.outputSim.camera);
+            }
+            if (state.manualSim.ready && state.manualSim.renderer && state.manualSim.scene && state.manualSim.camera) {
+                state.manualSim.renderer.render(state.manualSim.scene, state.manualSim.camera);
+            }
+            if (state.ofYawSim.ready && state.ofYawSim.renderer && state.ofYawSim.scene && state.ofYawSim.camera) {
+                state.ofYawSim.renderer.render(state.ofYawSim.scene, state.ofYawSim.camera);
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = getViewportWidth() / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(getViewportWidth(), window.innerHeight);
+        });
+        window.addEventListener('beforeunload', () => {
+            if (state.mavlinkPollTimer) {
+                window.clearInterval(state.mavlinkPollTimer);
+                state.mavlinkPollTimer = null;
+            }
+        });
+
+        initOutputSimulation();
+        initManualSimulation();
+        initOfYawSimulation();
+        initManualInputHandlers();
+        updateModeInfo();
+        pollPixhawkAttitude();
+        state.mavlinkPollTimer = window.setInterval(pollPixhawkAttitude, 150);
+        animate();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+[Unit]
+Description=NAVISAR Altitude Fusion Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/yogesh/Documents/navsar-a-pi5
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/yogesh/Documents/navsar-a-pi5/venv/bin/python -m navisar.altitude_fusion.service
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

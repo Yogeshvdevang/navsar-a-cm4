@@ -134,8 +134,8 @@
             <input id="flow-alpha" type="range" min="0.010" max="1.000" step="0.001" value="0.200" />
           </div>
           <div class="item">
-            <label for="deadband">Deadband (m/s) <span class="val" id="deadband-val">0.000</span></label>
-            <input id="deadband" type="range" min="0.000" max="0.200" step="0.001" value="0.000" />
+            <label for="deadband">Deadband (m/s) <span class="val" id="deadband-val">0.010</span></label>
+            <input id="deadband" type="range" min="0.000" max="0.200" step="0.001" value="0.010" />
           </div>
           <div class="item">
             <label for="heading-bias">Yaw Bias (deg) <span class="val" id="heading-bias-val">0.0</span></label>
@@ -167,13 +167,14 @@
 
     <script>
       const STORAGE_KEY = "navisar_op_lat_tuning_v1";
+      const DEFAULT_STORAGE_KEY = "navisar_op_lat_default_tuning_v1";
       const DEFAULTS = {
         swapXY: false,
         invertX: false,
         invertY: false,
         flowGain: 1.0,
         flowEmaAlpha: 0.2,
-        deadband: 0.0,
+        deadband: 0.01,
         headingBiasDeg: 0.0,
         headingSmoothAlpha: 0.25,
         dtMaxMs: 300,
@@ -225,6 +226,9 @@
         vyWorld: 0,
         flowQ: null,
         distM: null,
+        filterVx: 0,
+        filterVy: 0,
+        headingSource: "real",
       };
 
       const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -234,6 +238,13 @@
           if (Number.isFinite(n)) return n;
         }
         return null;
+      };
+      const headingFromVelocity = (vx, vy, minSpeed = 0.005) => {
+        const x = Number(vx);
+        const y = Number(vy);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        if (Math.hypot(x, y) < minSpeed) return null;
+        return (Math.atan2(x, y) * 180.0 / Math.PI + 360.0) % 360.0;
       };
       const wrapHeading = (deg) => {
         const n = Number(deg);
@@ -246,13 +257,85 @@
         if (!Number.isFinite(t) || !Number.isFinite(b)) return 0;
         return ((t - b + 540) % 360) - 180;
       };
+      const compassNoiseFilterState = {
+        realSmoothed: null,
+        pixhawkSmoothed: null,
+      };
+      const COMPASS_DENOISE_ALPHA = 0.18;
+      const COMPASS_MAX_STEP_DEG = 10.0;
+      const denoiseCompassHeading = (rawHeading) => {
+        const raw = wrapHeading(rawHeading);
+        if (!Number.isFinite(raw)) {
+          return Number.isFinite(compassNoiseFilterState.realSmoothed)
+            ? compassNoiseFilterState.realSmoothed
+            : null;
+        }
+        if (!Number.isFinite(compassNoiseFilterState.realSmoothed)) {
+          compassNoiseFilterState.realSmoothed = raw;
+          return raw;
+        }
+        const d = headingDelta(raw, compassNoiseFilterState.realSmoothed);
+        if (!Number.isFinite(d)) return compassNoiseFilterState.realSmoothed;
+        const limited = clamp(d, -COMPASS_MAX_STEP_DEG, COMPASS_MAX_STEP_DEG);
+        compassNoiseFilterState.realSmoothed = wrapHeading(
+          compassNoiseFilterState.realSmoothed + limited * COMPASS_DENOISE_ALPHA
+        );
+        return compassNoiseFilterState.realSmoothed;
+      };
+      const denoisePixhawkHeading = (rawHeading) => {
+        const raw = wrapHeading(rawHeading);
+        if (!Number.isFinite(raw)) {
+          return Number.isFinite(compassNoiseFilterState.pixhawkSmoothed)
+            ? compassNoiseFilterState.pixhawkSmoothed
+            : null;
+        }
+        if (!Number.isFinite(compassNoiseFilterState.pixhawkSmoothed)) {
+          compassNoiseFilterState.pixhawkSmoothed = raw;
+          return raw;
+        }
+        const d = headingDelta(raw, compassNoiseFilterState.pixhawkSmoothed);
+        if (!Number.isFinite(d)) return compassNoiseFilterState.pixhawkSmoothed;
+        const limited = clamp(d, -COMPASS_MAX_STEP_DEG, COMPASS_MAX_STEP_DEG);
+        compassNoiseFilterState.pixhawkSmoothed = wrapHeading(
+          compassNoiseFilterState.pixhawkSmoothed + limited * COMPASS_DENOISE_ALPHA
+        );
+        return compassNoiseFilterState.pixhawkSmoothed;
+      };
       const headingFromMag = (xMg, yMg) => {
         const x = Number(xMg);
         const y = Number(yMg);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
         return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
       };
+      const rotateOpticalVelocityByHeading = (vxBody, vyBody, headingDeg) => {
+        const vx = Number(vxBody);
+        const vy = Number(vyBody);
+        const hdg = Number(headingDeg);
+        if (!Number.isFinite(vx) || !Number.isFinite(vy) || !Number.isFinite(hdg)) {
+          return { vx, vy };
+        }
+        const rad = (hdg * Math.PI) / 180.0;
+        const sinH = Math.sin(rad);
+        const cosH = Math.cos(rad);
+        return {
+          vx: vx * sinH + vy * cosH,
+          vy: vx * cosH - vy * sinH,
+        };
+      };
+      const filterSignal = (prev, raw, alpha = 0.2, deadband = 0.0, maxStep = 1e9) => {
+        let value = Number.isFinite(raw) ? raw : prev;
+        if (Math.abs(value) < deadband) value = 0;
+        const delta = value - prev;
+        if (Math.abs(delta) > maxStep) value = prev + Math.sign(delta) * maxStep;
+        return prev + alpha * (value - prev);
+      };
       const applyDeadband = (v, d) => (Math.abs(v) < d ? 0 : v);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const headingSourceParam = (urlParams.get("heading_source") || "real").toLowerCase();
+      if (headingSourceParam === "vo" || headingSourceParam === "real" || headingSourceParam === "pixhawk") {
+        state.headingSource = headingSourceParam;
+      }
 
       const norm = (raw = {}) => ({
         swapXY: !!raw.swapXY,
@@ -276,6 +359,22 @@
           return { ...DEFAULTS };
         }
       };
+      const loadDefaultTuning = () => {
+        try {
+          const raw = localStorage.getItem(DEFAULT_STORAGE_KEY);
+          return raw ? norm(JSON.parse(raw)) : { ...DEFAULTS };
+        } catch (_) {
+          return { ...DEFAULTS };
+        }
+      };
+      const saveDefaultTuning = (tuning) => {
+        try {
+          localStorage.setItem(DEFAULT_STORAGE_KEY, JSON.stringify(norm(tuning)));
+        } catch (_) {
+          // ignore
+        }
+      };
+      let defaultTuning = loadDefaultTuning();
 
       function applyTuningToUi() {
         const t = state.tuning;
@@ -325,6 +424,8 @@
         state.y = 0;
         state.emaVx = 0;
         state.emaVy = 0;
+        state.filterVx = 0;
+        state.filterVy = 0;
         state.lastTimeMs = null;
         state.headingSmoothedDeg = null;
       }
@@ -520,24 +621,22 @@
         try {
           const r = await fetch("/data", { cache: "no-store" });
           const data = await r.json();
-          const optRaw = data?.sensors?.optical_flow || {};
-          const optOut = data?.outputs?.optical_flow_mavlink || {};
-          const opt = (() => {
-            if (optRaw && (optRaw.dist_cm != null || optRaw.distance_mm != null || optRaw.dist_mm != null)) return optRaw;
-            if (optOut && optOut.distance_m != null) {
-              return {
-                distance_mm: Number(optOut.distance_m) * 1000,
-                flow_vx: optOut.flow_vx ?? optOut.integrated_x ?? 0,
-                flow_vy: optOut.flow_vy ?? optOut.integrated_y ?? 0,
-                flow_q: optOut.quality ?? 0,
-              };
-            }
-            return optRaw;
-          })();
-
-          let heading = wrapHeading(
-            headingFromMag(data?.compass?.incoming?.x_mg, data?.compass?.incoming?.y_mg)
+          const opt = data?.sensors?.optical_flow || {};
+          const realHeadingRaw = wrapHeading(headingFromMag(data?.compass?.incoming?.x_mg, data?.compass?.incoming?.y_mg));
+          const realHeading = denoiseCompassHeading(realHeadingRaw);
+          const pixhawkHeadingRaw = wrapHeading(
+            asFinite(data?.sensors?.attitude?.yaw) != null
+              ? (Number(data.sensors.attitude.yaw) * 180.0) / Math.PI
+              : null
           );
+          const pixhawkHeading = denoisePixhawkHeading(pixhawkHeadingRaw);
+          const voHeading = wrapHeading(headingFromVelocity(data?.camera?.vx, data?.camera?.vy, 0.005));
+          let heading = wrapHeading(
+            state.headingSource === "vo"
+              ? voHeading
+              : (state.headingSource === "pixhawk" ? pixhawkHeading : realHeading)
+          );
+          heading = wrapHeading(asFinite(heading, realHeading, pixhawkHeading, voHeading));
           if (Number.isFinite(heading)) {
             heading = wrapHeading(heading + state.tuning.headingBiasDeg);
             if (!Number.isFinite(state.headingSmoothedDeg)) {
@@ -550,8 +649,25 @@
           }
           state.headingDeg = heading;
 
-          let vxBody = asFinite(opt?.speed_x, opt?.flow_vx, opt?.flow_vx_mps, 0) || 0;
-          let vyBody = asFinite(opt?.speed_y, opt?.flow_vy, opt?.flow_vy_mps, 0) || 0;
+          const isOptical = data?.source === "optical_flow" || String(data?.mode || "").startsWith("optical_flow");
+          let rawVx = isOptical
+            ? (asFinite(opt?.speed_x, opt?.flow_vx, 0) || 0)
+            : (asFinite(data?.camera?.vx, 0) || 0);
+          let rawVy = isOptical
+            ? (asFinite(opt?.speed_y, opt?.flow_vy, 0) || 0)
+            : (asFinite(data?.camera?.vy, 0) || 0);
+          if (Number.isFinite(heading)) {
+            const rotated = rotateOpticalVelocityByHeading(rawVx, rawVy, heading);
+            rawVx = Number.isFinite(rotated.vx) ? rotated.vx : rawVx;
+            rawVy = Number.isFinite(rotated.vy) ? rotated.vy : rawVy;
+          }
+          const vxFiltered = filterSignal(state.filterVx, rawVx, 0.18, 0.02, 0.25);
+          const vyFiltered = filterSignal(state.filterVy, rawVy, 0.18, 0.02, 0.25);
+          state.filterVx = vxFiltered;
+          state.filterVy = vyFiltered;
+
+          let vxBody = vxFiltered;
+          let vyBody = vyFiltered;
           if (state.tuning.swapXY) {
             const t = vxBody; vxBody = vyBody; vyBody = t;
           }
@@ -562,14 +678,6 @@
 
           let vxWorld = vxBody;
           let vyWorld = vyBody;
-          if (Number.isFinite(heading)) {
-            const headingRad = Number(heading) * Math.PI / 180.0;
-            const psi = Math.PI / 2.0 - headingRad;
-            const c = Math.cos(psi);
-            const s = Math.sin(psi);
-            vxWorld = c * vxBody - s * vyBody;
-            vyWorld = s * vxBody + c * vyBody;
-          }
 
           const nowMs = Date.now();
           const dtFallback = state.tuning.dtFallbackMs / 1000.0;
@@ -600,7 +708,7 @@
           statusEl.textContent =
             `x=${state.x.toFixed(3)}m y=${state.y.toFixed(3)}m | ` +
             `vx=${state.vxWorld.toFixed(3)} vy=${state.vyWorld.toFixed(3)} m/s | ` +
-            `heading=${hdgText}deg | q=${qText ?? "--"} dist=${Number.isFinite(dText) ? dText.toFixed(3) : "--"}m`;
+            `heading=${hdgText}deg (${state.headingSource}) | q=${qText ?? "--"} dist=${Number.isFinite(dText) ? dText.toFixed(3) : "--"}m`;
         } catch (err) {
           statusEl.textContent = `Failed to fetch /data: ${err?.message || "unknown error"}`;
         }
@@ -614,6 +722,8 @@
       document.getElementById("save-btn").addEventListener("click", () => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(norm(state.tuning)));
+          defaultTuning = norm(state.tuning);
+          saveDefaultTuning(defaultTuning);
           statusEl.textContent = "Tuning saved.";
         } catch (_) {
           statusEl.textContent = "Save failed.";
@@ -621,11 +731,11 @@
       });
 
       document.getElementById("default-btn").addEventListener("click", () => {
-        state.tuning = { ...DEFAULTS };
+        state.tuning = { ...defaultTuning };
         applyTuningToUi();
         resetPath();
         restartPolling();
-        statusEl.textContent = "Defaults loaded (not saved).";
+        statusEl.textContent = "Default baseline loaded.";
       });
 
       document.getElementById("reset-btn").addEventListener("click", () => {
@@ -641,6 +751,9 @@
       Object.values(controls).forEach((el) => {
         el.addEventListener("input", () => {
           readTuningFromUi();
+          // Keep current tuning as baseline default for this big view.
+          defaultTuning = norm(state.tuning);
+          saveDefaultTuning(defaultTuning);
           statusEl.textContent = "Live tuning active (not saved).";
         });
       });

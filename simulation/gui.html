@@ -469,6 +469,26 @@
         font-family: "JetBrains Mono", ui-monospace, monospace;
         font-size: 11px;
       }
+      .pix-attitude-layout {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 220px;
+        gap: 10px;
+        align-items: stretch;
+      }
+      .pix-att-preview-wrap {
+        background: #000;
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 6px;
+      }
+      .pix-att-preview-wrap iframe {
+        width: 100%;
+        height: 168px;
+        display: block;
+        border-radius: 8px;
+        background: #050505;
+        border: 0;
+      }
 
       .kv div {
         padding: 4px 0;
@@ -501,6 +521,40 @@
       .barometer-card {
         width: min(560px, 100%);
         justify-self: center;
+      }
+      .baro-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(210px, 1fr);
+        gap: 10px;
+        align-items: stretch;
+      }
+      .baro-formula {
+        margin-top: 8px;
+        background: #050505;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 10px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      .baro-formula h4 {
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .baro-formula .eq {
+        font-size: 11px;
+        line-height: 1.45;
+        color: #d7e4ff;
+        margin: 0 0 6px 0;
+      }
+      .baro-formula .eq strong {
+        color: #fff;
+      }
+      .baro-formula .hint {
+        font-size: 10px;
+        color: #93a1bb;
       }
 
       .plot-wrap.baro-portrait canvas {
@@ -705,6 +759,9 @@
         .plot-row {
           grid-template-columns: 1fr;
         }
+        .pix-attitude-layout {
+          grid-template-columns: 1fr;
+        }
         .gps-calibration-grid {
           grid-template-columns: 1fr;
         }
@@ -715,6 +772,9 @@
           grid-template-columns: 1fr;
         }
         .vo-scale-form {
+          grid-template-columns: 1fr;
+        }
+        .baro-layout {
           grid-template-columns: 1fr;
         }
       }
@@ -913,6 +973,23 @@
             </div>
           </div>
           <div class="card" style="background:#000; border-color:#1a1a1a;">
+            <h3>Pixhawk MAVLink Attitude</h3>
+            <div class="mode-buttons" style="margin-bottom:8px;">
+              <button id="open-mavlink-big-view-btn" type="button">Open Big View (MAVLink)</button>
+            </div>
+            <div class="pix-attitude-layout">
+              <div class="kv">
+                <div>Roll (deg)</div><div id="pix-roll-deg">--</div>
+                <div>Pitch (deg)</div><div id="pix-pitch-deg">--</div>
+                <div>Yaw (deg)</div><div id="pix-yaw-deg">--</div>
+                <div>Altitude ASML (m)</div><div id="pix-alt-asml">--</div>
+              </div>
+              <div class="pix-att-preview-wrap">
+                <iframe id="pix-attitude-preview-frame" src="/drone_simulation.html?embed=1" title="Pixhawk Attitude Live Preview"></iframe>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="background:#000; border-color:#1a1a1a;">
             <h3>Real-Time Values</h3>
             <div class="kv">
               <div>Height (m)</div><div id="rt-height">--</div>
@@ -1023,12 +1100,22 @@
             </div>
           </div>
           <div class="card barometer-card">
-            <h3>Barometer Height (m)</h3>
-            <div class="plot-wrap baro-portrait">
-              <canvas id="barometer-height-plot"></canvas>
+            <h3>Drone Altitude ASML (m)</h3>
+            <div class="baro-layout">
+              <div class="plot-wrap baro-portrait">
+                <canvas id="barometer-height-plot"></canvas>
+              </div>
+              <div class="baro-formula">
+                <h4>Live Computation</h4>
+                <p class="eq" id="baro-eq-1">AGL = d_lidar * cos(roll) * cos(pitch)</p>
+                <p class="eq" id="baro-eq-2">Ground AMSL = B - AGL</p>
+                <p class="eq" id="baro-eq-3">Check: Ground + AGL = B</p>
+                <p class="eq" id="baro-eq-4"><strong>P (Final AMSL)</strong> = fused AMSL output</p>
+                <p class="hint">B: barometer AMSL, P: final AMSL output to Pixhawk GPS path.</p>
+              </div>
             </div>
             <div class="gps-origin-note" style="margin-top:8px;">
-              baro_alt_m: <strong id="baro-alt-m">--</strong>
+              ASML (barometer): <strong id="baro-alt-m">--</strong> | AGL (lidar): <strong id="lidar-agl-m">--</strong>
             </div>
           </div>
           <div class="card span-2" id="gps-calibration-card">
@@ -1133,6 +1220,10 @@
       const setText = (id, value, digits) => {
         const el = document.getElementById(id);
         if (el) el.textContent = fmt(value, digits);
+      };
+      const setFormulaText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
       };
 
       const pickBestAccessUrl = (data) => {
@@ -1297,7 +1388,6 @@
         barometerHeight: [],
         gpsSensorHeight: [],
         gpsPortFinalHeight: [],
-        finalAltitudeOffsetM: null,
         opticalHeight: [],
         corrVx: [],
         corrVy: [],
@@ -1350,7 +1440,7 @@
       };
       const OP_LAT_GAIN = 1.0;
       const OP_LAT_EMA_ALPHA = 0.2;
-      const OP_LAT_DEADBAND = 0.0;
+      const OP_LAT_DEADBAND = 0.01;
 
       const filterSignal = (prev, raw, alpha = 0.2, deadband = 0.0, maxStep = 1e9) => {
         let value = Number.isFinite(raw) ? raw : prev;
@@ -1713,6 +1803,7 @@
         camSimCtx.font = "12px JetBrains Mono, monospace";
         camSimCtx.fillText("CAMERA SIMULATION", 12, h - 14);
       };
+
 
       const cameraLoop = (tMs) => {
         if (!streamState.running) return;
@@ -2620,8 +2711,8 @@
       const drawVelPlot = () => {
         const rect = resizeCanvas(velPlot, velCtx);
         if (!rect) return;
-        const vx = smoothSeries(plotState.vx, 11);
-        const vy = smoothSeries(plotState.vy, 11);
+        const vx = smoothSeries(plotState.vx, 7);
+        const vy = smoothSeries(plotState.vy, 7);
         const [minVal, maxVal] = autoRange([vx, vy], { minSpan: 0.02, padRatio: 0.12 });
         drawAxes(velCtx, rect, 28);
         drawYScaleLabels(velCtx, rect, 28, 28, 28, 28, minVal, maxVal, 3, " m/s");
@@ -3333,18 +3424,20 @@
         const baroValue = plotState.barometerHeight[plotState.barometerHeight.length - 1] ?? 0;
         const gpsValue = plotState.gpsSensorHeight[plotState.gpsSensorHeight.length - 1] ?? NaN;
         const gpsPortValue = plotState.gpsPortFinalHeight[plotState.gpsPortFinalHeight.length - 1] ?? NaN;
-        const offsetValue = Number.isFinite(plotState.finalAltitudeOffsetM)
-          ? plotState.finalAltitudeOffsetM
+        const lidarAglValue = plotState.opticalHeight[plotState.opticalHeight.length - 1] ?? NaN;
+        const groundAsmlValue = Number.isFinite(baroValue) && Number.isFinite(lidarAglValue)
+          ? (baroValue - lidarAglValue)
           : NaN;
         const safeBaroValue = Number.isFinite(baroValue) ? baroValue : 0;
         const safeGpsValue = Number.isFinite(gpsValue) ? gpsValue : safeBaroValue;
         const safeGpsPortValue = Number.isFinite(gpsPortValue) ? gpsPortValue : safeBaroValue;
+        const safeGroundAsmlValue = Number.isFinite(groundAsmlValue) ? groundAsmlValue : safeBaroValue;
         const [minVal, maxVal] = autoRange(
           [
             plotState.barometerHeight,
             plotState.gpsSensorHeight,
             plotState.gpsPortFinalHeight,
-            [offsetValue],
+            [groundAsmlValue],
             [safeBaroValue],
             [safeGpsValue],
             [safeGpsPortValue],
@@ -3404,36 +3497,76 @@
         barometerHeightCtx.fillStyle = "#facc15";
         barometerHeightCtx.fillRect(gpsPortX, gpsPortY, barW, Math.max(2, gpsPortH));
 
-        if (Number.isFinite(offsetValue)) {
-          const offsetRatio = (offsetValue - minVal) / Math.max(1e-6, maxVal - minVal);
-          const offsetY = clamp(padTop + chartH - offsetRatio * chartH, padTop, padTop + chartH);
+        if (Number.isFinite(groundAsmlValue)) {
+          const groundRatio = (groundAsmlValue - minVal) / Math.max(1e-6, maxVal - minVal);
+          const groundY = clamp(padTop + chartH - groundRatio * chartH, padTop, padTop + chartH);
           barometerHeightCtx.strokeStyle = "#dc2626";
           barometerHeightCtx.lineWidth = 2;
           barometerHeightCtx.beginPath();
-          barometerHeightCtx.moveTo(padLeft, offsetY);
-          barometerHeightCtx.lineTo(padLeft + chartW, offsetY);
+          barometerHeightCtx.moveTo(padLeft, groundY);
+          barometerHeightCtx.lineTo(padLeft + chartW, groundY);
           barometerHeightCtx.stroke();
           barometerHeightCtx.fillStyle = "#dc2626";
           barometerHeightCtx.textAlign = "right";
           barometerHeightCtx.font = "11px sans-serif";
-          barometerHeightCtx.fillText(`Offset ${offsetValue.toFixed(3)} m`, padLeft + chartW - 4, offsetY - 4);
+          barometerHeightCtx.fillText(`Ground ASML ${groundAsmlValue.toFixed(3)} m`, padLeft + chartW - 4, groundY - 4);
         }
 
         barometerHeightCtx.fillStyle = "#111";
         barometerHeightCtx.textAlign = "center";
         barometerHeightCtx.font = "bold 12px sans-serif";
         barometerHeightCtx.fillText(
-          `B ${safeBaroValue.toFixed(3)} m | G ${safeGpsValue.toFixed(3)} m | P ${safeGpsPortValue.toFixed(3)} m`,
+          `B ${safeBaroValue.toFixed(3)} m | G ${safeGroundAsmlValue.toFixed(3)} m | P ${safeGpsPortValue.toFixed(3)} m`,
           rect.width / 2,
           Math.max(14, Math.min(baroY, gpsY, gpsPortY) - 8)
         );
         barometerHeightCtx.font = "11px sans-serif";
         barometerHeightCtx.fillText(
-          "Barometer (green)  GPS sensor (blue)  GPS port final (yellow)",
+          "ASML Barometer (green)  GPS sensor (blue)  Final ASML output (yellow)  Ground ASML (red)",
           rect.width / 2,
           rect.height - 10
         );
         barometerHeightCtx.textAlign = "left";
+      };
+
+      const updateBaroFormulaPanel = ({
+        baroAsmlM,
+        finalAsmlM,
+        lidarDistanceM,
+        rollRad,
+        pitchRad,
+        aglM,
+      }) => {
+        const rollDeg = Number.isFinite(rollRad) ? (rollRad * 180.0) / Math.PI : NaN;
+        const pitchDeg = Number.isFinite(pitchRad) ? (pitchRad * 180.0) / Math.PI : NaN;
+        const tiltFactor = Number.isFinite(rollRad) && Number.isFinite(pitchRad)
+          ? Math.cos(rollRad) * Math.cos(pitchRad)
+          : NaN;
+        const aglCalc = Number.isFinite(lidarDistanceM) && Number.isFinite(tiltFactor)
+          ? (lidarDistanceM * tiltFactor)
+          : aglM;
+        const groundAsmlM = Number.isFinite(baroAsmlM) && Number.isFinite(aglCalc)
+          ? (baroAsmlM - aglCalc)
+          : NaN;
+        const checkB = Number.isFinite(groundAsmlM) && Number.isFinite(aglCalc)
+          ? (groundAsmlM + aglCalc)
+          : NaN;
+        setFormulaText(
+          "baro-eq-1",
+          `AGL = ${fmt(lidarDistanceM, 3)} * cos(${fmt(rollDeg, 2)}°) * cos(${fmt(pitchDeg, 2)}°) = ${fmt(aglCalc, 3)} m`
+        );
+        setFormulaText(
+          "baro-eq-2",
+          `Ground AMSL = ${fmt(baroAsmlM, 3)} - ${fmt(aglCalc, 3)} = ${fmt(groundAsmlM, 3)} m`
+        );
+        setFormulaText(
+          "baro-eq-3",
+          `Check: ${fmt(groundAsmlM, 3)} + ${fmt(aglCalc, 3)} = ${fmt(checkB, 3)} m (B=${fmt(baroAsmlM, 3)})`
+        );
+        setFormulaText(
+          "baro-eq-4",
+          `P (Final AMSL) = ${fmt(finalAsmlM, 3)} m`
+        );
       };
 
       // Removed 3D trajectory + motion drawing for this layout.
@@ -3529,6 +3662,15 @@
               : null
           );
           const pixhawkCompassHeading = denoisePixhawkHeading(pixhawkCompassHeadingRaw);
+          const pixhawkRollRad = asFiniteNumber(data.sensors?.attitude?.roll);
+          const pixhawkPitchRad = asFiniteNumber(data.sensors?.attitude?.pitch);
+          const pixhawkRollDeg = asFiniteNumber(data.sensors?.attitude?.roll) != null
+            ? (Number(data.sensors.attitude.roll) * 180.0) / Math.PI
+            : null;
+          const pixhawkPitchDeg = asFiniteNumber(data.sensors?.attitude?.pitch) != null
+            ? (Number(data.sensors.attitude.pitch) * 180.0) / Math.PI
+            : null;
+          const pixhawkYawDeg = pixhawkCompassHeadingRaw;
 
           const isOptical = data?.source === "optical_flow" || String(data?.mode || "").startsWith("optical_flow");
           let rawVx = isOptical
@@ -3557,6 +3699,13 @@
             opt?.distance_mm != null ? opt.distance_mm / 1000 : null,
             opt?.dist_cm != null ? opt.dist_cm / 100 : null
           ) ?? 0;
+          const lidarDistanceM = asFiniteNumber(
+            optOut?.distance_m,
+            opt?.distance_m,
+            opt?.dist_mm != null ? opt.dist_mm / 1000 : null,
+            opt?.distance_mm != null ? opt.distance_mm / 1000 : null,
+            opt?.dist_cm != null ? opt.dist_cm / 100 : null
+          );
           const barometerAltM = asFiniteNumber(
             data.sensors?.barometer?.raw_alt_m
           );
@@ -3624,6 +3773,17 @@
           const gpsPortFinalAltitudeM = asFiniteNumber(
             selectedGpsOutput?.alt_m
           );
+          const fusedAsmlAltitudeM = asFiniteNumber(
+            data?.outputs?.altitude_fusion?.h_amsl_est_m,
+            data?.altitude_fusion?.h_amsl_est_m
+          );
+          const finalAsmlDisplayM = Number.isFinite(fusedAsmlAltitudeM)
+            ? fusedAsmlAltitudeM
+            : (
+              Number.isFinite(barometerAltM)
+                ? barometerAltM
+                : gpsPortFinalAltitudeM
+            );
           const opticalGpsPortLatRaw = asFiniteNumber(
             opticalGpsPortOut?.lat
           );
@@ -3665,10 +3825,6 @@
             voDx: asFiniteNumber(data.camera?.dx),
             voDy: asFiniteNumber(data.camera?.dy),
           });
-          const finalAltitudeOffsetM = asFiniteNumber(
-            data.optical_altitude_offset_m,
-            data.final_altitude_offset_m
-          );
           const rawAltitude =
             asFiniteNumber(
               opticalHeightM,
@@ -3698,12 +3854,13 @@
           const gpsSensorHeightForPlot = Number.isFinite(gpsSensorAltitudeM)
             ? gpsSensorAltitudeM
             : (plotState.gpsSensorHeight[plotState.gpsSensorHeight.length - 1] ?? NaN);
-          const gpsPortFinalHeightForPlot = Number.isFinite(gpsPortFinalAltitudeM)
-            ? gpsPortFinalAltitudeM
-            : (plotState.gpsPortFinalHeight[plotState.gpsPortFinalHeight.length - 1] ?? NaN);
-          plotState.finalAltitudeOffsetM = Number.isFinite(finalAltitudeOffsetM)
-            ? finalAltitudeOffsetM
-            : plotState.finalAltitudeOffsetM;
+          const gpsPortFinalHeightForPlot = Number.isFinite(finalAsmlDisplayM)
+            ? finalAsmlDisplayM
+            : (
+              Number.isFinite(gpsPortFinalAltitudeM)
+                ? gpsPortFinalAltitudeM
+                : (plotState.gpsPortFinalHeight[plotState.gpsPortFinalHeight.length - 1] ?? NaN)
+            );
           filterState.vx = vx;
           filterState.vy = vy;
           filterState.height = altitude;
@@ -3802,32 +3959,29 @@
           setText("rt-height", altitude, 3);
           setText("rt-of-height", opticalHeightM, 3);
           setText("baro-alt-m", barometerAltM, 3);
+          setText("lidar-agl-m", opticalHeightM, 3);
+          setText("pix-roll-deg", pixhawkRollDeg, 2);
+          setText("pix-pitch-deg", pixhawkPitchDeg, 2);
+          setText("pix-yaw-deg", pixhawkYawDeg, 2);
+          setText("pix-alt-asml", finalAsmlDisplayM, 3);
+          updateBaroFormulaPanel({
+            baroAsmlM: barometerAltM,
+            finalAsmlM: finalAsmlDisplayM,
+            lidarDistanceM,
+            rollRad: pixhawkRollRad,
+            pitchRad: pixhawkPitchRad,
+            aglM: opticalHeightM,
+          });
           setText("rt-vx", vx, 3);
           setText("rt-vy", vy, 3);
-          const opticalBodyVx = asFiniteNumber(
-            opt?.speed_x,
-            opt?.flow_vx,
-            opt?.flow_vx_mps,
-            0
-          ) || 0;
-          const opticalBodyVy = asFiniteNumber(
-            opt?.speed_y,
-            opt?.flow_vy,
-            opt?.flow_vy_mps,
-            0
-          ) || 0;
-          const flowHeadingDeg = asFiniteNumber(
-            ofHeadingSourceState.value === "vo"
-              ? plotState.voHeadingDeg
-              : (ofHeadingSourceState.value === "pixhawk" ? plotState.pixhawkHeadingDeg : realCompassHeading),
-            realCompassHeading,
-            plotState.pixhawkHeadingDeg,
-            plotState.voHeadingDeg
-          );
+          // Keep integration input identical to the displayed velocity stream.
+          // This avoids drift from mixing raw flow-rate channels with filtered world m/s channels.
+          const opticalBodyVx = vx;
+          const opticalBodyVy = vy;
           const opLatIntegrated = integrateOpticalLikeOpLat(
             opticalBodyVx,
             opticalBodyVy,
-            flowHeadingDeg,
+            null,
             nowMs
           );
           let posX = opLatIntegrated.x;
@@ -3945,6 +4099,7 @@
       const autoCalibStatusEl = document.getElementById("auto-calib-status");
       const openOfBigViewBtn = document.getElementById("open-of-big-view-btn");
       const openVoBigViewBtn = document.getElementById("open-vo-big-view-btn");
+      const openMavlinkBigViewBtn = document.getElementById("open-mavlink-big-view-btn");
       const ofHeadingButtons = Array.from(document.querySelectorAll("#of-heading-buttons button"));
       const voHeadingButtons = Array.from(document.querySelectorAll("#vo-heading-buttons button"));
       const gpsTrajHeadingButtons = Array.from(document.querySelectorAll("#gps-traj-heading-buttons button"));
@@ -3994,7 +4149,8 @@
       };
 
       const openOpticalBigView = () => {
-        const url = "/oplat_big_view.html";
+        const src = encodeURIComponent(ofHeadingSourceState.value || "real");
+        const url = `/oplat_big_view.html?heading_source=${src}`;
         const w = window.open(url, "_blank", "noopener,noreferrer");
         if (!w) {
           window.location.href = url;
@@ -4002,6 +4158,13 @@
       };
       const openVoBigView = () => {
         const url = "/vo_big_view.html";
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (!w) {
+          window.location.href = url;
+        }
+      };
+      const openMavlinkBigView = () => {
+        const url = "/drone_simulation.html";
         const w = window.open(url, "_blank", "noopener,noreferrer");
         if (!w) {
           window.location.href = url;
@@ -5064,6 +5227,9 @@
       }
       if (openVoBigViewBtn) {
         openVoBigViewBtn.addEventListener("click", openVoBigView);
+      }
+      if (openMavlinkBigViewBtn) {
+        openMavlinkBigViewBtn.addEventListener("click", openMavlinkBigView);
       }
       if (ofEnvSelect) ofEnvSelect.addEventListener("change", updateOpticalScaleInputFromSelection);
       if (ofLightSelect) ofLightSelect.addEventListener("change", updateOpticalScaleInputFromSelection);

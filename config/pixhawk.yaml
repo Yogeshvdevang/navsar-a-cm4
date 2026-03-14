@@ -89,12 +89,12 @@ imu:
   tilt_corr_enabled: true
 compass:
   enabled: true
-  mode: mavlink_compass
+  mode: i2c
   i2c_bus: 1
   calibration_file: tools/compass_calibration.json
   rate_hz: 50
   print: true
-  send_mavlink: false
+  send_mavlink: true
   heading_offset_deg: 0
   heading_smoothing_alpha: 0.1
   heading_max_delta_deg: 5.0
@@ -105,7 +105,7 @@ gps_output:
   port: /dev/ttyAMA0
   baud: 230400
   rate_hz: 10
-  heading_mode: none
+  heading_mode: send
   ubx_h_acc_mm: 500
   ubx_v_acc_mm: 500
   fix_quality: 1
@@ -163,6 +163,6 @@ gnss_monitor:
     gcs_severity: warning
     min_interval_s: 2.0
 gps_origin:
-  lat: 12.9716
-  lon: 77.5946
-  alt: 920.0
+  lat: 12.0
+  lon: 40.0
+  alt: 0.0

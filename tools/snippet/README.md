@@ -8,7 +8,7 @@ This repo is not a single package; each file is meant to be run directly and tun
 
 - Optical flow over serial (MicoLink) and MAVLink
 - Visual odometry using OpenCV (USB camera or Raspberry Pi camera)
-- MAVLink telemetry readers for IMU, barometer, distance sensor (LiDAR), compass
+- MAVLink telemetry readers for IMU, barometer, distance sensor (LiDAR)
 - NMEA GPS parsing utilities
 
 ## Requirements
@@ -99,13 +99,6 @@ Environment variables for `imu.py`:
 - `IMU_BIAS_CALIB_S` (default: `3.0`)
 - `IMU_VEL_DAMPING` (default: `0.98`)
 
-### Pixhawk compass (MAVLink)
-Reads the Pixhawk built-in magnetometer from MAVLink `RAW_IMU`, `SCALED_IMU*`, and `HIGHRES_IMU`.
-
-```bash
-python3 pixhawk_compass_mavlink.py --device /dev/ttyACM0 --baud 115200
-```
-
 ### Barometer (MAVLink)
 Read pressure/temperature and optionally compute altitude.
 
@@ -132,14 +125,13 @@ Use this as a quick guide to what each file does.
 - `pi_vo.py`: Earlier Raspberry Pi VO variant.
 - `cam.py`, `cam_wid.py`: Camera capture utilities / variants.
 - `imu.py`: MAVLink IMU reader with simple bias calibration and velocity integration.
-- `pixhawk_compass_mavlink.py`: standalone Pixhawk built-in compass reader over MAVLink.
 - `baro.py`: MAVLink barometer reader with optional altitude conversion.
 - `gps.py`: NMEA GPS parsing over serial.
 - `gps_a2.py`, `gps_auto.py`, `gps_compass.py`, `mav_gps.py`, `read_gps.py`: GPS utilities and MAVLink/GPS parsing helpers.
 - `fakeg.py`, `temp.py`: Local experiments or placeholders.
 - `vo-new.py`: Alternative VO tuning/experiment.
 
-If you are unsure, start with `of.py`, `vo.py`, `imu.py`, or `pixhawk_compass_mavlink.py` and then branch out.
+If you are unsure, start with `of.py`, `vo.py`, or `imu.py` and then branch out.
 
 ## Configuration notes
 
