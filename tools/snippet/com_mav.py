@@ -14,7 +14,7 @@ def parse_args():
     )
     parser.add_argument(
         "--device",
-        default="/dev/ttyACM0",
+        default="/dev/ttyACM1",
         help="MAVLink serial device connected to the Pixhawk.",
     )
     parser.add_argument(
@@ -172,3 +172,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+we have to change this logic what we want in the end we want the altitude same as barometer and how we calculating it by like this 
+final_altitude = optical_flow_height +(barometer_height - 
+"""

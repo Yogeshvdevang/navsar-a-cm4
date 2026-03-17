@@ -63,7 +63,7 @@ FLOW_BAUD = 115200
 GPS_PORT  = "/dev/ttyAMA5"
 GPS_BAUD  = 230400
 
-MAV_PORT  = "/dev/ttyACM1"
+MAV_PORT  = "/dev/ttyACM0"
 MAV_BAUD  = 115200
 
 OUT_PORT  = "/dev/ttyAMA0"
@@ -79,10 +79,10 @@ DEFAULT_ALT  = 920.0     # meters MSL
 
 NUM_SATS_FAKE = 10
 
-# Compass low-pass filter (0.0=no filtering, 1.0=never updates)
-# 0.85 means each new reading contributes 15% — smooths motor interference
-# spikes while still tracking real heading changes within ~1-2 seconds
-HEADING_LPF_ALPHA = 0.85
+# Match tools/snippet/mavlink_compass_heading.py exactly:
+# use ATTITUDE.yaw -> wrapped degrees -> wrap-aware smoothing.
+HEADING_SMOOTHING_ALPHA = 0.18
+HEADING_MAX_DELTA_DEG = 10.0
 
 # Kalman filter noise parameters
 # KF_Q: process noise (IMU uncertainty per second, m^2/s^2 per s)
@@ -145,14 +145,12 @@ class SharedState:
 
     def update_heading(self, deg):
         with self._lock:
-            # Low-pass filter with circular interpolation (handles 0/360 wrap).
-            # Plain alpha*old + (1-alpha)*new breaks at the boundary
-            # e.g. 350 and 10 would average to 180 instead of 0.
-            a = math.radians(self.heading_deg)
-            b = math.radians(deg)
-            sin_avg = HEADING_LPF_ALPHA * math.sin(a) + (1 - HEADING_LPF_ALPHA) * math.sin(b)
-            cos_avg = HEADING_LPF_ALPHA * math.cos(a) + (1 - HEADING_LPF_ALPHA) * math.cos(b)
-            self.heading_deg = (math.degrees(math.atan2(sin_avg, cos_avg)) + 360) % 360
+            self.heading_deg = smooth_heading_deg(
+                self.heading_deg,
+                deg,
+                HEADING_SMOOTHING_ALPHA,
+                HEADING_MAX_DELTA_DEG,
+            )
 
     def update_position(self, lat, lon):
         with self._lock:
@@ -489,10 +487,27 @@ def _pressure_to_alt(press_hpa, temp_c):
     return (t_k / 0.0065) * (1.0 - (press_hpa / 1013.25) ** (1.0 / 5.255))
 
 
-def _heading_from_mag(xmag, ymag):
-    if abs(xmag) < 1e-9 and abs(ymag) < 1e-9:
+def wrap_heading(deg):
+    if deg is None:
         return None
-    return (math.degrees(math.atan2(ymag, xmag)) + 360.0) % 360.0
+    return (float(deg) % 360.0 + 360.0) % 360.0
+
+
+def angle_delta_deg(new_deg, old_deg):
+    return (new_deg - old_deg + 540.0) % 360.0 - 180.0
+
+
+def smooth_heading_deg(prev_deg, new_deg, alpha, max_delta_deg=None):
+    if prev_deg is None:
+        return wrap_heading(new_deg)
+    if new_deg is None:
+        return prev_deg
+    delta = angle_delta_deg(new_deg, prev_deg)
+    if max_delta_deg is not None:
+        limit = abs(float(max_delta_deg))
+        delta = max(-limit, min(limit, delta))
+    alpha = float(alpha)
+    return wrap_heading(prev_deg + alpha * delta)
 
 
 class MAVLinkBridge(threading.Thread):
@@ -520,23 +535,24 @@ class MAVLinkBridge(threading.Thread):
                 mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,
                 0, msg_id, int(1_000_000 / hz), 0, 0, 0, 0, 0)
 
-        # Request high-rate IMU for good prediction, 20 Hz baro/compass
+        # Request high-rate IMU for good prediction, 20 Hz baro/ATTITUDE heading
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU,       50)
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_PRESSURE,  20)
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU2,      20)
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU3,      20)
+        req(mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,         20)
 
         baro_types = {"SCALED_PRESSURE", "SCALED_PRESSURE2", "HIGHRES_IMU"}
         imu_types  = {"SCALED_IMU"}
-        mag_types  = {"SCALED_IMU", "SCALED_IMU2", "SCALED_IMU3", "RAW_IMU"}
-        all_types  = list(baro_types | imu_types | mag_types)
+        heading_types = {"ATTITUDE"}
+        all_types  = list(baro_types | imu_types | heading_types)
 
         # First-detection flags for startup confirmation prints
         _baro_ok = False
         _imu_ok  = False
-        _mag_ok  = False
+        _heading_ok  = False
 
-        print("[MAV] Streaming IMU (50Hz) + baro + compass (20Hz)...")
+        print("[MAV] Streaming IMU (50Hz) + baro + ATTITUDE heading (20Hz)...")
         while True:
             msg = conn.recv_match(type=all_types, blocking=True, timeout=1.0)
             if msg is None:
@@ -563,16 +579,17 @@ class MAVLinkBridge(threading.Thread):
                     _imu_ok = True
                     print(f"[MAV] IMU OK        -> ax={ax_ms2:.3f} ay={ay_ms2:.3f} m/s^2  (src={t})")
 
-            if t in mag_types:
-                xm = float(getattr(msg, "xmag", 0.0))
-                ym = float(getattr(msg, "ymag", 0.0))
-                if xm != 0.0 or ym != 0.0:
-                    h = _heading_from_mag(xm, ym)
-                    if h is not None:
-                        state.update_heading(h)
-                        if not _mag_ok:
-                            _mag_ok = True
-                            print(f"[MAV] Compass OK    -> heading={h:.1f}deg  (src={t})")
+            if t in heading_types:
+                yaw_rad = getattr(msg, "yaw", None)
+                if yaw_rad is not None:
+                    h = wrap_heading(float(yaw_rad) * 180.0 / math.pi)
+                    state.update_heading(h)
+                    if not _heading_ok:
+                        _heading_ok = True
+                        print(
+                            f"[MAV] Heading OK    -> heading={h:.1f}deg  "
+                            f"yaw_rad={float(yaw_rad):.4f}  (src={t})"
+                        )
 
 
 # ─────────────────────────────────────────────────────────────

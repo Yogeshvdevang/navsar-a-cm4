@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS vs Optical Flow Comparison</title>
+  <style>
+    :root {
+      --bg: #f7f1e3;
+      --panel: #fffdfa;
+      --grid: #ece6d9;
+      --border: #d7cfbf;
+      --text: #1f1f1f;
+      --muted: #5f5a50;
+      --gps: #0f766e;
+      --of: #dc2626;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: radial-gradient(circle at top, #fbf7ec 0%, var(--bg) 65%);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 20px 36px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+
+    .meta {
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+    }
+
+    .toolbar code {
+      background: #f2ece0;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .chart-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 18px 12px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 30px rgba(80, 60, 20, 0.06);
+    }
+
+    .chart-title {
+      margin: 0 0 10px;
+      font-size: 1.2rem;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin: 8px 0 4px;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-line {
+      width: 30px;
+      height: 0;
+      border-top: 3px solid;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+
+    .summary-card strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-top: 4px;
+    }
+
+    .error {
+      color: #991b1b;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>GPS vs Optical Flow Comparison</h1>
+    <div class="meta" id="meta">Loading CSV data...</div>
+
+    <div class="toolbar">
+      <span>This page reads <code>gps_flow_log_20260316_172721.csv</code> from the same folder.</span>
+      <span>If the browser blocks local file loading, run <code>python3 -m http.server</code> in the repo and open this page through <code>http://localhost:8000</code>.</span>
+    </div>
+
+    <div class="chart-card">
+      <h2 class="chart-title">Latitude Comparison</h2>
+      <svg id="lat-chart" viewBox="0 0 1000 340" aria-label="Latitude chart"></svg>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color: var(--gps);"></span>GPS Latitude</span>
+        <span class="legend-item"><span class="legend-line" style="border-color: var(--of);"></span>Optical Flow Latitude</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h2 class="chart-title">Altitude Comparison</h2>
+      <svg id="alt-chart" viewBox="0 0 1000 340" aria-label="Altitude chart"></svg>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color: var(--gps);"></span>GPS Altitude</span>
+        <span class="legend-item"><span class="legend-line" style="border-color: var(--of);"></span>Optical Flow Altitude</span>
+      </div>
+    </div>
+
+    <div class="summary" id="summary"></div>
+  </div>
+
+  <script>
+    const csvFile = "gps_flow_log_20260316_172721.csv";
+
+    function parseCsv(text) {
+      const lines = text.trim().split(/\r?\n/);
+      const header = lines.shift().split(",");
+      return lines.map((line) => {
+        const parts = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i += 1) {
+          const ch = line[i];
+          if (ch === '"') {
+            inQuotes = !inQuotes;
+          } else if (ch === "," && !inQuotes) {
+            parts.push(current);
+            current = "";
+          } else {
+            current += ch;
+          }
+        }
+        parts.push(current);
+        const row = {};
+        header.forEach((key, index) => {
+          row[key] = parts[index] ?? "";
+        });
+        return row;
+      });
+    }
+
+    function toNumber(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatNumber(value, digits) {
+      return value == null ? "-" : value.toFixed(digits);
+    }
+
+    function makeSummaryCard(label, value, suffix = "") {
+      return `
+        <div class="summary-card">
+          <div>${label}</div>
+          <strong>${value}${suffix}</strong>
+        </div>
+      `;
+    }
+
+    function mean(values) {
+      if (!values.length) return null;
+      return values.reduce((sum, value) => sum + value, 0) / values.length;
+    }
+
+    function drawChart(svg, title, unit, gpsData, ofData) {
+      const W = 1000;
+      const H = 340;
+      const m = { top: 20, right: 24, bottom: 44, left: 90 };
+      const plotW = W - m.left - m.right;
+      const plotH = H - m.top - m.bottom;
+      const xMax = Math.max(gpsData[gpsData.length - 1]?.x || 0, ofData[ofData.length - 1]?.x || 0, 1);
+      const allY = gpsData.map((p) => p.y).concat(ofData.map((p) => p.y));
+      const rawMin = Math.min(...allY);
+      const rawMax = Math.max(...allY);
+      const pad = Math.max((rawMax - rawMin) * 0.08, unit === "deg" ? 0.0000001 : 0.5);
+      const yMin = rawMin - pad;
+      const yMax = rawMax + pad;
+
+      const xScale = (x) => m.left + (x / xMax) * plotW;
+      const yScale = (y) => m.top + plotH - ((y - yMin) / (yMax - yMin || 1)) * plotH;
+
+      function polyline(data, color) {
+        const points = data.map((p) => `${xScale(p.x).toFixed(2)},${yScale(p.y).toFixed(2)}`).join(" ");
+        return `<polyline fill="none" stroke="${color}" stroke-width="2.4" points="${points}" />`;
+      }
+
+      let grid = `<rect x="${m.left}" y="${m.top}" width="${plotW}" height="${plotH}" fill="#fffdfa" stroke="#d7cfbf" />`;
+      for (let i = 0; i <= 5; i += 1) {
+        const y = m.top + (i / 5) * plotH;
+        const value = yMax - ((yMax - yMin) * i) / 5;
+        grid += `<line x1="${m.left}" y1="${y}" x2="${m.left + plotW}" y2="${y}" stroke="#ece6d9" />`;
+        grid += `<text x="${m.left - 12}" y="${y + 4}" text-anchor="end" font-size="12" fill="#5f5a50">${value.toFixed(unit === "deg" ? 7 : 1)}${unit === "m" ? " m" : ""}</text>`;
+      }
+      for (let i = 0; i <= 5; i += 1) {
+        const x = m.left + (i / 5) * plotW;
+        const value = (xMax * i) / 5;
+        grid += `<line x1="${x}" y1="${m.top}" x2="${x}" y2="${m.top + plotH}" stroke="#f1ebdf" />`;
+        grid += `<text x="${x}" y="${H - 14}" text-anchor="middle" font-size="12" fill="#5f5a50">${value.toFixed(1)}s</text>`;
+      }
+
+      svg.innerHTML = `
+        ${grid}
+        ${polyline(gpsData, "#0f766e")}
+        ${polyline(ofData, "#dc2626")}
+        <text x="${m.left}" y="16" font-size="14" font-weight="700" fill="#2d2a26">${title}</text>
+      `;
+    }
+
+    async function init() {
+      const meta = document.getElementById("meta");
+      const summary = document.getElementById("summary");
+
+      try {
+        const response = await fetch(csvFile);
+        if (!response.ok) {
+          throw new Error(`Failed to load ${csvFile}`);
+        }
+        const text = await response.text();
+        const rows = parseCsv(text);
+
+        const firstTs = toNumber(rows[0]?.timestamp_unix);
+        const gpsLat = [];
+        const ofLat = [];
+        const gpsAlt = [];
+        const ofAlt = [];
+
+        for (const row of rows) {
+          const ts = toNumber(row.timestamp_unix);
+          if (ts == null || firstTs == null) continue;
+          const x = ts - firstTs;
+
+          const gLat = toNumber(row.gps_latitude_deg);
+          const oLat = toNumber(row.of_latitude_deg);
+          const gAlt = toNumber(row.gps_altitude_m);
+          const oAlt = toNumber(row.of_altitude_m);
+
+          if (gLat != null) gpsLat.push({ x, y: gLat });
+          if (oLat != null) ofLat.push({ x, y: oLat });
+          if (gAlt != null) gpsAlt.push({ x, y: gAlt });
+          if (oAlt != null) ofAlt.push({ x, y: oAlt });
+        }
+
+        drawChart(document.getElementById("lat-chart"), "Latitude", "deg", gpsLat, ofLat);
+        drawChart(document.getElementById("alt-chart"), "Altitude", "m", gpsAlt, ofAlt);
+
+        const duration = (toNumber(rows[rows.length - 1]?.timestamp_unix) || firstTs) - firstTs;
+        meta.textContent = `${csvFile} | Samples: ${rows.length} | Duration: ${duration.toFixed(1)} s`;
+
+        summary.innerHTML = [
+          makeSummaryCard("Mean GPS Latitude", formatNumber(mean(gpsLat.map((p) => p.y)), 7)),
+          makeSummaryCard("Mean Optical Flow Latitude", formatNumber(mean(ofLat.map((p) => p.y)), 7)),
+          makeSummaryCard("Mean GPS Altitude", formatNumber(mean(gpsAlt.map((p) => p.y)), 1), " m"),
+          makeSummaryCard("Mean Optical Flow Altitude", formatNumber(mean(ofAlt.map((p) => p.y)), 1), " m"),
+        ].join("");
+      } catch (error) {
+        meta.innerHTML = `<span class="error">${error.message}</span>`;
+        summary.innerHTML = `
+          <div class="summary-card">
+            <div>Tip</div>
+            <strong>Open this HTML through a local server</strong>
+            <div style="margin-top: 8px; color: var(--muted);">Run <code>python3 -m http.server</code> in the repo root, then open this file from <code>http://localhost:8000/tools/snippet/logs/</code>.</div>
+          </div>
+        `;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

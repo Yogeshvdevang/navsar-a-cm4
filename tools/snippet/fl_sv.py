@@ -1,52 +1,21 @@
 #!/usr/bin/env python3
 """
-flow_gps.py  —  Optical Flow + IMU -> Fake GPS for Pixhawk
-==========================================================
+flow_gps.py  —  GPS passthrough + optical-flow CSV logger
+=========================================================
 
-Pipeline (mirrors what ArduPilot's EKF does internally):
-
-  MTF-01 (flow+ToF)  -->  vx, vy  (cm/s @ 1m, int16)
-                                            |
-  Pixhawk IMU (MAVLink) -->  ax, ay (milli-g, body frame)
-                                            |
-                                   [Kalman Filter 2D]
-                                   Predict:  IMU accel
-                                   Update:   Flow velocity
-                                            |
-  Pixhawk Baro (MAVLink) -->  alt_m        |
-  Compass (MAVLink)      -->  heading      |
-                                            v
-                              Position Integrator
-                              (Kalman vN,vE -> lat,lon)
-                                            |
-  Real GPS (NMEA) --> origin once          |
-                                            v
-                              GPSEmitter -> UBX + NMEA
-                              -> Pixhawk GPS serial port
-
-MTF-01 velocity scale (datasheet):
-  flow_vel_x/y  are  int16  in  cm/s  at  1 m  height
-  Formula:  actual_speed_cm_s = flow_vel_raw  x  distance_m
-  To m/s:   vx = flow_vel_x * distance_m / 100.0
-  Max spec: 7 m/s @ 1 m  =>  flow_vel_max = 700
-
-Kalman filter (1-D per axis, identical structure):
-  State    v  = velocity (m/s)
-  Predict  v' = v + a * dt        (IMU accel, body->NED rotated)
-           P' = P + Q * dt
-  Update   K  = P' / (P' + R)
-           v  = v' + K * (z - v') (z = flow velocity in NED)
-           P  = (1 - K) * P'
-
-Ports (edit to match your wiring):
-  MTF-01            /dev/ttyAMA3   115200
-  Real GPS (NMEA)   /dev/ttyAMA5   230400   (origin only)
-  Pixhawk MAVLink   /dev/ttyACM0   115200   (IMU + baro + compass)
-  Pixhawk GPS port  /dev/ttyAMA0   230400   (output)
+Behavior:
+  Real GPS (NMEA)   --> forwarded unchanged to Pixhawk GPS port (/dev/ttyAMA0)
+                    --> parsed into latest GPS fields for CSV logging
+  MTF-01 flow+ToF   --> raw + scaled optical-flow values
+  Pixhawk MAVLink   --> IMU, baro, heading
+                    --> merged with flow-derived N/E velocity estimate
+  Combined CSV      --> one row with timestamps, GPS fields, and flow fields
 """
 
 import argparse
+import csv
 import math
+import os
 import struct
 import threading
 import time
@@ -62,27 +31,32 @@ FLOW_BAUD = 115200
 
 GPS_PORT  = "/dev/ttyAMA5"
 GPS_BAUD  = 230400
+GPS_READ_TIMEOUT_S = 0.2
+GPS_READ_CHUNK_SIZE = 512
 
-MAV_PORT  = "/dev/ttyACM1"
+MAV_PORT  = "/dev/ttyACM0"
 MAV_BAUD  = 115200
 
 OUT_PORT  = "/dev/ttyAMA0"
 OUT_BAUD  = 230400
+OUT_RATE_HZ = 0         # 0 = immediate passthrough, otherwise target max output rate to AMA0
 
-UPDATE_HZ       = 10      # GPS packet output rate to Pixhawk
+LOG_DIR   = os.path.join(os.path.dirname(__file__), "logs")
+
+UPDATE_HZ       = 10      # Combined CSV logging + flow estimate update rate
 GPS_TIMEOUT     = 10.0    # Seconds to wait for real GPS before using default
 FLOW_QUALITY_MIN = 50     # 0-255: reject flow measurements below this
 
-DEFAULT_LAT  = 12.971600
-DEFAULT_LON  = 77.594600
-DEFAULT_ALT  = 920.0     # meters MSL
+DEFAULT_LAT  = 12.887817833333335
+DEFAULT_LON  = 77.6430275
+DEFAULT_ALT  = 948.2   # meters MSL
 
 NUM_SATS_FAKE = 10
 
-# Compass low-pass filter (0.0=no filtering, 1.0=never updates)
-# 0.85 means each new reading contributes 15% — smooths motor interference
-# spikes while still tracking real heading changes within ~1-2 seconds
-HEADING_LPF_ALPHA = 0.85
+# Match tools/snippet/mavlink_compass_heading.py exactly:
+# use ATTITUDE.yaw -> wrapped degrees -> wrap-aware smoothing.
+HEADING_SMOOTHING_ALPHA = 0.18
+HEADING_MAX_DELTA_DEG = 10.0
 
 # Kalman filter noise parameters
 # KF_Q: process noise (IMU uncertainty per second, m^2/s^2 per s)
@@ -110,6 +84,41 @@ class SharedState:
         self.flow_ok      = False
         self.imu_ax       = 0.0   # body-forward  m/s^2  (gravity removed)
         self.imu_ay       = 0.0   # body-right    m/s^2
+        self.flow_distance_mm = 0
+        self.flow_distance_m = 0.0
+        self.flow_strength = 0
+        self.flow_precision = 0
+        self.flow_distance_status = 0
+        self.flow_status = 0
+        self.flow_raw_vx = 0
+        self.flow_raw_vy = 0
+        self.flow_vn = 0.0
+        self.flow_ve = 0.0
+        self.flow_speed = 0.0
+        self.gps_fields = {
+            "gps_sentence_type": "",
+            "gps_raw_sentence": "",
+            "gps_talker": "",
+            "gps_fix_time_utc": "",
+            "gps_date_ddmmyy": "",
+            "gps_status": "",
+            "gps_mode": "",
+            "gps_fix_quality": "",
+            "gps_satellites": "",
+            "gps_hdop": "",
+            "gps_pdop": "",
+            "gps_vdop": "",
+            "gps_latitude_deg": "",
+            "gps_longitude_deg": "",
+            "gps_altitude_m": "",
+            "gps_geoid_separation_m": "",
+            "gps_speed_knots": "",
+            "gps_speed_kmph": "",
+            "gps_course_deg": "",
+            "gps_heading_deg": "",
+            "gps_mag_var_deg": "",
+            "gps_nav_mode": "",
+        }
 
     def set_origin(self, lat, lon, alt):
         with self._lock:
@@ -127,12 +136,21 @@ class SharedState:
                 self.origin_set = True
                 print(f"[Origin] Default: lat={self.lat:.6f} lon={self.lon:.6f} alt={self.baro_alt:.1f}m")
 
-    def update_flow(self, vx, vy, quality, ok):
+    def update_flow(self, vx, vy, quality, ok, raw_vx, raw_vy, dist_mm,
+                    dist_m, strength, precision, dis_status, flow_status):
         with self._lock:
             self.flow_vx = vx
             self.flow_vy = vy
             self.flow_quality = quality
             self.flow_ok = ok
+            self.flow_raw_vx = raw_vx
+            self.flow_raw_vy = raw_vy
+            self.flow_distance_mm = dist_mm
+            self.flow_distance_m = dist_m
+            self.flow_strength = strength
+            self.flow_precision = precision
+            self.flow_distance_status = dis_status
+            self.flow_status = flow_status
 
     def update_imu(self, ax, ay):
         with self._lock:
@@ -145,19 +163,58 @@ class SharedState:
 
     def update_heading(self, deg):
         with self._lock:
-            # Low-pass filter with circular interpolation (handles 0/360 wrap).
-            # Plain alpha*old + (1-alpha)*new breaks at the boundary
-            # e.g. 350 and 10 would average to 180 instead of 0.
-            a = math.radians(self.heading_deg)
-            b = math.radians(deg)
-            sin_avg = HEADING_LPF_ALPHA * math.sin(a) + (1 - HEADING_LPF_ALPHA) * math.sin(b)
-            cos_avg = HEADING_LPF_ALPHA * math.cos(a) + (1 - HEADING_LPF_ALPHA) * math.cos(b)
-            self.heading_deg = (math.degrees(math.atan2(sin_avg, cos_avg)) + 360) % 360
+            self.heading_deg = smooth_heading_deg(
+                self.heading_deg,
+                deg,
+                HEADING_SMOOTHING_ALPHA,
+                HEADING_MAX_DELTA_DEG,
+            )
 
     def update_position(self, lat, lon):
         with self._lock:
             self.lat = lat
             self.lon = lon
+
+    def update_estimated_velocity(self, vn, ve):
+        with self._lock:
+            self.flow_vn = vn
+            self.flow_ve = ve
+            self.flow_speed = math.hypot(vn, ve)
+
+    def update_gps_fields(self, updates):
+        with self._lock:
+            self.gps_fields.update(updates)
+
+    def snapshot(self):
+        with self._lock:
+            snap = {
+                "origin_set": self.origin_set,
+                "gps_healthy": self.gps_healthy,
+                "of_latitude_deg": self.lat,
+                "of_longitude_deg": self.lon,
+                "of_altitude_m": self.baro_alt,
+                "of_heading_deg": self.heading_deg,
+                "imu_ax_mps2": self.imu_ax,
+                "imu_ay_mps2": self.imu_ay,
+                "of_body_vx_mps": self.flow_vx,
+                "of_body_vy_mps": self.flow_vy,
+                "of_quality": self.flow_quality,
+                "of_ok": self.flow_ok,
+                "of_distance_mm": self.flow_distance_mm,
+                "of_distance_m": self.flow_distance_m,
+                "of_strength": self.flow_strength,
+                "of_precision": self.flow_precision,
+                "of_distance_status": self.flow_distance_status,
+                "of_status": self.flow_status,
+                "of_raw_vx_cms_at_1m": self.flow_raw_vx,
+                "of_raw_vy_cms_at_1m": self.flow_raw_vy,
+                "of_vn_mps": self.flow_vn,
+                "of_ve_mps": self.flow_ve,
+                "of_speed_mps": self.flow_speed,
+            }
+            snap.update(self.gps_fields)
+            snap["gps_heading_deg"] = snap.get("gps_course_deg", "")
+            return snap
 
 
 state = SharedState()
@@ -201,38 +258,156 @@ def _parse_gga(sentence):
         return None
 
 
-class GPSOriginReader(threading.Thread):
-    name = "GPSOriginReader"
+def _safe_float(value):
+    return float(value) if value not in ("", None) else None
+
+
+def _safe_int(value):
+    return int(value) if value not in ("", None) else None
+
+
+def _split_nmea(sentence):
+    if not sentence.startswith("$"):
+        return None, None
+    core = sentence[1:].split("*", 1)[0]
+    parts = core.split(",")
+    if not parts:
+        return None, None
+    return parts[0], parts
+
+
+def _parse_nmea_fields(sentence):
+    if not _nmea_checksum_ok(sentence):
+        return None
+
+    msg_type, parts = _split_nmea(sentence)
+    if not msg_type or len(msg_type) < 3:
+        return None
+
+    talker = msg_type[:2]
+    fmt = msg_type[2:]
+    fields = {
+        "gps_sentence_type": msg_type,
+        "gps_raw_sentence": sentence,
+        "gps_talker": talker,
+    }
+
+    try:
+        if fmt == "GGA" and len(parts) >= 15:
+            lat = _nmea_to_deg(parts[2], parts[3]) if parts[2] and parts[3] else None
+            lon = _nmea_to_deg(parts[4], parts[5]) if parts[4] and parts[5] else None
+            fields.update({
+                "gps_fix_time_utc": parts[1],
+                "gps_latitude_deg": lat,
+                "gps_longitude_deg": lon,
+                "gps_fix_quality": _safe_int(parts[6]),
+                "gps_satellites": _safe_int(parts[7]),
+                "gps_hdop": _safe_float(parts[8]),
+                "gps_altitude_m": _safe_float(parts[9]),
+                "gps_geoid_separation_m": _safe_float(parts[11]),
+            })
+        elif fmt == "RMC" and len(parts) >= 12:
+            lat = _nmea_to_deg(parts[3], parts[4]) if parts[3] and parts[4] else None
+            lon = _nmea_to_deg(parts[5], parts[6]) if parts[5] and parts[6] else None
+            speed_knots = _safe_float(parts[7])
+            fields.update({
+                "gps_fix_time_utc": parts[1],
+                "gps_status": parts[2],
+                "gps_latitude_deg": lat,
+                "gps_longitude_deg": lon,
+                "gps_speed_knots": speed_knots,
+                "gps_speed_kmph": speed_knots * 1.852 if speed_knots is not None else None,
+                "gps_course_deg": _safe_float(parts[8]),
+                "gps_heading_deg": _safe_float(parts[8]),
+                "gps_date_ddmmyy": parts[9],
+                "gps_mag_var_deg": _safe_float(parts[10]) if len(parts) > 10 else None,
+                "gps_mode": parts[12] if len(parts) > 12 else "",
+            })
+        elif fmt == "VTG" and len(parts) >= 10:
+            fields.update({
+                "gps_course_deg": _safe_float(parts[1]),
+                "gps_heading_deg": _safe_float(parts[1]),
+                "gps_speed_knots": _safe_float(parts[5]),
+                "gps_speed_kmph": _safe_float(parts[7]),
+                "gps_mode": parts[9] if len(parts) > 9 else "",
+            })
+        elif fmt == "GSA" and len(parts) >= 18:
+            fields.update({
+                "gps_mode": parts[1],
+                "gps_nav_mode": parts[2],
+                "gps_pdop": _safe_float(parts[15]),
+                "gps_hdop": _safe_float(parts[16]),
+                "gps_vdop": _safe_float(parts[17]),
+            })
+        elif fmt == "GLL" and len(parts) >= 8:
+            lat = _nmea_to_deg(parts[1], parts[2]) if parts[1] and parts[2] else None
+            lon = _nmea_to_deg(parts[3], parts[4]) if parts[3] and parts[4] else None
+            fields.update({
+                "gps_latitude_deg": lat,
+                "gps_longitude_deg": lon,
+                "gps_fix_time_utc": parts[5],
+                "gps_status": parts[6],
+                "gps_mode": parts[7] if len(parts) > 7 else "",
+            })
+        else:
+            return fields
+    except Exception:
+        return None
+
+    return {k: v for k, v in fields.items() if v is not None}
+
+
+class GPSPassthroughLogger(threading.Thread):
+    name = "GPSPassthroughLogger"
     daemon = True
 
     def run(self):
         deadline = time.time() + GPS_TIMEOUT
-        print(f"[GPS] Waiting {GPS_TIMEOUT}s for real GPS fix on {GPS_PORT}...")
+        print(f"[GPS] Passthrough {GPS_PORT} -> {OUT_PORT} @ {GPS_BAUD}...")
         try:
-            ser = serial.Serial(GPS_PORT, GPS_BAUD, timeout=1.0)
+            gps_ser = serial.Serial(GPS_PORT, GPS_BAUD, timeout=GPS_READ_TIMEOUT_S)
         except serial.SerialException as e:
             print(f"[GPS] Cannot open {GPS_PORT}: {e}  -> using default origin")
             state.use_default_origin()
+            return
+        try:
+            out_ser = serial.Serial(OUT_PORT, OUT_BAUD, timeout=GPS_READ_TIMEOUT_S)
+        except serial.SerialException as e:
+            print(f"[GPS] Cannot open {OUT_PORT}: {e}")
+            gps_ser.close()
             return
 
         buf = b""
         while True:
             try:
-                buf += ser.read(256)
+                chunk = gps_ser.read(GPS_READ_CHUNK_SIZE)
             except serial.SerialException:
                 break
+            if chunk:
+                try:
+                    out_ser.write(chunk)
+                    out_ser.flush()
+                except serial.SerialException as e:
+                    print(f"[GPS] Output write failed: {e}")
+                    break
+                buf += chunk
             while b"\n" in buf:
                 line, buf = buf.split(b"\n", 1)
                 s = line.decode("ascii", errors="ignore").strip()
+                if not s.startswith("$"):
+                    continue
+                parsed = _parse_nmea_fields(s)
+                if parsed:
+                    state.update_gps_fields(parsed)
                 if s.startswith(("$GPGGA", "$GNGGA")):
                     r = _parse_gga(s)
-                    if r and r[3] >= 1:
+                    if r and r[3] >= 1 and not state.origin_set:
                         state.set_origin(r[0], r[1], r[2])
-                        return
             if not state.origin_set and time.time() > deadline:
                 print("[GPS] Timeout -> using default origin")
                 state.use_default_origin()
-                return
+        gps_ser.close()
+        out_ser.close()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -302,6 +477,8 @@ class FlowReader(threading.Thread):
         # uint8 flow_quality, uint8 flow_status, uint16 reserved
         d = struct.unpack("<IIBBBBhhBBH", payload_bytes[:24])
         dist_mm      = d[1]
+        strength     = d[2]
+        precision    = d[3]
         dis_status   = d[4]
         flow_vel_x   = d[6]   # int16, unit: cm/s at 1 m height
         flow_vel_y   = d[7]   # int16, unit: cm/s at 1 m height
@@ -309,9 +486,9 @@ class FlowReader(threading.Thread):
         flow_status  = d[9]   # 1 = valid, 0 = invalid
 
         dist_valid = (dist_mm > 0) and (dis_status == 1)
+        dist_m = dist_mm / 1000.0 if dist_valid else 0.0
 
         if dist_valid:
-            dist_m = dist_mm / 1000.0
             # flow_vel_x: positive = drone moves FORWARD  (no sign change needed)
             # flow_vel_y: positive = ground moves RIGHT under sensor
             #             = drone moves LEFT  → negate to get drone body +Y = right
@@ -341,7 +518,11 @@ class FlowReader(threading.Thread):
             if ok:
                 print(f"[Flow] SENSOR OK -> vx={vx_ms:.3f} vy={vy_ms:.3f} m/s")
 
-        state.update_flow(vx_ms, vy_ms, flow_quality, ok)
+        state.update_flow(
+            vx_ms, vy_ms, flow_quality, ok,
+            flow_vel_x, flow_vel_y, dist_mm, dist_m,
+            strength, precision, dis_status, flow_status,
+        )
 
     def run(self):
         print(f"[Flow] Opening {FLOW_PORT} @ {FLOW_BAUD}...")
@@ -489,10 +670,27 @@ def _pressure_to_alt(press_hpa, temp_c):
     return (t_k / 0.0065) * (1.0 - (press_hpa / 1013.25) ** (1.0 / 5.255))
 
 
-def _heading_from_mag(xmag, ymag):
-    if abs(xmag) < 1e-9 and abs(ymag) < 1e-9:
+def wrap_heading(deg):
+    if deg is None:
         return None
-    return (math.degrees(math.atan2(ymag, xmag)) + 360.0) % 360.0
+    return (float(deg) % 360.0 + 360.0) % 360.0
+
+
+def angle_delta_deg(new_deg, old_deg):
+    return (new_deg - old_deg + 540.0) % 360.0 - 180.0
+
+
+def smooth_heading_deg(prev_deg, new_deg, alpha, max_delta_deg=None):
+    if prev_deg is None:
+        return wrap_heading(new_deg)
+    if new_deg is None:
+        return prev_deg
+    delta = angle_delta_deg(new_deg, prev_deg)
+    if max_delta_deg is not None:
+        limit = abs(float(max_delta_deg))
+        delta = max(-limit, min(limit, delta))
+    alpha = float(alpha)
+    return wrap_heading(prev_deg + alpha * delta)
 
 
 class MAVLinkBridge(threading.Thread):
@@ -520,23 +718,24 @@ class MAVLinkBridge(threading.Thread):
                 mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,
                 0, msg_id, int(1_000_000 / hz), 0, 0, 0, 0, 0)
 
-        # Request high-rate IMU for good prediction, 20 Hz baro/compass
+        # Request high-rate IMU for good prediction, 20 Hz baro/ATTITUDE heading
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU,       50)
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_PRESSURE,  20)
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU2,      20)
         req(mavutil.mavlink.MAVLINK_MSG_ID_SCALED_IMU3,      20)
+        req(mavutil.mavlink.MAVLINK_MSG_ID_ATTITUDE,         20)
 
         baro_types = {"SCALED_PRESSURE", "SCALED_PRESSURE2", "HIGHRES_IMU"}
         imu_types  = {"SCALED_IMU"}
-        mag_types  = {"SCALED_IMU", "SCALED_IMU2", "SCALED_IMU3", "RAW_IMU"}
-        all_types  = list(baro_types | imu_types | mag_types)
+        heading_types = {"ATTITUDE"}
+        all_types  = list(baro_types | imu_types | heading_types)
 
         # First-detection flags for startup confirmation prints
         _baro_ok = False
         _imu_ok  = False
-        _mag_ok  = False
+        _heading_ok  = False
 
-        print("[MAV] Streaming IMU (50Hz) + baro + compass (20Hz)...")
+        print("[MAV] Streaming IMU (50Hz) + baro + ATTITUDE heading (20Hz)...")
         while True:
             msg = conn.recv_match(type=all_types, blocking=True, timeout=1.0)
             if msg is None:
@@ -563,16 +762,17 @@ class MAVLinkBridge(threading.Thread):
                     _imu_ok = True
                     print(f"[MAV] IMU OK        -> ax={ax_ms2:.3f} ay={ay_ms2:.3f} m/s^2  (src={t})")
 
-            if t in mag_types:
-                xm = float(getattr(msg, "xmag", 0.0))
-                ym = float(getattr(msg, "ymag", 0.0))
-                if xm != 0.0 or ym != 0.0:
-                    h = _heading_from_mag(xm, ym)
-                    if h is not None:
-                        state.update_heading(h)
-                        if not _mag_ok:
-                            _mag_ok = True
-                            print(f"[MAV] Compass OK    -> heading={h:.1f}deg  (src={t})")
+            if t in heading_types:
+                yaw_rad = getattr(msg, "yaw", None)
+                if yaw_rad is not None:
+                    h = wrap_heading(float(yaw_rad) * 180.0 / math.pi)
+                    state.update_heading(h)
+                    if not _heading_ok:
+                        _heading_ok = True
+                        print(
+                            f"[MAV] Heading OK    -> heading={h:.1f}deg  "
+                            f"yaw_rad={float(yaw_rad):.4f}  (src={t})"
+                        )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -630,136 +830,64 @@ def _flow_to_ned(vx_body, vy_body, heading_deg):
     return vN, vE
 
 
-# ─────────────────────────────────────────────────────────────
-# UBX / NMEA BUILDERS
-# ─────────────────────────────────────────────────────────────
-def _ubx_cksum(msg_class, msg_id, payload):
-    ck_a = ck_b = 0
-    for b in [msg_class, msg_id, len(payload) & 0xFF, (len(payload) >> 8) & 0xFF, *payload]:
-        ck_a = (ck_a + b) & 0xFF
-        ck_b = (ck_b + ck_a) & 0xFF
-    return ck_a, ck_b
+CSV_FIELDS = [
+    "timestamp_utc",
+    "timestamp_unix",
+    "origin_set",
+    "gps_healthy",
+    "gps_sentence_type",
+    "gps_raw_sentence",
+    "gps_talker",
+    "gps_fix_time_utc",
+    "gps_date_ddmmyy",
+    "gps_status",
+    "gps_mode",
+    "gps_fix_quality",
+    "gps_satellites",
+    "gps_hdop",
+    "gps_pdop",
+    "gps_vdop",
+    "gps_latitude_deg",
+    "gps_longitude_deg",
+    "gps_altitude_m",
+    "gps_geoid_separation_m",
+    "gps_speed_knots",
+    "gps_speed_kmph",
+    "gps_course_deg",
+    "gps_heading_deg",
+    "gps_mag_var_deg",
+    "gps_nav_mode",
+    "of_latitude_deg",
+    "of_longitude_deg",
+    "of_altitude_m",
+    "of_heading_deg",
+    "imu_ax_mps2",
+    "imu_ay_mps2",
+    "of_distance_mm",
+    "of_distance_m",
+    "of_strength",
+    "of_precision",
+    "of_distance_status",
+    "of_status",
+    "of_quality",
+    "of_ok",
+    "of_raw_vx_cms_at_1m",
+    "of_raw_vy_cms_at_1m",
+    "of_body_vx_mps",
+    "of_body_vy_mps",
+    "of_vn_mps",
+    "of_ve_mps",
+    "of_speed_mps",
+]
 
 
-def _ubx(cls, mid, payload):
-    ca, cb = _ubx_cksum(cls, mid, payload)
-    return struct.pack("<BBBBH", 0xB5, 0x62, cls, mid, len(payload)) + payload + bytes([ca, cb])
+def _make_log_path():
+    os.makedirs(LOG_DIR, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return os.path.join(LOG_DIR, f"gps_flow_log_{stamp}.csv")
 
 
-def _ubx_nav_pvt(lat, lon, alt, vN, vE, nsats, now):
-    # ── velocity components ───────────────────────────────────────────────
-    vel_n_mm = int(vN * 1000)           # mm/s  north
-    vel_e_mm = int(vE * 1000)           # mm/s  east
-    spd_mm   = int(math.hypot(vN, vE) * 1000)   # mm/s  ground speed
-
-    # headMot = direction of travel (course over ground), NOT compass heading.
-    # EKF compares headMot against its own yaw — sending compass heading here
-    # caused the "EKF3 Yaw Inconsistent" error.
-    # When speed is near-zero, course over ground is meaningless so we report
-    # 0 and leave headVehValid flag cleared.
-    if math.hypot(vN, vE) > 0.1:       # only valid above 0.1 m/s
-        head_mot_1e5 = int((math.degrees(math.atan2(vE, vN)) % 360) * 1e5)
-    else:
-        head_mot_1e5 = 0                # meaningless at rest
-
-    # sAcc: speed accuracy estimate. Must be > actual GPS-vs-AHRS speed diff
-    # to pass the preArm GPS speed check. 3000 mm/s (3 m/s) gives plenty of
-    # margin while still being useful to the EKF.
-    s_acc = 3000
-
-    tow = (now.hour * 3600 + now.minute * 60 + now.second) * 1000 + now.microsecond // 1000
-    pl = struct.pack(
-        "<IHBBBBBBIiBBBBiiiiIIiiiiiIIHBBBBBBi",
-        tow,
-        now.year, now.month, now.day,
-        now.hour, now.minute, now.second,
-        0x07,               # valid flags: validDate | validTime | fullyResolved
-        0,                  # tAcc
-        0,                  # nano
-        3,                  # gpsFix = 3D fix
-        0x01, 0x00,         # flags (gnssFixOK), flags2
-        nsats,
-        int(lon * 1e7), int(lat * 1e7),
-        int(alt * 1000),    # altEllipsoid (mm)
-        int(alt * 1000),    # altMSL (mm)
-        1500,               # hAcc (mm) — 1.5 m horizontal accuracy
-        2000,               # vAcc (mm) — 2.0 m vertical accuracy
-        vel_n_mm,           # velN (mm/s)
-        vel_e_mm,           # velE (mm/s)
-        0,                  # velD (mm/s)
-        spd_mm,             # gSpeed (mm/s)
-        head_mot_1e5,       # headMot = course over ground (NOT compass!)
-        s_acc,              # sAcc (mm/s) — generous tolerance for preArm check
-        36000000,           # headAcc = 360 deg (heading accuracy unknown)
-        0,                  # pDOP
-        0, 0, 0, 0, 0, 0,   # reserved / flags3
-        0,                  # headVeh (not provided — headVehValid flag is 0)
-    )
-    return _ubx(0x01, 0x07, pl)
-
-
-def _ubx_nav_posllh(lat, lon, alt, tow):
-    pl = struct.pack(
-        "<IiiiiII",
-        tow,
-        int(lon * 1e7), int(lat * 1e7),
-        int(alt * 1000), int(alt * 1000),
-        2000, 3000)
-    return _ubx(0x01, 0x02, pl)
-
-
-def _ubx_nav_velned(spd, hdg, tow):
-    h = math.radians(hdg)
-    pl = struct.pack(
-        "<IiiiIIiII",
-        tow,
-        int(spd * 100 * math.cos(h)),
-        int(spd * 100 * math.sin(h)),
-        0,
-        int(spd * 100), int(spd * 100),
-        int(hdg * 1e5),
-        50, 5000)
-    return _ubx(0x01, 0x12, pl)
-
-
-def _nmea_ck(s):
-    c = 0
-    for ch in s:
-        c ^= ord(ch)
-    return f"{c:02X}"
-
-
-def _nmea_sentences(lat, lon, alt, spd, hdg, nsats, now):
-    t = now.strftime("%H%M%S") + f".{now.microsecond // 10000:02d}"
-    d = now.strftime("%d%m%y")
-
-    def d2n(deg, is_lat):
-        dd = int(abs(deg))
-        m  = (abs(deg) - dd) * 60
-        fmt = f"{dd:02d}{m:07.4f}" if is_lat else f"{dd:03d}{m:07.4f}"
-        ns = ("N" if deg >= 0 else "S") if is_lat else ("E" if deg >= 0 else "W")
-        return fmt, ns
-
-    la, lad = d2n(lat, True)
-    lo, lod = d2n(lon, False)
-
-    gga = f"GPGGA,{t},{la},{lad},{lo},{lod},1,{nsats:02d},0.8,{alt:.1f},M,-34.0,M,,"
-    rmc = f"GPRMC,{t},A,{la},{lad},{lo},{lod},{spd * 1.94384:.2f},{hdg:.1f},{d},,,A"
-
-    return (f"${gga}*{_nmea_ck(gga)}\r\n").encode(), (f"${rmc}*{_nmea_ck(rmc)}\r\n").encode()
-
-
-# ─────────────────────────────────────────────────────────────
-# MAIN LOOP: INTEGRATOR + GPS EMITTER
-# ─────────────────────────────────────────────────────────────
-def run_main_loop():
-    print(f"[Out] Opening output port {OUT_PORT} @ {OUT_BAUD}...")
-    try:
-        out = serial.Serial(OUT_PORT, OUT_BAUD, timeout=1)
-    except serial.SerialException as e:
-        print(f"[Out] Cannot open: {e}")
-        return
-
+def run_main_loop(log_path):
     dt_target = 1.0 / UPDATE_HZ
     last_t    = time.time()
     loop_n    = 0
@@ -767,106 +895,103 @@ def run_main_loop():
     print("[Main] Waiting for origin to be set...")
     while not state.origin_set:
         time.sleep(0.05)
-    print("[Main] Origin ready - starting Kalman integration loop")
+    print(f"[Main] Origin ready - logging combined GPS + flow data to {log_path}")
 
-    while True:
-        now_t = time.time()
-        dt    = max(0.001, min(now_t - last_t, 0.5))  # clamp dt to [1ms, 500ms]
-        last_t = now_t
+    with open(log_path, "w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
+        writer.writeheader()
 
-        # Snapshot sensor state (single lock)
-        with state._lock:
-            ax_b    = state.imu_ax
-            ay_b    = state.imu_ay
-            heading = state.heading_deg
-            vx_b    = state.flow_vx
-            vy_b    = state.flow_vy
-            flow_ok = state.flow_ok
-            quality = state.flow_quality
-            lat     = state.lat
-            lon     = state.lon
-            alt     = state.baro_alt
+        while True:
+            now_t = time.time()
+            dt    = max(0.001, min(now_t - last_t, 0.5))  # clamp dt to [1ms, 500ms]
+            last_t = now_t
 
-        # ── 1. Kalman PREDICT using IMU (body -> NED) ────────
-        # Only run IMU prediction when flow is valid.
-        # Reason: Pixhawk IMU has ~5-10 mg bias at rest. With no flow
-        # correction this integrates into ~0.5 m/s drift per second.
-        # When flow is bad we have NO absolute velocity reference, so
-        # the only safe assumption is the drone is stationary (v=0).
-        if flow_ok and quality >= FLOW_QUALITY_MIN:
-            aN, aE = _body_to_ned(ax_b, ay_b, heading)
-            kf_N.predict(aN, dt)
-            kf_E.predict(aE, dt)
+            with state._lock:
+                ax_b    = state.imu_ax
+                ay_b    = state.imu_ay
+                heading = state.heading_deg
+                vx_b    = state.flow_vx
+                vy_b    = state.flow_vy
+                flow_ok = state.flow_ok
+                quality = state.flow_quality
 
-            # ── 2. Kalman UPDATE using optical flow ──────────
-            vN_flow, vE_flow = _flow_to_ned(vx_b, vy_b, heading)
-            kf_N.update(vN_flow)
-            kf_E.update(vE_flow)
-        else:
-            # Flow lost: decay velocity toward zero (exponential drag).
-            # Tau=0.3s means velocity halves in ~0.2s — fast enough to
-            # stop drift, slow enough not to jerk if flow briefly drops.
-            decay = math.exp(-dt / 0.3)
-            kf_N.v *= decay
-            kf_E.v *= decay
-            # Also reset covariance so next flow update is trusted quickly
-            kf_N.P = 1.0
-            kf_E.P = 1.0
+            if flow_ok and quality >= FLOW_QUALITY_MIN:
+                aN, aE = _body_to_ned(ax_b, ay_b, heading)
+                kf_N.predict(aN, dt)
+                kf_E.predict(aE, dt)
+                vN_flow, vE_flow = _flow_to_ned(vx_b, vy_b, heading)
+                kf_N.update(vN_flow)
+                kf_E.update(vE_flow)
+            else:
+                decay = math.exp(-dt / 0.3)
+                kf_N.v *= decay
+                kf_E.v *= decay
+                kf_N.P = 1.0
+                kf_E.P = 1.0
+                vN_flow, vE_flow = _flow_to_ned(vx_b, vy_b, heading)
 
-        vN = max(-7.0, min(7.0, kf_N.velocity))   # clamp to MTF-01 max
-        vE = max(-7.0, min(7.0, kf_E.velocity))
+            vN = max(-7.0, min(7.0, kf_N.velocity))
+            vE = max(-7.0, min(7.0, kf_E.velocity))
+            state.update_estimated_velocity(vN, vE)
 
-        # ── 3. Integrate position (dead-reckoning) ───────────
-        # Haversine-lite: metres per degree along each axis
-        dlat = (vN * dt) / 111_111.0
-        dlon = (vE * dt) / (111_111.0 * math.cos(math.radians(lat)))
-        state.update_position(lat + dlat, lon + dlon)
+            snap = state.snapshot()
+            utc = datetime.now(timezone.utc)
+            row = {field: snap.get(field, "") for field in CSV_FIELDS}
+            row["timestamp_utc"] = utc.isoformat()
+            row["timestamp_unix"] = f"{now_t:.6f}"
+            row["of_vn_mps"] = vN
+            row["of_ve_mps"] = vE
+            row["of_speed_mps"] = math.hypot(vN, vE)
+            writer.writerow(row)
+            csv_file.flush()
 
-        with state._lock:
-            lat = state.lat
-            lon = state.lon
+            loop_n += 1
+            if loop_n % max(1, int(UPDATE_HZ * 2)) == 0:
+                origin_src = "real GPS" if snap["gps_healthy"] else "default"
+                flow_str   = f"OK q={quality}" if flow_ok else f"BAD q={quality}"
+                print(
+                    f"[{utc.strftime('%H:%M:%S')}]"
+                    f"  gps=({snap['gps_latitude_deg']}, {snap['gps_longitude_deg']})"
+                    f"  flow_body=({snap['of_body_vx_mps']:+.3f}, {snap['of_body_vy_mps']:+.3f})m/s"
+                    f"  flow_ned=({vN:+.3f}, {vE:+.3f})m/s"
+                    f"  hdg={snap['of_heading_deg']:.1f}deg"
+                    f"  flow={flow_str}"
+                    f"  origin={origin_src}"
+                )
 
-        speed_mps = math.hypot(vN, vE)
-
-        # ── 4. Build and send GPS packets ────────────────────
-        utc = datetime.now(timezone.utc)
-        tow = (utc.hour * 3600 + utc.minute * 60 + utc.second) * 1000
-
-        out.write(_ubx_nav_pvt(lat, lon, alt, vN, vE, NUM_SATS_FAKE, utc))
-        out.write(_ubx_nav_posllh(lat, lon, alt, tow))
-        out.write(_ubx_nav_velned(speed_mps, heading, tow))
-        gga, rmc = _nmea_sentences(lat, lon, alt, speed_mps, heading, NUM_SATS_FAKE, utc)
-        out.write(gga)
-        out.write(rmc)
-
-        # ── 5. Console status (every 2 s) ────────────────────
-        loop_n += 1
-        if loop_n % (UPDATE_HZ * 2) == 0:
-            origin_src = "real GPS" if state.gps_healthy else "default"
-            flow_str   = f"OK q={quality}" if flow_ok else f"BAD q={quality}"
-            print(
-                f"[{utc.strftime('%H:%M:%S')}]"
-                f"  lat={lat:.6f}  lon={lon:.6f}  alt={alt:.1f}m"
-                f"  vN={vN:+.3f}  vE={vE:+.3f}  spd={speed_mps:.2f}m/s"
-                f"  hdg={heading:.1f}deg"
-                f"  flow={flow_str}"
-                f"  KF_P={kf_N.P:.4f}"
-                f"  origin={origin_src}"
-            )
-
-        # ── 6. Sleep remainder of tick ────────────────────────
-        used = time.time() - now_t
-        time.sleep(max(0.0, dt_target - used))
+            used = time.time() - now_t
+            time.sleep(max(0.0, dt_target - used))
 
 
 # ─────────────────────────────────────────────────────────────
 # ENTRY POINT
 # ─────────────────────────────────────────────────────────────
 def main():
+    global FLOW_PORT, FLOW_BAUD
+    global GPS_PORT, GPS_BAUD, GPS_READ_TIMEOUT_S, GPS_READ_CHUNK_SIZE
+    global MAV_PORT, MAV_BAUD
+    global OUT_PORT, OUT_BAUD, OUT_RATE_HZ
+    global UPDATE_HZ, LOG_DIR
+
     parser = argparse.ArgumentParser(
-        description="Optical Flow + IMU Kalman -> GPS emulator for Pixhawk")
+        description="Pass GPS data to Pixhawk unchanged and log GPS + flow data to one CSV")
     parser.add_argument("--no-real-gps", action="store_true",
                         help="Skip real GPS; use default origin immediately")
+    parser.add_argument("--flow-port", default=FLOW_PORT)
+    parser.add_argument("--flow-baud", type=int, default=FLOW_BAUD)
+    parser.add_argument("--gps-port", default=GPS_PORT)
+    parser.add_argument("--gps-baud", type=int, default=GPS_BAUD)
+    parser.add_argument("--gps-read-timeout", type=float, default=GPS_READ_TIMEOUT_S,
+                        help="GPS passthrough serial read timeout in seconds")
+    parser.add_argument("--gps-read-chunk", type=int, default=GPS_READ_CHUNK_SIZE,
+                        help="GPS passthrough serial read size in bytes")
+    parser.add_argument("--mav-port", default=MAV_PORT)
+    parser.add_argument("--mav-baud", type=int, default=MAV_BAUD)
+    parser.add_argument("--out-port", default=OUT_PORT,
+                        help="Pixhawk GPS port for unchanged GPS passthrough")
+    parser.add_argument("--out-baud", type=int, default=OUT_BAUD)
+    parser.add_argument("--out-rate-hz", type=float, default=OUT_RATE_HZ,
+                        help="AMA0 output rate hint. 0 means forward GPS immediately as bytes arrive.")
     parser.add_argument("--default-lat",  type=float, default=DEFAULT_LAT)
     parser.add_argument("--default-lon",  type=float, default=DEFAULT_LON)
     parser.add_argument("--default-alt",  type=float, default=DEFAULT_ALT)
@@ -875,29 +1000,48 @@ def main():
     parser.add_argument("--kf-r", type=float, default=KF_R,
                         help="Kalman measurement noise (flow trust). Default 0.02")
     parser.add_argument("--update-hz", type=float, default=UPDATE_HZ,
-                        help="GPS packet output rate (default 10 Hz)")
+                        help="Combined CSV logging rate (default 10 Hz)")
+    parser.add_argument("--log-dir", default=LOG_DIR,
+                        help="Directory for the combined GPS/flow CSV log")
     args = parser.parse_args()
 
+    FLOW_PORT = args.flow_port
+    FLOW_BAUD = args.flow_baud
+    GPS_PORT = args.gps_port
+    GPS_BAUD = args.gps_baud
+    GPS_READ_TIMEOUT_S = args.gps_read_timeout
+    GPS_READ_CHUNK_SIZE = args.gps_read_chunk
+    MAV_PORT = args.mav_port
+    MAV_BAUD = args.mav_baud
+    OUT_PORT = args.out_port
+    OUT_BAUD = args.out_baud
+    OUT_RATE_HZ = args.out_rate_hz
     state.lat      = args.default_lat
     state.lon      = args.default_lon
     state.baro_alt = args.default_alt
     kf_N.q = kf_E.q = args.kf_q
     kf_N.r = kf_E.r = args.kf_r
+    UPDATE_HZ = args.update_hz
+    LOG_DIR = args.log_dir
 
     print("=" * 64)
-    print("  Optical Flow + IMU Kalman  ->  GPS Emulator")
-    print(f"  KF_Q={args.kf_q}  KF_R={args.kf_r}  OUT={args.update_hz}Hz")
+    print("  GPS Passthrough + Optical Flow Combined Logger")
+    print(f"  KF_Q={args.kf_q}  KF_R={args.kf_r}  LOG={args.update_hz}Hz")
+    print(f"  FLOW={FLOW_PORT}@{FLOW_BAUD}  GPS_IN={GPS_PORT}@{GPS_BAUD}")
+    print(f"  MAV={MAV_PORT}@{MAV_BAUD}  GPS_OUT={OUT_PORT}@{OUT_BAUD}  OUT_RATE={OUT_RATE_HZ}Hz")
     print("=" * 64)
 
-    if not args.no_real_gps:
-        GPSOriginReader().start()
-    else:
+    log_path = _make_log_path()
+
+    if args.no_real_gps:
         state.use_default_origin()
+    else:
+        GPSPassthroughLogger().start()
 
     FlowReader().start()
     MAVLinkBridge().start()
     time.sleep(2.5)   # let MAVLink connect + first sensor readings arrive
-    run_main_loop()
+    run_main_loop(log_path)
 
 
 if __name__ == "__main__":
