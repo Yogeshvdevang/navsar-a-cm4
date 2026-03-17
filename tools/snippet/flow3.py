@@ -72,6 +72,7 @@ OUT_BAUD  = 230400
 UPDATE_HZ       = 10      # GPS packet output rate to Pixhawk
 GPS_TIMEOUT     = 10.0    # Seconds to wait for real GPS before using default
 FLOW_QUALITY_MIN = 50     # 0-255: reject flow measurements below this
+OUTPUT_PROTOCOL = "ubx"   # Set to "ubx" or "nmea"
 
 DEFAULT_LAT  = 12.971600
 DEFAULT_LON  = 77.594600
@@ -313,8 +314,8 @@ class FlowReader(threading.Thread):
             # flow_vel_x: positive = drone moves FORWARD  (no sign change needed)
             # flow_vel_y: positive = ground moves RIGHT under sensor
             #             = drone moves LEFT  → negate to get drone body +Y = right
-            vx_ms = -(flow_vel_x * dist_m) / 100.0   # body forward  m/s  (negated)
-            vy_ms = -(flow_vel_y * dist_m) / 100.0   # body right    m/s  (negated)
+            vx_ms = (flow_vel_y * dist_m) / 100.0   # body forward  m/s  (negated)
+            vy_ms = -(flow_vel_x * dist_m) / 100.0   # body right    m/s  (negated)
         else:
             vx_ms = 0.0
             vy_ms = 0.0
@@ -725,8 +726,16 @@ def _ubx_nav_posllh(lat, lon, alt, tow):
     return _ubx(0x01, 0x02, pl)
 
 
-def _ubx_nav_velned(spd, hdg, tow):
-    h = math.radians(hdg)
+def _course_over_ground_deg(vN, vE):
+    if math.hypot(vN, vE) <= 0.1:
+        return None
+    return math.degrees(math.atan2(vE, vN)) % 360.0
+
+
+def _ubx_nav_velned(vN, vE, tow):
+    spd = math.hypot(vN, vE)
+    course_deg = _course_over_ground_deg(vN, vE) or 0.0
+    h = math.radians(course_deg)
     pl = struct.pack(
         "<IiiiIIiII",
         tow,
@@ -734,7 +743,7 @@ def _ubx_nav_velned(spd, hdg, tow):
         int(spd * 100 * math.sin(h)),
         0,
         int(spd * 100), int(spd * 100),
-        int(hdg * 1e5),
+        int(course_deg * 1e5),
         50, 5000)
     return _ubx(0x01, 0x12, pl)
 
@@ -746,7 +755,7 @@ def _nmea_ck(s):
     return f"{c:02X}"
 
 
-def _nmea_sentences(lat, lon, alt, spd, hdg, nsats, now):
+def _nmea_sentences(lat, lon, alt, spd, course_deg, nsats, now):
     t = now.strftime("%H%M%S") + f".{now.microsecond // 10000:02d}"
     d = now.strftime("%d%m%y")
 
@@ -761,7 +770,8 @@ def _nmea_sentences(lat, lon, alt, spd, hdg, nsats, now):
     lo, lod = d2n(lon, False)
 
     gga = f"GPGGA,{t},{la},{lad},{lo},{lod},1,{nsats:02d},0.8,{alt:.1f},M,-34.0,M,,"
-    rmc = f"GPRMC,{t},A,{la},{lad},{lo},{lod},{spd * 1.94384:.2f},{hdg:.1f},{d},,,A"
+    course_field = "" if course_deg is None else f"{course_deg:.1f}"
+    rmc = f"GPRMC,{t},A,{la},{lad},{lo},{lod},{spd * 1.94384:.2f},{course_field},{d},,,A"
 
     return (f"${gga}*{_nmea_ck(gga)}\r\n").encode(), (f"${rmc}*{_nmea_ck(rmc)}\r\n").encode()
 
@@ -844,17 +854,21 @@ def run_main_loop():
             lon = state.lon
 
         speed_mps = math.hypot(vN, vE)
+        course_deg = _course_over_ground_deg(vN, vE)
 
         # ── 4. Build and send GPS packets ────────────────────
         utc = datetime.now(timezone.utc)
         tow = (utc.hour * 3600 + utc.minute * 60 + utc.second) * 1000
 
-        out.write(_ubx_nav_pvt(lat, lon, alt, vN, vE, NUM_SATS_FAKE, utc))
-        out.write(_ubx_nav_posllh(lat, lon, alt, tow))
-        out.write(_ubx_nav_velned(speed_mps, heading, tow))
-        gga, rmc = _nmea_sentences(lat, lon, alt, speed_mps, heading, NUM_SATS_FAKE, utc)
-        out.write(gga)
-        out.write(rmc)
+        if OUTPUT_PROTOCOL == "ubx":
+            out.write(_ubx_nav_pvt(lat, lon, alt, vN, vE, NUM_SATS_FAKE, utc))
+            out.write(_ubx_nav_posllh(lat, lon, alt, tow))
+            out.write(_ubx_nav_velned(vN, vE, tow))
+
+        if OUTPUT_PROTOCOL == "nmea":
+            gga, rmc = _nmea_sentences(lat, lon, alt, speed_mps, course_deg, NUM_SATS_FAKE, utc)
+            out.write(gga)
+            out.write(rmc)
 
         # ── 5. Console status (every 2 s) ────────────────────
         loop_n += 1
@@ -865,7 +879,6 @@ def run_main_loop():
                 f"[{utc.strftime('%H:%M:%S')}]"
                 f"  lat={lat:.6f}  lon={lon:.6f}  alt={alt:.1f}m"
                 f"  vN={vN:+.3f}  vE={vE:+.3f}  spd={speed_mps:.2f}m/s"
-                f"  hdg={heading:.1f}deg"
                 f"  flow={flow_str}"
                 f"  KF_P={kf_N.P:.4f}"
                 f"  origin={origin_src}"
@@ -880,6 +893,8 @@ def run_main_loop():
 # ENTRY POINT
 # ─────────────────────────────────────────────────────────────
 def main():
+    global UPDATE_HZ
+
     parser = argparse.ArgumentParser(
         description="Optical Flow + IMU Kalman -> GPS emulator for Pixhawk")
     parser.add_argument("--no-real-gps", action="store_true",
@@ -895,6 +910,9 @@ def main():
                         help="GPS packet output rate (default 10 Hz)")
     args = parser.parse_args()
 
+    UPDATE_HZ = args.update_hz
+    if OUTPUT_PROTOCOL not in ("ubx", "nmea"):
+        raise SystemExit(f"Invalid OUTPUT_PROTOCOL={OUTPUT_PROTOCOL!r}. Use 'ubx' or 'nmea'.")
     state.lat      = args.default_lat
     state.lon      = args.default_lon
     state.baro_alt = args.default_alt
@@ -903,7 +921,10 @@ def main():
 
     print("=" * 64)
     print("  Optical Flow + IMU Kalman  ->  GPS Emulator")
-    print(f"  KF_Q={args.kf_q}  KF_R={args.kf_r}  OUT={args.update_hz}Hz")
+    print(
+        f"  KF_Q={args.kf_q}  KF_R={args.kf_r}"
+        f"  OUT={args.update_hz}Hz  PROTO={OUTPUT_PROTOCOL}"
+    )
     print("=" * 64)
 
     if not args.no_real_gps:

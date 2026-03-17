@@ -360,8 +360,8 @@ class FlowReader(threading.Thread):
             # flow_vel_x: positive = drone moves FORWARD  (no sign change needed)
             # flow_vel_y: positive = ground moves RIGHT under sensor
             #             = drone moves LEFT  → negate to get drone body +Y = right
-            vx_ms = -(flow_vel_x * dist_m) / 100.0   # body forward  m/s  (negated)
-            vy_ms = -(flow_vel_y * dist_m) / 100.0   # body right    m/s  (negated)
+            vx_ms = (flow_vel_y * dist_m) / 100.0   # body forward  m/s  (negated)
+            vy_ms = -(flow_vel_x * dist_m) / 100.0   # body right    m/s  (negated)
         else:
             vx_ms = 0.0
             vy_ms = 0.0
