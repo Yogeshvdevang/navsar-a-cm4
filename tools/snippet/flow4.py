@@ -63,7 +63,7 @@ FLOW_BAUD = 115200
 GPS_PORT  = "/dev/ttyAMA5"
 GPS_BAUD  = 230400
 
-MAV_PORT  = "/dev/ttyACM0"
+MAV_PORT  = "/dev/ttyACM1"
 MAV_BAUD  = 115200
 
 OUT_PORT  = "/dev/ttyAMA0"

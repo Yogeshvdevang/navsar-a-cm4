@@ -63,16 +63,18 @@ FLOW_BAUD = 115200
 GPS_PORT  = "/dev/ttyAMA5"
 GPS_BAUD  = 230400
 
-MAV_PORT  = "/dev/ttyACM0"
+MAV_PORT  = "/dev/ttyACM1"
 MAV_BAUD  = 115200
 
 OUT_PORT  = "/dev/ttyAMA0"
 OUT_BAUD  = 230400
 
-UPDATE_HZ       = 10      # GPS packet output rate to Pixhawk
+UPDATE_HZ       = 5      # GPS packet output rate to Pixhawk
 GPS_TIMEOUT     = 10.0    # Seconds to wait for real GPS before using default
 FLOW_QUALITY_MIN = 50     # 0-255: reject flow measurements below this
-OUTPUT_PROTOCOL = "ubx"   # Set to "ubx" or "nmea"
+OUTPUT_PROTOCOL = "nmea"   # Set to "ubx" or "nmea"
+PRINT_NMEA_DEBUG = False    # Show human-readable NMEA values on terminal
+PRINT_UBX_DEBUG = True     # Show human-readable UBX values on terminal
 
 DEFAULT_LAT  = 12.971600
 DEFAULT_LON  = 77.594600
@@ -776,6 +778,42 @@ def _nmea_sentences(lat, lon, alt, spd, course_deg, nsats, now):
     return (f"${gga}*{_nmea_ck(gga)}\r\n").encode(), (f"${rmc}*{_nmea_ck(rmc)}\r\n").encode()
 
 
+def _print_nmea_debug(lat, lon, alt, spd, course_deg, nsats, now):
+    course_text = "N/A" if course_deg is None else f"{course_deg:.1f} deg"
+    print(
+        f"[NMEA {now.strftime('%H:%M:%S')}] "
+        f"lat={lat:.7f} lon={lon:.7f} alt={alt:.1f}m "
+        f"speed={spd:.2f}m/s ({spd * 1.94384:.2f}kn) "
+        f"course={course_text} sats={nsats} fix=1 hdop=0.8"
+    )
+
+
+def _print_ubx_debug(lat, lon, alt, vN, vE, nsats, now):
+    speed_mps = math.hypot(vN, vE)
+    course_deg = _course_over_ground_deg(vN, vE)
+    course_text = "0.0 deg (rest)" if course_deg is None else f"{course_deg:.1f} deg"
+    tow = (now.hour * 3600 + now.minute * 60 + now.second) * 1000 + now.microsecond // 1000
+    print(
+        f"[UBX {now.strftime('%H:%M:%S')}] "
+        f"NAV-PVT: tow={tow} fix=3D sats={nsats} "
+        f"lat={lat:.7f} lon={lon:.7f} altMSL={alt:.1f}m "
+        f"hAcc=1.5m vAcc=2.0m "
+        f"velN={vN:+.3f}m/s velE={vE:+.3f}m/s velD=+0.000m/s "
+        f"gSpeed={speed_mps:.3f}m/s headMot={course_text} sAcc=3.0m/s"
+    )
+    print(
+        f"[UBX {now.strftime('%H:%M:%S')}] "
+        f"NAV-POSLLH: tow={tow} lat={lat:.7f} lon={lon:.7f} "
+        f"altEllipsoid={alt:.1f}m altMSL={alt:.1f}m hAcc=2.0m vAcc=3.0m"
+    )
+    print(
+        f"[UBX {now.strftime('%H:%M:%S')}] "
+        f"NAV-VELNED: tow={tow} velN={vN:+.3f}m/s velE={vE:+.3f}m/s velD=+0.000m/s "
+        f"speed={speed_mps:.3f}m/s gSpeed={speed_mps:.3f}m/s heading={course_text} "
+        f"sAcc=0.50m/s cAcc=5.0deg"
+    )
+
+
 # ─────────────────────────────────────────────────────────────
 # MAIN LOOP: INTEGRATOR + GPS EMITTER
 # ─────────────────────────────────────────────────────────────
@@ -864,11 +902,15 @@ def run_main_loop():
             out.write(_ubx_nav_pvt(lat, lon, alt, vN, vE, NUM_SATS_FAKE, utc))
             out.write(_ubx_nav_posllh(lat, lon, alt, tow))
             out.write(_ubx_nav_velned(vN, vE, tow))
+            if PRINT_UBX_DEBUG and loop_n % UPDATE_HZ == 0:
+                _print_ubx_debug(lat, lon, alt, vN, vE, NUM_SATS_FAKE, utc)
 
         if OUTPUT_PROTOCOL == "nmea":
             gga, rmc = _nmea_sentences(lat, lon, alt, speed_mps, course_deg, NUM_SATS_FAKE, utc)
             out.write(gga)
             out.write(rmc)
+            if PRINT_NMEA_DEBUG and loop_n % UPDATE_HZ == 0:
+                _print_nmea_debug(lat, lon, alt, speed_mps, course_deg, NUM_SATS_FAKE, utc)
 
         # ── 5. Console status (every 2 s) ────────────────────
         loop_n += 1
