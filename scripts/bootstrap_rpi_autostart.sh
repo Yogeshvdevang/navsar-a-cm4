@@ -116,6 +116,5 @@ bash "$ROOT_DIR/scripts/install_autostart_service.sh"
 
 echo "Done. Verify with:"
 echo "  sudo systemctl status navisar.service"
-echo "  sudo systemctl status navisar-control.service"
 echo "Reboot required for camera/UART overlay changes:"
 echo "  sudo reboot"

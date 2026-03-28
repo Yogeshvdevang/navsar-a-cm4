@@ -1,4 +1,6 @@
-# NAVSAR-A Raspberry Pi CM4 Setup
+# NAVSAR-A Raspberry Pi Setup
+
+For a fuller Raspberry Pi 5 walkthrough, use [`docs/RPI5_SETUP_TUTORIAL.md`](/home/psyc2/navsar-a-cm4/docs/RPI5_SETUP_TUTORIAL.md).
 
 This guide is for Raspberry Pi CM4 and covers:
 - Camera + UART + LED boot config
@@ -76,7 +78,6 @@ bash scripts/install_autostart_service.sh
 
 # 5) Verify
 sudo systemctl status navisar.service
-sudo systemctl status navisar-control.service
 ```
 
 ## 3) One-Command Alternative (Recommended)
@@ -97,7 +98,7 @@ bash scripts/bootstrap_rpi_autostart.sh
 - Updates boot `config.txt` with camera/UART/LED block
 - Installs system dependencies
 - Creates `venv` and installs Python packages
-- Installs and starts `navisar.service` and `navisar-control.service`
+- Installs and starts `navisar.service`
 
 ## 4) Reboot
 

@@ -5,10 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.."; pwd)"
 RUNNER="$ROOT_DIR/scripts/start_navisar.sh"
 SERVICE_NAME="navisar.service"
 SERVICE_PATH="/etc/systemd/system/$SERVICE_NAME"
-CTRL_SERVICE_NAME="navisar-control.service"
-CTRL_SERVICE_PATH="/etc/systemd/system/$CTRL_SERVICE_NAME"
 RUN_USER="${SUDO_USER:-$USER}"
-CTRL_RUNNER="$ROOT_DIR/tools/navisar_controller.py"
 
 if [ ! -f "$RUNNER" ]; then
   echo "Runner script not found: $RUNNER" >&2
@@ -50,41 +47,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"
 
-ctrl_tmpfile="$(mktemp)"
-cat >"$ctrl_tmpfile" <<EOF
-[Unit]
-Description=NAVISAR Controller Service
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=$RUN_USER
-WorkingDirectory=$ROOT_DIR
-Environment=PYTHONUNBUFFERED=1
-Environment=NAVISAR_SERVICE_NAME=$SERVICE_NAME
-Environment=NAVISAR_CONTROL_HOST=0.0.0.0
-Environment=NAVISAR_CONTROL_PORT=8770
-Environment=NAVISAR_DASHBOARD_PORT=8765
-ExecStart=/usr/bin/env python3 $CTRL_RUNNER
-Restart=always
-RestartSec=2
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-echo "Installing $CTRL_SERVICE_PATH ..."
-sudo cp "$ctrl_tmpfile" "$CTRL_SERVICE_PATH"
-rm -f "$ctrl_tmpfile"
-sudo systemctl daemon-reload
-sudo systemctl enable "$CTRL_SERVICE_NAME"
-sudo systemctl restart "$CTRL_SERVICE_NAME"
+# Remove the legacy controller service if it was previously installed.
+LEGACY_CTRL_SERVICE_NAME="navisar-control.service"
+LEGACY_CTRL_SERVICE_PATH="/etc/systemd/system/$LEGACY_CTRL_SERVICE_NAME"
+if sudo test -f "$LEGACY_CTRL_SERVICE_PATH"; then
+  echo "Removing legacy $LEGACY_CTRL_SERVICE_NAME ..."
+  sudo systemctl stop "$LEGACY_CTRL_SERVICE_NAME" || true
+  sudo systemctl disable "$LEGACY_CTRL_SERVICE_NAME" || true
+  sudo rm -f "$LEGACY_CTRL_SERVICE_PATH"
+  sudo systemctl daemon-reload
+fi
 
 echo "Autostart enabled."
 echo "Check status with:"
 echo "  sudo systemctl status $SERVICE_NAME"
 echo "  sudo journalctl -u $SERVICE_NAME -f"
-echo "Controller status:"
-echo "  sudo systemctl status $CTRL_SERVICE_NAME"
-echo "  sudo journalctl -u $CTRL_SERVICE_NAME -f"
