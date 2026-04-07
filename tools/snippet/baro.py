@@ -1,4 +1,5 @@
 import argparse
+import copy
 import time
 
 from pymavlink import mavutil
@@ -37,8 +38,56 @@ def pressure_to_alt_m(pressure_hpa, temp_c):
     return (t_k / 0.0065) * (1.0 - (pressure_hpa / 1013.25) ** (1.0 / 5.255))
 
 
+def install_pymavlink_instance_workaround():
+    """Guard against pymavlink messages with instance ids but no instance map."""
+    original_add_message = mavutil.add_message
+
+    def safe_add_message(messages, mtype, msg):
+        if (
+            getattr(msg, "_instance_field", None) is not None
+            and getattr(msg, msg._instance_field, None) is not None
+            and getattr(msg, "_instances", None) is None
+        ):
+            msg._instances = {}
+
+        existing = messages.get(mtype)
+        if (
+            existing is not None
+            and getattr(existing, "_instance_field", None) is not None
+            and getattr(existing, "_instances", None) is None
+        ):
+            existing._instances = {}
+
+        try:
+            return original_add_message(messages, mtype, msg)
+        except TypeError as exc:
+            if "NoneType" not in str(exc) or "item assignment" not in str(exc):
+                raise
+
+            instance_field = getattr(msg, "_instance_field", None)
+            instance_value = getattr(msg, instance_field, None) if instance_field else None
+            if instance_field is None or instance_value is None:
+                raise
+
+            if mtype not in messages:
+                messages[mtype] = copy.copy(msg)
+                messages[mtype]._instances = {instance_value: msg}
+            else:
+                if getattr(messages[mtype], "_instances", None) is None:
+                    messages[mtype]._instances = {}
+                messages[mtype]._instances[instance_value] = msg
+                prev_instances = messages[mtype]._instances
+                messages[mtype] = copy.copy(msg)
+                messages[mtype]._instances = prev_instances
+
+            messages[f"{mtype}[{instance_value}]"] = copy.copy(msg)
+
+    mavutil.add_message = safe_add_message
+
+
 def read_baro(args):
     mavutil.mavlink.MAVLINK20 = 1
+    install_pymavlink_instance_workaround()
     conn = mavutil.mavlink_connection(args.port, baud=args.baud)
 
     if args.wait_heartbeat:

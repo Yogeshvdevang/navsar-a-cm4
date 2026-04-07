@@ -2,8 +2,8 @@
 """Standalone MTF-01 optical-flow to Pixhawk MAVLink bridge.
 
 Sends:
-  OPTICAL_FLOW     (#100)  — read by ArduPilot FLOW_TYPE=6, shows in opt_qua
-  DISTANCE_SENSOR  (#132)  — read by ArduPilot RNGFND1_TYPE=10, shows in rangefinder1
+  OPTICAL_FLOW     (#100)  — read by ArduPilot FLOW_TYPE=6, shows in MAVLink Inspector
+  DISTANCE_SENSOR  (#132)  — consumed by ArduPilot for rangefinder1
 
 Dependencies:
   pip install pyserial pymavlink
@@ -23,6 +23,7 @@ MICOLINK_MSG_ID_RANGE_SENSOR = 0x51
 MICOLINK_MAX_PAYLOAD_LEN = 64
 
 FOCAL_LENGTH_PX = 16.0   # tune for your lens
+DEFAULT_SEND_RATE_HZ = 1.0  # change this to set MAVLink send frequency
 
 
 def _bool_arg(value):
@@ -34,6 +35,13 @@ def _bool_arg(value):
     if text in {"0", "false", "no", "off"}:
         return False
     raise argparse.ArgumentTypeError(f"Invalid boolean value: {value}")
+
+
+def _positive_float(value):
+    number = float(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError(f"Value must be > 0, got {value}")
+    return number
 
 
 # ─────────────────────────────────────────────────────────────
@@ -309,61 +317,48 @@ class MavlinkInterface:
             time.sleep(1.0)
 
     def send_optical_flow(self, sample: OpticalFlowSample):
-        """
-        Send OPTICAL_FLOW message (#100).
-        This is what ArduPilot FLOW_TYPE=6 reads to populate opt_qua
-        in the Mission Planner Status window.
+        """Send OPTICAL_FLOW (#100) so FC and inspector can see flow data."""
+        time_usec = int(time.time() * 1_000_000)
+        height_m = sample.height_m
 
-        Fields:
-          flow_x / flow_y    — raw pixel flow (int16, dpix)
-          flow_comp_m_x/y    — compensated velocity m/s
-          quality            — 0-255
-          ground_distance    — metres from lidar
-        """
-        time_usec  = int(time.time() * 1_000_000)
-        h          = sample.height_m
-
-        # Compensated velocity: pixel_flow × height / focal_length
-        comp_x = (sample.flow_vx * h / FOCAL_LENGTH_PX) if h > 0 else 0.0
-        comp_y = (sample.flow_vy * h / FOCAL_LENGTH_PX) if h > 0 else 0.0
+        comp_x = (sample.flow_vx * height_m / FOCAL_LENGTH_PX) if height_m > 0 else 0.0
+        comp_y = (sample.flow_vy * height_m / FOCAL_LENGTH_PX) if height_m > 0 else 0.0
 
         try:
             self.master.mav.optical_flow_send(
-                time_usec,               # uint64  µs
-                0,                       # uint8   sensor_id
-                int(sample.flow_vx),     # int16   flow_x  [dpix]
-                int(sample.flow_vy),     # int16   flow_y  [dpix]
-                float(comp_x),           # float   flow_comp_m_x [m/s]
-                float(comp_y),           # float   flow_comp_m_y [m/s]
-                int(sample.flow_quality),# uint8   quality
-                float(h),                # float   ground_distance [m]
+                time_usec,
+                0,
+                int(sample.flow_vx),
+                int(sample.flow_vy),
+                float(comp_x),
+                float(comp_y),
+                int(sample.flow_quality),
+                float(height_m),
             )
             self.flow_sent += 1
-            if self.flow_sent % 200 == 0:
-                print(f"[MAVLink] flow_sent={self.flow_sent}  range_sent={self.range_sent}")
         except Exception as e:
             print(f"[MAVLink] ⚠ optical_flow_send error: {e}")
 
     def send_distance_sensor(self, sample: OpticalFlowSample,
-                              range_min_m=0.01, range_max_m=8.0):
+                             range_min_m=0.01, range_max_m=8.0):
         """
         Send DISTANCE_SENSOR message (#132).
-        Populates rangefinder1 in Mission Planner Status window.
         """
         if not sample.dist_ok:
             return
-        distance_m  = sample.distance_mm / 1000.0
-        quality     = int(sample.flow_quality)
-        covariance  = int(max(0, min(50, 50 - (quality // 5)))) if quality > 0 else 255
+        distance_m = sample.distance_mm / 1000.0
+        distance_m = max(range_min_m, min(range_max_m, distance_m))
+        quality = int(sample.flow_quality)
+        covariance = int(max(0, min(50, 50 - (quality // 5)))) if quality > 0 else 255
 
         try:
             self.master.mav.distance_sensor_send(
-                int(time.time() * 1000) % (2**32),   # time_boot_ms
-                int(range_min_m * 100),               # min_distance cm
-                int(range_max_m * 100),               # max_distance cm
-                int(distance_m * 100),                # current_distance cm
+                int(time.time() * 1000) % (2**32),              # time_boot_ms
+                int(range_min_m * 100),                         # min_distance cm
+                int(range_max_m * 100),                         # max_distance cm
+                int(distance_m * 100),                          # current_distance cm
                 mavutil.mavlink.MAV_DISTANCE_SENSOR_LASER,
-                0,                                    # sensor_id
+                0,                                              # sensor_id
                 mavutil.mavlink.MAV_SENSOR_ROTATION_PITCH_270,  # facing down
                 covariance,
             )
@@ -430,8 +425,10 @@ def parse_args():
     p.add_argument("--mav-baud",           type=int,   default=115200)
     p.add_argument("--source-system",      type=int,   default=1)
     p.add_argument("--source-component",   type=int,   default=192)
-    p.add_argument("--send-interval-s",    type=float, default=0.02,
-                   help="How often to send MAVLink messages (default 0.02 = 50 Hz)")
+    p.add_argument("--send-rate-hz",       type=_positive_float, default=DEFAULT_SEND_RATE_HZ,
+                   help=f"MAVLink send rate in Hz (default {DEFAULT_SEND_RATE_HZ})")
+    p.add_argument("--send-interval-s",    type=_positive_float, default=None,
+                   help="How often to send MAVLink messages in seconds; overrides --send-rate-hz")
     p.add_argument("--range-min-m",        type=float, default=0.01)
     p.add_argument("--range-max-m",        type=float, default=8.0)
     p.add_argument("--mav-print",          type=_bool_arg, default=True)
@@ -441,14 +438,16 @@ def parse_args():
 
 def main():
     args = parse_args()
+    send_interval_s = args.send_interval_s if args.send_interval_s is not None else (1.0 / args.send_rate_hz)
+    send_rate_hz = 1.0 / send_interval_s
 
     print("=" * 60)
     print("  MTF-01 → Pixhawk MAVLink Bridge")
     print("=" * 60)
     print(f"  Sensor : {args.flow_port} @ {args.flow_baud}")
     print(f"  Pixhawk: {args.mav_port}  @ {args.mav_baud}")
-    print(f"  Rate   : {1.0/args.send_interval_s:.0f} Hz  "
-          f"(send_interval={args.send_interval_s}s)")
+    print(f"  Rate   : {send_rate_hz:.0f} Hz  "
+          f"(send_interval={send_interval_s:.4f}s)")
     print()
 
     reader = MTF01OpticalFlowReader(
@@ -468,7 +467,7 @@ def main():
     )
 
     bridge = OpticalFlowBridge(
-        send_interval_s = args.send_interval_s,
+        send_interval_s = send_interval_s,
         print_enabled   = args.mav_print,
         range_min_m     = args.range_min_m,
         range_max_m     = args.range_max_m,

@@ -525,7 +525,7 @@ def parse_args():
     )
     parser.add_argument(
         "--mav-port",
-        default="/dev/ttyACM1",
+        default="/dev/ttyACM0",
         help="Pixhawk MAVLink serial device or UDP endpoint.",
     )
     parser.add_argument("--mav-baud", type=int, default=115200, help="MAVLink baud rate.")
